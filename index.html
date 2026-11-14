@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#183c2e">
+    <meta name="description" content="A sample FieldShift farm dashboard prototype for exploring soil, weather, and crop rotations.">
+    <title>FieldShift — Farm dashboard</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="fieldshift.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <svg class="icon-library" aria-hidden="true" focusable="false">
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+      <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M12 21v-9m0 4c-6 0-8-3-8-8 5 0 8 2 8 8Zm0-3c0-5 2-8 8-8 0 5-2 8-8 8Z"/></symbol>
+      <symbol id="i-map" viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15m6-12v15"/></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .4-8A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9Z"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m7 17 10-10M7 7h10v10"/></symbol>
+      <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-4-7-13-7-13S5 11 5 15a7 7 0 0 0 7 7Z"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20 4c-8 0-14 3-14 10a6 6 0 0 0 6 6c7 0 10-8 8-16Z"/><path d="M4 21c3-5 6-8 12-11"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12h4"/></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4.1 1.9c-1.2 1-1.7 1.4-1.7 3.1m0 3h.01"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+      <symbol id="i-wheat" viewBox="0 0 24 24"><path d="M12 22V4m0 6c-3 0-5-2-5-5 3 0 5 2 5 5Zm0 4c-3 0-5-2-5-5 3 0 5 2 5 5Zm0-8c3 0 5-2 5-5-3 0-5 2-5 5Zm0 12c-3 0-5-2-5-5 3 0 5 2 5 5Zm0-4c3 0 5-2 5-5-3 0-5 2-5 5Z"/></symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M2 14h4m4-6h4m4 8h4"/></symbol>
+    </svg>
+
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#" aria-label="FieldShift home">
+          <span class="brand-mark"><svg class="icon"><use href="#i-sprout"/></svg></span>
+          <span>field<span class="brand-light">shift</span><small>FARM, IN YOUR FLOW</small></span>
+        </a>
+        <div class="farm-switcher">
+          <span class="farm-avatar">MP</span>
+          <span class="farm-copy"><strong>Meadow Path Farm</strong><small id="farm-location">Charlotte, NC · demo</small></span>
+          <svg class="icon switch-chevron"><use href="#i-chevron-down"/></svg>
+        </div>
+        <span class="nav-label">WORKSPACE</span>
+        <nav class="main-nav" aria-label="Main navigation">
+          <button class="nav-link active" data-screen="overview" aria-current="page"><svg class="icon"><use href="#i-grid"/></svg>Overview</button>
+          <button class="nav-link" data-screen="rotation"><svg class="icon"><use href="#i-sprout"/></svg>Rotation explorer<span class="nav-badge">NEW</span></button>
+          <button class="nav-link" data-screen="simulator"><svg class="icon"><use href="#i-sliders"/></svg>Scenario simulator<span class="nav-badge">TRY</span></button>
+          <button class="nav-link" data-screen="fields"><svg class="icon"><use href="#i-map"/></svg>Fields</button>
+          <button class="nav-link" data-screen="weather"><svg class="icon"><use href="#i-cloud"/></svg>Weather &amp; soil</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="season-card">
+            <div class="season-icon"><svg class="icon"><use href="#i-sun"/></svg></div>
+            <div><small>GROWING SEASON</small><strong>Spring 2026</strong></div>
+            <span class="season-dot"></span>
+          </div>
+          <div class="sidebar-profile">
+            <span class="profile-avatar">JD</span>
+            <span><strong>Jamie Davis</strong><small>Farm manager</small></span>
+            <button class="icon-button profile-more" aria-label="Profile options">···</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <button class="icon-button mobile-menu" id="menu-toggle" aria-label="Open navigation"><svg class="icon"><use href="#i-menu"/></svg></button>
+          <div class="breadcrumbs"><span>Meadow Path Farm</span><svg class="icon"><use href="#i-chevron"/></svg><strong id="breadcrumb-current">Overview</strong></div>
+          <div class="topbar-actions">
+            <span class="sample-pill"><span></span> SAMPLE DATA</span>
+            <button class="icon-button notification-button" aria-label="Notifications"><svg class="icon"><use href="#i-bell"/></svg><i></i></button>
+            <button class="help-button"><svg class="icon"><use href="#i-help"/></svg><span>Help</span></button>
+          </div>
+        </header>
+
+        <div class="content">
+          <section class="view active" id="screen-overview" aria-labelledby="page-title">
+            <div class="page-heading">
+              <div>
+                <div class="eyebrow"><span class="status-pulse"></span> YOUR FARM, AT A GLANCE</div>
+                <h1 id="page-title">Good morning, Jamie <span class="wave">✳</span></h1>
+                <p class="page-subtitle">A little clarity for the growing season ahead.</p>
+              </div>
+              <label class="field-select-label">VIEWING FIELD
+                <select id="field-select" aria-label="Choose a field">
+                  <option value="north">North 40 · 40 acres</option>
+                  <option value="creek">Creekside · 28 acres</option>
+                  <option value="west">West Meadow · 64 acres</option>
+                </select>
+              </label>
+            </div>
+            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Everything here is sample data to show how FieldShift could work — not a live farm reading.</span></div>
+
+            <div class="planning-toolbar">
+              <label class="location-control" for="home-location"><span>LOCATION PROFILE</span>
+                <select id="home-location">
+                  <option value="charlotte">Charlotte, NC</option>
+                  <option value="nigeria">Kano, Nigeria</option>
+                  <option value="india">Pune, India</option>
+                  <option value="netherlands">Wageningen, Netherlands</option>
+                </select>
+              </label>
+              <div class="location-presets" role="group" aria-label="Quick location profiles">
+                <button class="location-preset active" type="button" data-location="charlotte" aria-pressed="true">Charlotte</button>
+                <button class="location-preset" type="button" data-location="nigeria" aria-pressed="false">Nigeria</button>
+                <button class="location-preset" type="button" data-location="india" aria-pressed="false">India</button>
+                <button class="location-preset" type="button" data-location="netherlands" aria-pressed="false">Netherlands</button>
+              </div>
+              <div class="mode-toggle" role="group" aria-label="Dashboard mode">
+                <button class="mode-button active" data-mode="farmer" aria-pressed="true">Farmer mode</button>
+                <button class="mode-button" data-mode="judge" aria-pressed="false">Judge / Tech</button>
+              </div>
+              <button class="questionnaire-open" id="questionnaire-open"><svg class="icon"><use href="#i-sprout"/></svg> Open field questionnaire</button>
+            </div>
+
+            <article class="copilot-insight">
+              <div class="insight-header"><span class="insight-emblem">✳</span><span class="panel-kicker">CO-PILOT INSIGHT · DEMO</span><span class="insight-sample">SAMPLE NOTE</span></div>
+              <p id="copilot-insight-copy">For this rain-fed Charlotte sample following corn, repeating corn may increase pest pressure and heat exposure. Compare a cover crop or a different rotation, then check local field history before deciding.</p>
+              <div class="insight-footnote">Questionnaire-style example with synthetic indicators only · no AI or live NASA / ESA / JAXA telemetry connected</div>
+            </article>
+
+            <section class="risk-section" aria-labelledby="risk-title">
+              <div class="section-heading">
+                <div><span class="panel-kicker">01 · FIELD SIGNALS</span><h2 id="risk-title">What to keep an eye on</h2><p id="mode-hint">Plain-language view · illustrative profile, not a sensor reading</p></div>
+                <span class="sample-location-chip"><span class="live-dot"></span><span id="risk-location-name">Charlotte, NC</span> sample profile</span>
+              </div>
+              <div class="risk-grid">
+                <article class="risk-card">
+                  <div class="risk-card-heading"><span>Soil moisture</span><strong id="risk-moisture-value">65%</strong></div>
+                  <div class="risk-track moisture-track" id="risk-moisture-meter" role="meter" aria-label="Sample soil moisture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="65"><span style="--score:65%"></span></div>
+                  <div class="risk-card-foot"><span>Dry</span><strong id="risk-moisture-status">Optimal</strong><span>Wet</span></div>
+                </article>
+                <article class="risk-card">
+                  <div class="risk-card-heading"><span>Erosion risk</span><strong id="risk-erosion-value">42 / 100</strong></div>
+                  <div class="risk-track risk-track-reverse" id="risk-erosion-meter" role="meter" aria-label="Sample erosion risk" aria-valuemin="0" aria-valuemax="100" aria-valuenow="42"><span style="--score:42%"></span></div>
+                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-erosion-status">Moderate</strong><span>Higher</span></div>
+                </article>
+                <article class="risk-card">
+                  <div class="risk-card-heading"><span>Heat anomaly</span><strong id="risk-heat-value">62 / 100</strong></div>
+                  <div class="risk-track risk-track-reverse" id="risk-heat-meter" role="meter" aria-label="Sample heat anomaly" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62"><span style="--score:62%"></span></div>
+                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-heat-status">Elevated</strong><span>Higher</span></div>
+                </article>
+                <article class="risk-card">
+                  <div class="risk-card-heading"><span>Pest / insect risk</span><strong id="risk-pest-value">84 / 100</strong></div>
+                  <div class="risk-track risk-track-reverse" id="risk-pest-meter" role="meter" aria-label="Sample pest and insect risk" aria-valuemin="0" aria-valuemax="100" aria-valuenow="84"><span style="--score:84%"></span></div>
+                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-pest-status">High</strong><span>Higher</span></div>
+                </article>
+              </div>
+              <div class="confidence-note"><svg class="icon"><use href="#i-help"/></svg><span><strong>Sample profile coverage: <span id="sample-coverage">88%</span>.</strong> Two of 12 illustrative tiles are marked cloudy; verify topsoil moisture in the field before sowing. This is not a real confidence score or satellite observation.</span></div>
+            </section>
+
+            <section class="strategy-section" aria-labelledby="strategy-title">
+              <div class="section-heading">
+                <div><span class="panel-kicker">02 · SAME FIVE LENSES FOR EACH OPTION</span><h2 id="strategy-title">Compare three strategies</h2><p>Illustrative planning scores only—not yield, cost, or pest forecasts.</p></div>
+                <button class="text-button" data-screen="rotation">Explore crop rotations <svg class="icon"><use href="#i-chevron"/></svg></button>
+              </div>
+              <div class="strategy-grid">
+                <article class="strategy-card">
+                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY A · STATUS QUO</span><span class="strategy-number">01</span></div>
+                  <h3>Repeat corn</h3><p class="strategy-sequence">Corn → corn monoculture</p>
+                  <div class="strategy-scores">
+                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:72%"></i></span><strong>72</strong></div>
+                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:45%"></i></span><strong>45</strong></div>
+                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:38%"></i></span><strong>38</strong></div>
+                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:30%"></i></span><strong>30</strong></div>
+                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:95%"></i></span><strong>95</strong></div>
+                  </div>
+                  <div class="strategy-risk"><strong>Trade-off</strong><span>Familiar approach; repeated corn can increase some pest and input pressures.</span></div>
+                </article>
+                <article class="strategy-card strategy-recommended">
+                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY B · COVER CROP</span><span class="strategy-number">02</span></div>
+                  <h3>Corn + crimson clover</h3><p class="strategy-sequence">Corn → crimson clover cover</p>
+                  <div class="strategy-scores">
+                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:88%"></i></span><strong>88</strong></div>
+                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:82%"></i></span><strong>82</strong></div>
+                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:94%"></i></span><strong>94</strong></div>
+                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:91%"></i></span><strong>91</strong></div>
+                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:84%"></i></span><strong>84</strong></div>
+                  </div>
+                  <div class="strategy-risk"><strong>Trade-off</strong><span>May improve soil cover; needs a workable spring termination plan.</span></div>
+                </article>
+                <article class="strategy-card">
+                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY C · CLIMATE SHIFT</span><span class="strategy-number">03</span></div>
+                  <h3>Sorghum + rye</h3><p class="strategy-sequence">Sorghum → winter rye cover</p>
+                  <div class="strategy-scores">
+                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:81%"></i></span><strong>81</strong></div>
+                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:95%"></i></span><strong>95</strong></div>
+                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:86%"></i></span><strong>86</strong></div>
+                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:89%"></i></span><strong>89</strong></div>
+                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:70%"></i></span><strong>70</strong></div>
+                  </div>
+                  <div class="strategy-risk"><strong>Trade-off</strong><span>Could suit hotter conditions; buyer access and equipment may be limiting.</span></div>
+                </article>
+              </div>
+            </section>
+
+            <dialog class="questionnaire-dialog" id="questionnaire-dialog" aria-labelledby="questionnaire-title">
+              <form id="questionnaire-form">
+                <div class="dialog-heading"><div><span class="panel-kicker">FIELD PROFILE · SAMPLE</span><h2 id="questionnaire-title">A few details about this field</h2></div><button class="dialog-close" type="button" id="questionnaire-close" aria-label="Close questionnaire">×</button></div>
+                <label for="last-crop">What grew here last season?
+                  <select id="last-crop"><option value="corn">Corn</option><option value="soybeans">Soybeans</option><option value="sorghum">Sorghum</option><option value="other">Another crop</option></select>
+                </label>
+                <label for="irrigation-type">How is the field watered?
+                  <select id="irrigation-type"><option value="rainfed">Rain-fed</option><option value="supplemental">Some supplemental irrigation</option><option value="irrigated">Irrigated</option></select>
+                </label>
+                <label for="farm-priority">What matters most this season?
+                  <select id="farm-priority"><option value="soil">Protecting soil</option><option value="water">Managing water stress</option><option value="cost">Managing input costs</option></select>
+                </label>
+                <div class="dialog-actions"><button class="dialog-cancel" type="button" id="questionnaire-cancel">Cancel</button><button class="questionnaire-submit" type="submit">Update demo insight</button></div>
+                <p class="dialog-disclaimer">Creates a sample planning note in this browser; no AI service or farm data is contacted.</p>
+              </form>
+            </dialog>
+
+            <div class="metric-grid">
+              <article class="metric-card soil-card">
+                <div class="metric-top"><span>SOIL MOISTURE</span><span class="metric-icon soil-icon"><svg class="icon"><use href="#i-drop"/></svg></span></div>
+                <div class="metric-value"><strong data-metric="moisture">32</strong><span>%</span><span class="metric-trend good"><svg class="icon"><use href="#i-arrow-up"/></svg> 4%</span></div>
+                <p class="metric-caption" id="moisture-caption">A little dry near the surface</p>
+                <div class="mini-scale"><span style="width: 46%"></span></div>
+                <div class="scale-labels"><span>Dry</span><span>Balanced</span><span>Wet</span></div>
+              </article>
+              <article class="metric-card rain-card">
+                <div class="metric-top"><span>RAIN THIS WEEK</span><span class="metric-icon rain-icon"><svg class="icon"><use href="#i-cloud"/></svg></span></div>
+                <div class="metric-value"><strong data-metric="rain">0.8</strong><span>in</span><span class="metric-trend neutral">of 1.2 in avg.</span></div>
+                <p class="metric-caption">A gentle shower expected Thursday</p>
+                <div class="rain-bars" aria-label="Weekly rainfall sample: Monday 0.1, Tuesday 0, Wednesday 0.2, Thursday 0.4, Friday 0.1 inches">
+                  <span style="--bar:24%" title="Mon 0.1 in"></span><span style="--bar:6%" title="Tue 0 in"></span><span style="--bar:39%" title="Wed 0.2 in"></span><span class="highlight" style="--bar:72%" title="Thu 0.4 in"></span><span style="--bar:22%" title="Fri 0.1 in"></span><span style="--bar:8%" title="Sat 0 in"></span><span style="--bar:13%" title="Sun 0 in"></span>
+                </div>
+                <div class="chart-days"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+              </article>
+              <article class="metric-card ndvi-card">
+                <div class="metric-top"><span>VEGETATION VIGOR</span><span class="metric-icon leaf-icon"><svg class="icon"><use href="#i-leaf"/></svg></span></div>
+                <div class="metric-value"><strong data-metric="ndvi">0.71</strong><span class="metric-unit">NDVI</span><span class="metric-trend positive"><svg class="icon"><use href="#i-arrow-up"/></svg> healthy</span></div>
+                <p class="metric-caption">Crop growth looks steady this week</p>
+                <div class="mini-scale vegetation-scale"><span style="width: 71%"></span></div>
+                <div class="scale-labels"><span>Needs a look</span><span>Thriving</span></div>
+              </article>
+            </div>
+
+            <div class="dashboard-grid">
+              <article class="panel field-panel">
+                <div class="panel-heading">
+                  <div><div class="panel-kicker">FIELD PULSE <span class="live-dot"></span></div><h2><span id="selected-field-name">North 40</span> <span class="muted-title" id="selected-field-acres">· 40 acres</span></h2></div>
+                  <button class="text-button" data-screen="fields">View field details <svg class="icon"><use href="#i-chevron"/></svg></button>
+                </div>
+                <div class="field-map-wrap">
+                  <div class="map-label map-label-top"><span class="map-pin"></span> <span id="map-field-name">NORTH 40</span></div>
+                  <div class="field-map" role="img" aria-label="Illustrative satellite-style field map showing a healthy green crop with a slightly drier area in the southwest">
+                    <div class="map-field"><div class="crop-lines"></div><div class="field-glow"></div><span class="map-point point-one"></span><span class="map-point point-two"></span><span class="map-point point-three"></span></div>
+                    <div class="map-overlay map-overlay-top"><span class="map-legend-green"></span> Healthy growth <span class="map-legend-yellow"></span> Keep an eye on</div>
+                    <div class="map-overlay map-overlay-bottom"><svg class="icon"><use href="#i-sun"/></svg> Satellite-style view · illustrative</div>
+                    <span class="map-scale">0 <i></i> 500 ft</span>
+                  </div>
+                </div>
+                <div class="field-insight"><span class="insight-icon"><svg class="icon"><use href="#i-leaf"/></svg></span><p><strong>A small dry patch, nothing urgent.</strong> The southwest corner looks a little less green than the rest. It may be worth a walk after the next rain.</p><span class="insight-confidence">LOW CONCERN</span></div>
+              </article>
+
+              <article class="panel week-panel">
+                <div class="panel-heading">
+                  <div><div class="panel-kicker">LOOKING AHEAD</div><h2>This week</h2></div>
+                  <span class="week-date">JUN 8–14</span>
+                </div>
+                <div class="week-weather">
+                  <div class="weather-main"><span class="sun-cloud">☀</span><div><strong>Mostly mild</strong><small>Good conditions for fieldwork</small></div></div>
+                  <div class="weather-temp"><strong>72°</strong><span> / 55°</span></div>
+                </div>
+                <div class="weather-days">
+                  <div><span>MON</span><svg class="icon"><use href="#i-sun"/></svg><strong>71°</strong></div>
+                  <div><span>TUE</span><svg class="icon"><use href="#i-sun"/></svg><strong>74°</strong></div>
+                  <div><span>WED</span><svg class="icon"><use href="#i-cloud"/></svg><strong>69°</strong></div>
+                  <div class="rain-day"><span>THU</span><svg class="icon"><use href="#i-drop"/></svg><strong>66°</strong></div>
+                  <div><span>FRI</span><svg class="icon"><use href="#i-sun"/></svg><strong>73°</strong></div>
+                </div>
+                <div class="week-footnote"><svg class="icon"><use href="#i-drop"/></svg> Light rain Thursday may help with surface dryness</div>
+              </article>
+            </div>
+
+            <div class="bottom-grid">
+              <article class="panel rotation-summary">
+                <div class="panel-heading">
+                  <div><div class="panel-kicker">WHAT'S IN THE GROUND</div><h2>Your current rotation</h2></div>
+                  <button class="text-button" data-screen="rotation">Explore rotations <svg class="icon"><use href="#i-chevron"/></svg></button>
+                </div>
+                <div class="rotation-strip">
+                  <div class="crop-step crop-step-current"><span class="crop-year">2026 · NOW</span><span class="crop-symbol corn-symbol">C</span><span class="crop-name">Corn</span><span class="crop-detail">Growing</span></div>
+                  <span class="step-line"></span>
+                  <div class="crop-step"><span class="crop-year">2027</span><span class="crop-symbol soy-symbol">S</span><span class="crop-name">Soybeans</span><span class="crop-detail">Planned</span></div>
+                  <span class="step-line"></span>
+                  <div class="crop-step"><span class="crop-year">2028</span><span class="crop-symbol oat-symbol">O</span><span class="crop-name">Oats</span><span class="crop-detail">Planned</span></div>
+                  <button class="rotation-next" data-screen="rotation" aria-label="Explore crop rotations"><svg class="icon"><use href="#i-chevron"/></svg></button>
+                </div>
+              </article>
+              <article class="next-step-card">
+                <div class="next-step-top"><span class="next-icon"><svg class="icon"><use href="#i-clock"/></svg></span><span>UP NEXT</span><span class="next-date">IN 3 DAYS</span></div>
+                <h3>Walk the southwest edge</h3><p>Check that drier patch after Thursday's rain, just to be sure.</p>
+                <button class="task-button" id="task-done"><span><svg class="icon"><use href="#i-check"/></svg></span> Mark as done</button>
+              </article>
+            </div>
+            <footer class="page-footer"><span>FieldShift preview <span class="footer-dot">·</span> Made for the people who grow our food</span><span>All readings are illustrative sample data</span></footer>
+          </section>
+
+          <section class="view" id="screen-rotation" aria-labelledby="rotation-title" hidden>
+            <div class="page-heading rotation-heading">
+              <div><div class="eyebrow"><span class="status-pulse"></span> PLAN AHEAD, GROW WITH CONFIDENCE</div><h1 id="rotation-title">Crop rotation explorer</h1><p class="page-subtitle">See how a different next step might shape your soil over time.</p></div>
+              <button class="back-overview" data-screen="overview"><svg class="icon"><use href="#i-chevron"/></svg> Back to overview</button>
+            </div>
+            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Illustrative comparison.</strong> These examples are for exploration only — local conditions, crop prices, and farm practices all matter.</span></div>
+            <div class="rotation-context panel">
+              <div class="context-icon"><svg class="icon"><use href="#i-map"/></svg></div>
+              <div><span class="panel-kicker">COMPARING ROTATIONS FOR</span><h2 id="rotation-field-name">North 40 <span>· 40 acres</span></h2></div>
+              <div class="context-current"><span>CURRENT CROP</span><strong><span class="tiny-crop corn-dot"></span> <span id="rotation-current-crop">Corn · 2026</span></strong></div>
+              <span class="context-label"><span class="live-dot"></span> SAMPLE SCENARIOS</span>
+            </div>
+            <div class="comparison-heading"><div><div class="panel-kicker">THREE WAYS FORWARD</div><h2>Small changes. Different outcomes.</h2><p>Based on general crop-rotation patterns, not a forecast for your farm.</p></div><span class="horizon-pill"><svg class="icon"><use href="#i-clock"/></svg> 3-year outlook</span></div>
+            <div class="scenario-grid">
+              <article class="scenario-card current-scenario">
+                <div class="scenario-topline"><span class="scenario-tag">YOUR CURRENT PLAN</span><span class="scenario-index">01</span></div>
+                <h3>Keep your rotation</h3><p class="scenario-desc">Corn → soybeans → oats</p>
+                <div class="scenario-years"><div><span>2026</span><b class="year-corn">Corn</b></div><i></i><div><span>2027</span><b class="year-soy">Soybeans</b></div><i></i><div><span>2028</span><b class="year-oat">Oats</b></div></div>
+                <div class="scenario-impact"><div class="impact-label">SOIL COVER</div><div class="impact-meter"><span style="width: 56%"></span></div><span class="impact-value">Moderate</span></div>
+                <div class="scenario-impact"><div class="impact-label">CROP DIVERSITY</div><div class="impact-meter"><span style="width: 58%"></span></div><span class="impact-value">Good</span></div>
+                <div class="scenario-footer"><span class="scenario-bullet"></span><p>Familiar plan; a fall cover crop could add more soil protection.</p></div>
+              </article>
+              <article class="scenario-card recommended-scenario">
+                <div class="recommended-ribbon"><svg class="icon"><use href="#i-sprout"/></svg> WORTH A LOOK</div>
+                <div class="scenario-topline"><span class="scenario-tag">OPTION A</span><span class="scenario-index">02</span></div>
+                <h3>Add a cover crop</h3><p class="scenario-desc">Corn → rye + soybeans → oats</p>
+                <div class="scenario-years"><div><span>2026</span><b class="year-corn">Corn</b></div><i></i><div><span>2027</span><b class="year-cover">Rye + soy</b></div><i></i><div><span>2028</span><b class="year-oat">Oats</b></div></div>
+                <div class="scenario-impact"><div class="impact-label">SOIL COVER</div><div class="impact-meter"><span style="width: 82%"></span></div><span class="impact-value better">Stronger</span></div>
+                <div class="scenario-impact"><div class="impact-label">CROP DIVERSITY</div><div class="impact-meter"><span style="width: 69%"></span></div><span class="impact-value">Good</span></div>
+                <div class="scenario-footer"><span class="scenario-bullet green-bullet"></span><p>Rye can keep soil covered between harvest and spring planting.</p></div>
+              </article>
+              <article class="scenario-card">
+                <div class="scenario-topline"><span class="scenario-tag">OPTION B</span><span class="scenario-index">03</span></div>
+                <h3>Bring in small grains</h3><p class="scenario-desc">Corn → oats + clover → soybeans</p>
+                <div class="scenario-years"><div><span>2026</span><b class="year-corn">Corn</b></div><i></i><div><span>2027</span><b class="year-oat">Oats + clover</b></div><i></i><div><span>2028</span><b class="year-soy">Soybeans</b></div></div>
+                <div class="scenario-impact"><div class="impact-label">SOIL COVER</div><div class="impact-meter"><span style="width: 76%"></span></div><span class="impact-value better">Stronger</span></div>
+                <div class="scenario-impact"><div class="impact-label">CROP DIVERSITY</div><div class="impact-meter"><span style="width: 88%"></span></div><span class="impact-value better">Higher</span></div>
+                <div class="scenario-footer"><span class="scenario-bullet gold-bullet"></span><p>A longer break between corn crops can support a more varied rotation.</p></div>
+              </article>
+            </div>
+            <div class="plain-language panel">
+              <div class="plain-icon"><svg class="icon"><use href="#i-help"/></svg></div>
+              <div><span class="panel-kicker">A NOTE ON THESE COMPARISONS</span><h3>Helpful starting points, not prescriptions.</h3><p>Cover crops and more varied rotations often help protect soil between cash crops. The best fit depends on your field, timing, equipment, and local advice. Treat these examples as conversation starters with an agronomist who knows your ground.</p></div>
+            </div>
+            <footer class="page-footer"><span>FieldShift preview <span class="footer-dot">·</span> Made for the people who grow our food</span><span>All readings are illustrative sample data</span></footer>
+          </section>
+
+          <section class="view" id="screen-simulator" aria-labelledby="simulator-title" hidden>
+            <div class="page-heading">
+              <div><div class="eyebrow"><span class="status-pulse"></span> A SIMPLE "WHAT IF?" FOR YOUR FARM</div><h1 id="simulator-title">Field scenario analysis</h1><p class="page-subtitle">Try a few conditions and compare possible soil and crop clues.</p></div>
+            </div>
+            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Simulation only.</strong> Results use a broad regional demo baseline and simple sample adjustments—not a forecast, address lookup, or crop model.</span></div>
+            <form class="simulator-controls panel" id="simulator-form">
+              <label class="simulator-input-group" for="simulator-zip">U.S. ZIP CODE
+                <input id="simulator-zip" name="zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" value="53590" aria-describedby="zip-help" required>
+                <small id="zip-help">The first digit chooses a broad demo region, not your exact local climate.</small>
+              </label>
+              <label class="simulator-input-group" for="simulator-crop">CROP
+                <select id="simulator-crop" name="crop"><option value="corn">Corn</option><option value="soybeans">Soybeans</option><option value="small-grains">Small grains</option></select>
+                <small>Choose the crop in this field.</small>
+              </label>
+              <label class="simulator-input-group" for="simulator-acres">FIELD SIZE · ACRES
+                <input id="simulator-acres" name="acres" type="number" min="0.1" max="10000" step="0.1" value="40" required>
+                <small>Used for a rough gross-rain volume.</small>
+              </label>
+              <label class="simulator-input-group" for="simulator-soil">SOIL TEXTURE
+                <select id="simulator-soil" name="soil"><option value="sandy">Sandy</option><option value="loam" selected>Loam</option><option value="clay">Clay</option></select>
+                <small>A broad texture category.</small>
+              </label>
+              <label class="simulator-input-group" for="simulator-stage">CROP STAGE
+                <select id="simulator-stage" name="stage"><option value="early">Recently planted</option><option value="vegetative" selected>Vegetative growth</option><option value="reproductive">Flowering / reproductive</option><option value="fill">Grain / pod fill</option><option value="harvest">Near harvest</option></select>
+                <small>Helps frame which checks may matter.</small>
+              </label>
+              <label class="simulator-input-group" for="simulator-moisture">STARTING SOIL MOISTURE · %
+                <input id="simulator-moisture" name="moisture" type="number" min="0" max="100" step="1" value="32" required>
+                <small>Enter a recent estimate; default is sample data.</small>
+              </label>
+              <label class="simulator-input-group" for="simulator-situation">WHAT WOULD YOU LIKE TO TRY?
+                <select id="simulator-situation" name="situation">
+                  <option value="typical">Typical week</option>
+                  <option value="dry">Two-week dry spell</option>
+                  <option value="rain">Heavy rain</option>
+                  <option value="heat">One-week heat wave</option>
+                </select>
+                <small>Compare a few possible conditions for the selected field.</small>
+              </label>
+              <button class="run-simulation" type="submit"><svg class="icon"><use href="#i-sliders"/></svg> Run simulation</button>
+            </form>
+
+            <div class="simulation-summary">
+              <div><div class="panel-kicker">ANALYSIS PROFILE</div><h2><span id="simulation-field">North 40</span> <span>· ZIP <span id="simulation-zip">53590</span></span></h2></div>
+              <span class="region-chip"><span class="live-dot"></span><span id="simulation-region">Upper Midwest</span> demo baseline</span>
+            </div>
+            <p class="simulation-input-summary" id="simulation-input-summary">Corn · Loam soil · Vegetative growth · 40 acres · Starting moisture 32%</p>
+            <div class="simulation-section-heading"><span>01 · WEATHER CONDITIONS</span><h2>Scenario snapshot</h2><p>Rainfall and temperature shift with the ZIP-based demo region and selected situation.</p></div>
+            <div class="simulation-results-grid weather-results" aria-live="polite">
+              <article class="simulation-result-card"><span class="simulation-result-label">SAMPLE RAINFALL</span><strong id="simulation-rain">0.8 in</strong><span id="simulation-rain-note">over 7 days</span><div class="simulation-result-icon rain-icon"><svg class="icon"><use href="#i-drop"/></svg></div></article>
+              <article class="simulation-result-card"><span class="simulation-result-label">TYPICAL HIGH</span><strong id="simulation-temperature">72°F</strong><span id="simulation-temperature-note">illustrative daytime temperature</span><div class="simulation-result-icon warmth-icon"><svg class="icon"><use href="#i-sun"/></svg></div></article>
+              <article class="simulation-result-card"><span class="simulation-result-label">GROSS RAIN ON FIELD</span><strong id="simulation-volume">~869k gal</strong><span>approx. total, not plant-available</span><div class="simulation-result-icon soil-icon"><svg class="icon"><use href="#i-drop"/></svg></div></article>
+            </div>
+            <div class="simulation-section-heading"><span>02 · FIELD RESPONSE</span><h2>Soil and crop clues</h2><p>Simple indicators suggest what a farmer might want to keep an eye on.</p></div>
+            <div class="simulation-results-grid field-results" aria-live="polite">
+              <article class="simulation-result-card"><span class="simulation-result-label">SOIL MOISTURE CLUE</span><strong id="simulation-moisture">32%</strong><span id="simulation-moisture-note">sample surface moisture</span><div class="simulation-result-icon soil-icon"><svg class="icon"><use href="#i-drop"/></svg></div></article>
+              <article class="simulation-result-card"><span class="simulation-result-label">VEGETATION VIGOR CLUE</span><strong id="simulation-vegetation">0.71</strong><span>illustrative sample index · NDVI</span><div class="simulation-result-icon leaf-icon"><svg class="icon"><use href="#i-leaf"/></svg></div></article>
+              <article class="simulation-result-card"><span class="simulation-result-label">OVERALL CONDITION SIGNAL</span><strong id="simulation-stress">Moderate</strong><span id="simulation-stress-note">some attention in this example</span><div class="simulation-result-icon leaf-icon"><svg class="icon"><use href="#i-leaf"/></svg></div></article>
+            </div>
+            <article class="simulation-impact panel">
+              <span class="impact-icon"><svg class="icon"><use href="#i-sprout"/></svg></span>
+              <div><span class="panel-kicker">03 · RISK &amp; NEXT STEPS</span><h2 id="simulation-impact-title">A typical week</h2><p id="simulation-impact-copy">This is a simple starting point for thinking about your field—not a prediction of what will happen.</p><ul class="simulation-recommendations" id="simulation-recommendations"><li>Check soil moisture below the surface before changing plans.</li><li>Compare the sample with a field walk and local advice.</li></ul></div>
+              <span class="simulation-badge">WHAT IF?</span>
+            </article>
+            <div class="simulation-method"><strong>How this works:</strong> ZIP selects a broad demo region; crop, stage, soil, starting moisture, field size, and scenario shape simple sample rules. Gross rain volume is a rough rainfall-times-acreage estimate, not water available to crops. Nothing here uses a precise location or live weather. Use field observations and trusted local advice for real decisions.</div>
+            <footer class="page-footer"><span>FieldShift preview <span class="footer-dot">·</span> Made for the people who grow our food</span><span>All readings are illustrative sample data</span></footer>
+          </section>
+
+          <section class="view placeholder-view" id="screen-fields" aria-labelledby="fields-title" hidden>
+            <div class="page-heading"><div><div class="eyebrow"><span class="status-pulse"></span> KNOW EVERY CORNER</div><h1 id="fields-title">Your fields</h1><p class="page-subtitle">A simple picture of the land you're looking after.</p></div></div>
+            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Field sizes and readings shown here are sample data.</span></div>
+            <div class="field-list-grid">
+              <button class="field-list-card" data-select-field="north"><span class="field-list-visual visual-north"><span>40</span><small>ACRES</small></span><span class="field-list-copy"><strong>North 40</strong><small>40 acres · Corn</small><span class="field-list-status"><i></i> Healthy growth</span></span><svg class="icon"><use href="#i-chevron"/></svg></button>
+              <button class="field-list-card" data-select-field="creek"><span class="field-list-visual visual-creek"><span>28</span><small>ACRES</small></span><span class="field-list-copy"><strong>Creekside</strong><small>28 acres · Soybeans</small><span class="field-list-status"><i></i> Good moisture</span></span><svg class="icon"><use href="#i-chevron"/></svg></button>
+              <button class="field-list-card" data-select-field="west"><span class="field-list-visual visual-west"><span>64</span><small>ACRES</small></span><span class="field-list-copy"><strong>West Meadow</strong><small>64 acres · Oats</small><span class="field-list-status"><i></i> Growth emerging</span></span><svg class="icon"><use href="#i-chevron"/></svg></button>
+            </div>
+          </section>
+
+          <section class="view placeholder-view" id="screen-weather" aria-labelledby="weather-title" hidden>
+            <div class="page-heading"><div><div class="eyebrow"><span class="status-pulse"></span> WHAT THE SKY AND SOIL ARE TELLING YOU</div><h1 id="weather-title">Weather &amp; soil</h1><p class="page-subtitle">A few useful clues, without the jargon.</p></div></div>
+            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Forecast and soil readings below are invented sample data, not a live forecast.</span></div>
+            <div class="weather-detail-grid">
+              <article class="panel weather-detail-card"><span class="metric-icon rain-icon"><svg class="icon"><use href="#i-cloud"/></svg></span><span class="panel-kicker">THIS WEEK'S OUTLOOK</span><h2>Mild, with a little rain</h2><p>Mostly comfortable fieldwork weather. Light showers Thursday could help with surface dryness.</p><div class="detail-stat"><strong id="weather-rain">0.8 in</strong><span>sample rainfall this week</span></div></article>
+              <article class="panel weather-detail-card"><span class="metric-icon soil-icon"><svg class="icon"><use href="#i-drop"/></svg></span><span class="panel-kicker">SOIL MOISTURE · <span id="weather-field-name">NORTH 40</span></span><h2 id="weather-soil-heading">A little dry up top</h2><p id="weather-moisture-note">Sample surface moisture is below the balanced range, but recent rainfall and a field walk will tell you more.</p><div class="detail-stat"><strong id="weather-moisture">32%</strong><span>illustrative sample reading</span></div></article>
+              <article class="panel weather-detail-card"><span class="metric-icon leaf-icon"><svg class="icon"><use href="#i-leaf"/></svg></span><span class="panel-kicker">SATELLITE VEGETATION CLUE</span><h2>Mostly steady growth</h2><p>Vegetation looks generally healthy in this sample view. One small patch may be worth a closer look after rain.</p><div class="detail-stat"><strong id="weather-ndvi">0.71</strong><span>sample vegetation index (NDVI)</span></div></article>
+            </div>
+          </section>
+        </div>
+
+        <nav class="mobile-nav" aria-label="Mobile navigation">
+          <button class="nav-link active" data-screen="overview" aria-current="page"><svg class="icon"><use href="#i-grid"/></svg><span>Home</span></button>
+          <button class="nav-link" data-screen="rotation"><svg class="icon"><use href="#i-sprout"/></svg><span>Rotation</span></button>
+          <button class="nav-link" data-screen="simulator"><svg class="icon"><use href="#i-sliders"/></svg><span>Simulate</span></button>
+          <button class="nav-link" data-screen="fields"><svg class="icon"><use href="#i-map"/></svg><span>Fields</span></button>
+          <button class="nav-link" data-screen="weather"><svg class="icon"><use href="#i-cloud"/></svg><span>Weather</span></button>
+        </nav>
+      </main>
+    </div>
+  </body>
+</html>

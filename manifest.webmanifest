@@ -1,0 +1,17 @@
+{
+  "name": "FieldShift Farm Dashboard",
+  "short_name": "FieldShift",
+  "description": "A sample farm dashboard prototype for exploring field conditions and crop rotations.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f8f4",
+  "theme_color": "#183c2e",
+  "icons": [
+    {
+      "src": "fieldshift.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
