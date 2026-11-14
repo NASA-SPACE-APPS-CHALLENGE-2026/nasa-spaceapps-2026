@@ -79,7 +79,7 @@
         </header>
 
         <div class="content">
-          <section class="view active" id="screen-overview" aria-labelledby="page-title">
+          <section class="view active" id="screen-overview" aria-labelledby="page-title" data-mode="farmer">
             <div class="page-heading">
               <div>
                 <div class="eyebrow"><span class="status-pulse"></span> YOUR FARM, AT A GLANCE</div>
@@ -155,9 +155,10 @@
                 <button class="location-preset" type="button" data-location="netherlands" aria-pressed="false">Netherlands</button>
               </div>
               <div class="mode-toggle" role="group" aria-label="Dashboard mode">
-                <button class="mode-button active" data-mode="farmer" aria-pressed="true">Farmer mode</button>
-                <button class="mode-button" data-mode="judge" aria-pressed="false">Judge / Tech</button>
+                <button class="mode-button active" type="button" data-mode="farmer" aria-pressed="true">Farmer</button>
+                <button class="mode-button" type="button" data-mode="technical" aria-pressed="false">Agronomist / Research</button>
               </div>
+              <span class="visually-hidden" id="mode-announcement" aria-live="polite"></span>
               <button class="questionnaire-open" id="questionnaire-open"><svg class="icon"><use href="#i-sprout"/></svg> Open field questionnaire</button>
             </div>
 
@@ -173,28 +174,75 @@
                 <span class="sample-location-chip"><span class="live-dot"></span><span id="risk-location-name">Charlotte, NC</span> sample profile</span>
               </div>
               <div class="risk-grid">
-                <article class="risk-card">
-                  <div class="risk-card-heading"><span>Soil moisture</span><strong id="risk-moisture-value">65%</strong></div>
-                  <div class="risk-track moisture-track" id="risk-moisture-meter" role="meter" aria-label="Sample soil moisture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="65"><span style="--score:65%"></span></div>
-                  <div class="risk-card-foot"><span>Dry</span><strong id="risk-moisture-status">Optimal</strong><span>Wet</span></div>
+                <article class="risk-card" data-signal="moisture">
+                  <div class="risk-card-heading"><span>Soil moisture</span><strong id="risk-moisture-value">—</strong></div>
+                  <span class="risk-unit">% · sample · <span id="risk-moisture-band-label">optimal band not provided</span></span>
+                  <div class="risk-track moisture-track" id="risk-moisture-meter" role="meter" aria-labelledby="risk-moisture-label" aria-valuemin="0" aria-valuemax="100"><i class="risk-optimal-band" id="risk-moisture-band" aria-hidden="true"></i><span class="risk-marker" aria-hidden="true"></span></div>
+                  <span class="visually-hidden" id="risk-moisture-label">Sample soil moisture</span>
+                  <div class="risk-card-foot"><span>Dry</span><strong id="risk-moisture-status">—</strong><span>Wet</span></div>
+                  <p class="risk-plain" id="risk-moisture-plain"></p>
                 </article>
-                <article class="risk-card">
-                  <div class="risk-card-heading"><span>Erosion risk</span><strong id="risk-erosion-value">42 / 100</strong></div>
-                  <div class="risk-track risk-track-reverse" id="risk-erosion-meter" role="meter" aria-label="Sample erosion risk" aria-valuemin="0" aria-valuemax="100" aria-valuenow="42"><span style="--score:42%"></span></div>
-                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-erosion-status">Moderate</strong><span>Higher</span></div>
+                <article class="risk-card" data-signal="erosion">
+                  <div class="risk-card-heading"><span>Erosion risk</span><strong id="risk-erosion-value">—</strong></div>
+                  <span class="risk-unit">0–100 sample index</span>
+                  <div class="risk-track risk-track-reverse" id="risk-erosion-meter" role="meter" aria-labelledby="risk-erosion-label" aria-valuemin="0" aria-valuemax="100"><span class="risk-marker" aria-hidden="true"></span></div>
+                  <span class="visually-hidden" id="risk-erosion-label">Sample erosion risk</span>
+                  <div class="risk-card-foot"><span>Low risk</span><strong id="risk-erosion-status">—</strong><span>High risk</span></div>
+                  <p class="risk-plain" id="risk-erosion-plain"></p>
                 </article>
-                <article class="risk-card">
-                  <div class="risk-card-heading"><span>Heat anomaly</span><strong id="risk-heat-value">62 / 100</strong></div>
-                  <div class="risk-track risk-track-reverse" id="risk-heat-meter" role="meter" aria-label="Sample heat anomaly" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62"><span style="--score:62%"></span></div>
-                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-heat-status">Elevated</strong><span>Higher</span></div>
+                <article class="risk-card" data-signal="heat">
+                  <div class="risk-card-heading"><span>Heat anomaly</span><strong id="risk-heat-value">—</strong></div>
+                  <span class="risk-unit">0–100 sample index</span>
+                  <div class="risk-track risk-track-reverse" id="risk-heat-meter" role="meter" aria-labelledby="risk-heat-label" aria-valuemin="0" aria-valuemax="100"><span class="risk-marker" aria-hidden="true"></span></div>
+                  <span class="visually-hidden" id="risk-heat-label">Sample heat anomaly</span>
+                  <div class="risk-card-foot"><span>Low risk</span><strong id="risk-heat-status">—</strong><span>High risk</span></div>
+                  <p class="risk-plain" id="risk-heat-plain"></p>
                 </article>
-                <article class="risk-card">
-                  <div class="risk-card-heading"><span>Pest / insect risk</span><strong id="risk-pest-value">84 / 100</strong></div>
-                  <div class="risk-track risk-track-reverse" id="risk-pest-meter" role="meter" aria-label="Sample pest and insect risk" aria-valuemin="0" aria-valuemax="100" aria-valuenow="84"><span style="--score:84%"></span></div>
-                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-pest-status">High</strong><span>Higher</span></div>
+                <article class="risk-card" data-signal="pest">
+                  <div class="risk-card-heading"><span>Pest / insect risk</span><strong id="risk-pest-value">—</strong></div>
+                  <span class="risk-unit">0–100 sample index</span>
+                  <div class="risk-track risk-track-reverse" id="risk-pest-meter" role="meter" aria-labelledby="risk-pest-label" aria-valuemin="0" aria-valuemax="100"><span class="risk-marker" aria-hidden="true"></span></div>
+                  <span class="visually-hidden" id="risk-pest-label">Sample pest / insect risk</span>
+                  <div class="risk-card-foot"><span>Low risk</span><strong id="risk-pest-status">—</strong><span>High risk</span></div>
+                  <p class="risk-plain" id="risk-pest-plain"></p>
                 </article>
               </div>
-              <div class="confidence-note"><svg class="icon"><use href="#i-help"/></svg><span><strong>Sample profile coverage: <span id="sample-coverage">88%</span>.</strong> Two of 12 illustrative tiles are marked cloudy; verify topsoil moisture in the field before sowing. This is not a real confidence score or satellite observation.</span></div>
+
+              <section class="technical-panel panel" id="technical-panel" aria-labelledby="technical-title">
+                <div class="technical-heading">
+                  <div><span class="panel-kicker">AGRONOMIST / RESEARCH VIEW</span><h3 id="technical-title">Sample fixture values &amp; metadata</h3></div>
+                  <span class="insight-sample">SAMPLE DATA</span>
+                </div>
+                <p class="technical-caption">Same demo values as Farmer mode, laid out for review. Metadata appears only when the sample fixture supplies it; nothing here is a verified live source.</p>
+                <div class="technical-table-wrap">
+                  <table class="technical-table">
+                    <thead><tr><th scope="col">Variable</th><th scope="col">Value</th><th scope="col">Unit</th><th scope="col">Source / product</th><th scope="col">Observation date / period</th><th scope="col">Spatial resolution</th><th scope="col">Quality / coverage</th></tr></thead>
+                    <tbody id="technical-table-body"></tbody>
+                  </table>
+                </div>
+              </section>
+            </section>
+
+            <section class="ground-check panel" id="ground-check" aria-labelledby="ground-check-title">
+              <div class="ground-check-heading">
+                <div><span class="panel-kicker">DATA CONFIDENCE</span><h2 id="ground-check-title">Verify on ground</h2></div>
+                <span class="ground-badge"><svg class="icon"><use href="#i-check"/></svg> VERIFY ON GROUND</span>
+              </div>
+              <dl class="ground-check-facts">
+                <div><dt>Confidence estimate</dt><dd id="ground-confidence">Not available</dd></div>
+                <div><dt>Sample profile coverage</dt><dd id="ground-coverage">Not available</dd></div>
+                <div><dt>Uncertainty notes</dt><dd id="ground-uncertainty">None supplied for this sample profile</dd></div>
+              </dl>
+              <div class="ground-check-reminder">
+                <strong>Before acting, check the field:</strong>
+                <ul>
+                  <li>Walk the field, including low spots and edges.</li>
+                  <li>Feel topsoil moisture by hand a few inches down.</li>
+                  <li>Scout leaves and stems for insects or damage.</li>
+                  <li>Confirm plans with a local advisor or extension office.</li>
+                </ul>
+              </div>
+              <p class="ground-check-disclaimer">Sample data — not a satellite observation, certified estimate, or treatment recommendation. Coverage is a demo profile value, not a confidence score.</p>
             </section>
 
             <section class="strategy-section" aria-labelledby="strategy-title">
