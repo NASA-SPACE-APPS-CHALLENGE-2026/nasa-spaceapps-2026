@@ -5,10 +5,10 @@ const fieldData = {
 };
 
 const locationProfiles = {
-  charlotte: { name: 'Charlotte, NC', latitude: 35.2271, longitude: -80.8431, moisture: 65, erosion: 42, heat: 62, pest: 84, coverage: 88 },
-  nigeria: { name: 'Kano, Nigeria', latitude: 12.0022, longitude: 8.5919, moisture: 34, erosion: 63, heat: 82, pest: 58, coverage: 76 },
-  india: { name: 'Pune, India', latitude: 18.5204, longitude: 73.8567, moisture: 51, erosion: 54, heat: 73, pest: 67, coverage: 81 },
-  netherlands: { name: 'Wageningen, Netherlands', latitude: 51.9851, longitude: 5.8987, moisture: 74, erosion: 33, heat: 36, pest: 48, coverage: 92 }
+  charlotte: { name: 'Charlotte, NC', latitude: 35.2271, longitude: -80.8431, moisture: 65, erosion: 42, heat: 62, pest: 84, coverage: 88, moistureOptimal: { min: 35, max: 75 } },
+  nigeria: { name: 'Kano, Nigeria', latitude: 12.0022, longitude: 8.5919, moisture: 34, erosion: 63, heat: 82, pest: 58, coverage: 76, moistureOptimal: { min: 35, max: 75 } },
+  india: { name: 'Pune, India', latitude: 18.5204, longitude: 73.8567, moisture: 51, erosion: 54, heat: 73, pest: 67, coverage: 81, moistureOptimal: { min: 35, max: 75 } },
+  netherlands: { name: 'Wageningen, Netherlands', latitude: 51.9851, longitude: 5.8987, moisture: 74, erosion: 33, heat: 36, pest: 48, coverage: 92, moistureOptimal: { min: 35, max: 75 } }
 };
 
 const regionalProfiles = {
@@ -174,6 +174,7 @@ function selectField(key) {
     button.querySelector('.field-list-copy small').textContent =
       `${fieldForButton.acres} acres · ${fieldForButton.rotation[0]}`;
   });
+  renderTechnicalTable();
   renderFieldLocationEditor();
   refreshSavedFieldData(key);
   renderStrategyCards();
@@ -185,29 +186,205 @@ function updateLocation(key) {
   document.getElementById('home-location').value = key;
   document.getElementById('farm-location').textContent = `${profile.name} · demo`;
   document.getElementById('risk-location-name').textContent = profile.name;
-  document.getElementById('sample-coverage').textContent = `${profile.coverage}%`;
   document.querySelectorAll('.location-preset').forEach(button => {
     const active = button.dataset.location === key;
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', String(active));
   });
-  const riskSignals = [
-    { key: 'moisture', id: 'moisture', format: value => `${value}%`, status: value => value < 35 ? 'Dry' : value <= 75 ? 'Optimal' : 'Wet' },
-    { key: 'erosion', id: 'erosion', format: value => `${value} / 100`, status: value => value < 35 ? 'Low' : value < 65 ? 'Moderate' : 'High' },
-    { key: 'heat', id: 'heat', format: value => `${value} / 100`, status: value => value < 35 ? 'Low' : value < 55 ? 'Moderate' : value < 75 ? 'Elevated' : 'High' },
-    { key: 'pest', id: 'pest', format: value => `${value} / 100`, status: value => value < 35 ? 'Low' : value < 60 ? 'Moderate' : value < 75 ? 'Elevated' : 'High' }
-  ];
-  riskSignals.forEach(signal => {
-    const value = profile[signal.key];
-    document.getElementById(`risk-${signal.id}-value`).textContent = signal.format(value);
-    document.getElementById(`risk-${signal.id}-status`).textContent = signal.status(value);
-    const meter = document.getElementById(`risk-${signal.id}-meter`);
-    meter.setAttribute('aria-valuenow', value);
-    meter.firstElementChild.style.setProperty('--score', `${value}%`);
-  });
+  renderRiskMeters(profile);
+  renderGroundCheck(profile);
+  renderTechnicalTable();
   updateCopilotInsight();
   renderStrategyCards();
   loadPublicData(profile);
+}
+
+const NOT_PROVIDED = 'Not provided';
+
+function hasFixtureValue(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function activeLocationProfile() {
+  return locationProfiles[document.getElementById('home-location').value];
+}
+
+function moistureBand(profile) {
+  const band = profile.moistureOptimal;
+  return band && hasFixtureValue(band.min) && hasFixtureValue(band.max) ? band : null;
+}
+
+const riskSignals = [
+  {
+    key: 'moisture',
+    label: 'Soil moisture',
+    unit: '%',
+    format: value => `${value}%`,
+    status: (value, profile) => {
+      const band = moistureBand(profile) || { min: 35, max: 75 };
+      return value < band.min ? 'Dry' : value <= band.max ? 'Optimal' : 'Wet';
+    },
+    plain: {
+      Dry: 'Drier than the sample’s optimal band — check topsoil before planting or irrigating.',
+      Optimal: 'Inside the sample’s optimal band — a quick field check can confirm it.',
+      Wet: 'Wetter than the optimal band — low spots may stay soft; check before driving equipment.'
+    }
+  },
+  {
+    key: 'erosion',
+    label: 'Erosion risk',
+    unit: '0–100 index',
+    format: value => `${value} / 100`,
+    status: value => value < 35 ? 'Low' : value < 65 ? 'Moderate' : 'High',
+    plain: {
+      Low: 'Erosion pressure looks low in this sample.',
+      Moderate: 'Some erosion pressure — bare or sloped areas are worth watching.',
+      High: 'Erosion pressure looks high — keeping ground covered may help.'
+    }
+  },
+  {
+    key: 'heat',
+    label: 'Heat anomaly',
+    unit: '0–100 index',
+    format: value => `${value} / 100`,
+    status: value => value < 35 ? 'Low' : value < 55 ? 'Moderate' : value < 75 ? 'Elevated' : 'High',
+    plain: {
+      Low: 'Heat stress looks low in this sample.',
+      Moderate: 'Some warm days — keep an eye on young plants.',
+      Elevated: 'Warmer than usual — crops may need more water.',
+      High: 'Heat looks high — watch for wilting and plan water carefully.'
+    }
+  },
+  {
+    key: 'pest',
+    label: 'Pest / insect risk',
+    unit: '0–100 index',
+    format: value => `${value} / 100`,
+    status: value => value < 35 ? 'Low' : value < 60 ? 'Moderate' : value < 75 ? 'Elevated' : 'High',
+    plain: {
+      Low: 'Pest pressure looks low in this sample.',
+      Moderate: 'Some pest pressure — routine scouting is enough.',
+      Elevated: 'Pest pressure is building — scout more often.',
+      High: 'Pest pressure looks high — scout the field before deciding anything.'
+    }
+  }
+];
+
+function renderRiskMeters(profile) {
+  const band = moistureBand(profile);
+  const bandElement = document.getElementById('risk-moisture-band');
+  bandElement.hidden = !band;
+  if (band) {
+    bandElement.style.setProperty('--band-start', `${band.min}%`);
+    bandElement.style.setProperty('--band-end', `${band.max}%`);
+  }
+  document.getElementById('risk-moisture-band-label').textContent =
+    band ? `optimal band ${band.min}–${band.max}%` : 'optimal band not provided';
+
+  riskSignals.forEach(signal => {
+    const value = profile[signal.key];
+    const meter = document.getElementById(`risk-${signal.key}-meter`);
+    const card = meter.closest('.risk-card');
+    const available = hasFixtureValue(value);
+    card.classList.toggle('is-missing', !available);
+    if (!available) {
+      document.getElementById(`risk-${signal.key}-value`).textContent = 'Unavailable';
+      document.getElementById(`risk-${signal.key}-status`).textContent = 'Unavailable';
+      document.getElementById(`risk-${signal.key}-plain`).textContent =
+        'No value in this sample profile — check the field directly.';
+      meter.removeAttribute('aria-valuenow');
+      meter.setAttribute('aria-valuetext', 'Not available');
+      return;
+    }
+    const status = signal.status(value, profile);
+    const scale = signal.key === 'moisture' ? `${value}%` : `${value} out of 100`;
+    document.getElementById(`risk-${signal.key}-value`).textContent = signal.format(value);
+    document.getElementById(`risk-${signal.key}-status`).textContent = status;
+    document.getElementById(`risk-${signal.key}-plain`).textContent = signal.plain[status];
+    meter.setAttribute('aria-valuenow', value);
+    meter.setAttribute('aria-valuetext', `${scale}, ${status}, sample value`);
+    meter.querySelector('.risk-marker').style.setProperty('--score', `${Math.min(100, Math.max(0, value))}%`);
+  });
+}
+
+function renderGroundCheck(profile) {
+  document.getElementById('ground-confidence').textContent =
+    hasFixtureValue(profile.confidence) ? `${profile.confidence}% (sample fixture)` : 'Not available';
+  document.getElementById('ground-coverage').textContent =
+    hasFixtureValue(profile.coverage) ? `${profile.coverage}% (demo profile, not a confidence score)` : 'Not available';
+  const notes = Array.isArray(profile.uncertainty) ? profile.uncertainty.filter(Boolean) : [];
+  document.getElementById('ground-uncertainty').textContent =
+    notes.length ? notes.join(' · ') : 'None supplied for this sample profile';
+}
+
+function fixtureMeta(meta, key) {
+  const value = meta?.[key];
+  return value === undefined || value === null || value === '' ? NOT_PROVIDED : String(value);
+}
+
+function renderTechnicalTable() {
+  const profile = activeLocationProfile();
+  const field = fieldData[activeFieldKey];
+  if (!profile || !field) return;
+  const coverage = hasFixtureValue(profile.coverage) ? `${profile.coverage}% sample coverage` : NOT_PROVIDED;
+  const rows = [
+    ...riskSignals.map(signal => ({
+      variable: `${signal.label} · ${profile.name}`,
+      value: hasFixtureValue(profile[signal.key]) ? String(profile[signal.key]) : 'Unavailable',
+      unit: signal.unit,
+      meta: profile.meta?.[signal.key],
+      quality: profile.meta?.[signal.key]?.quality ?? coverage
+    })),
+    { variable: `Surface moisture · ${field.name}`, value: hasFixtureValue(field.moisture) ? String(field.moisture) : 'Unavailable', unit: '%', meta: field.meta?.moisture },
+    { variable: `Rain this week · ${field.name}`, value: field.rain ?? 'Unavailable', unit: 'in', meta: field.meta?.rain },
+    { variable: `Vegetation index · ${field.name}`, value: field.ndvi ?? 'Unavailable', unit: 'NDVI (unitless)', meta: field.meta?.ndvi }
+  ];
+  const headers = ['Variable', 'Value', 'Unit', 'Source / product', 'Observation date / period', 'Spatial resolution', 'Quality / coverage'];
+  document.getElementById('technical-table-body').replaceChildren(...rows.map(row => {
+    const tr = document.createElement('tr');
+    const cells = [
+      row.variable,
+      row.value,
+      row.unit,
+      fixtureMeta(row.meta, 'source'),
+      fixtureMeta(row.meta, 'observed'),
+      fixtureMeta(row.meta, 'resolution'),
+      row.quality ?? fixtureMeta(row.meta, 'quality')
+    ];
+    cells.forEach((text, index) => {
+      const cell = document.createElement(index === 0 ? 'th' : 'td');
+      if (index === 0) cell.scope = 'row';
+      cell.dataset.label = headers[index];
+      cell.textContent = text;
+      if (text === NOT_PROVIDED) cell.classList.add('not-provided');
+      if (index === 0) {
+        const tag = document.createElement('span');
+        tag.className = 'sample-tag';
+        tag.textContent = 'SAMPLE';
+        cell.append(' ', tag);
+      }
+      tr.append(cell);
+    });
+    return tr;
+  }));
+}
+
+function setDashboardMode(mode) {
+  const technical = mode === 'technical';
+  document.getElementById('screen-overview').dataset.mode = technical ? 'technical' : 'farmer';
+  document.querySelectorAll('.mode-button').forEach(button => {
+    const active = button.dataset.mode === (technical ? 'technical' : 'farmer');
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  document.getElementById('mode-hint').textContent = technical
+    ? 'Agronomist / Research view · sample fixture values with metadata, not measured telemetry'
+    : 'Plain-language view · illustrative profile, not a sensor reading';
+  document.getElementById('mode-announcement').textContent =
+    technical ? 'Agronomist / Research mode active' : 'Farmer mode active';
+  updateCopilotInsight();
+  renderTechnicalTable();
+  renderStrategyCards();
 }
 
 function setPublicDataValue(valueId, metaId, value, metadata) {
@@ -932,7 +1109,7 @@ function initializeFieldLocationEditor() {
 }
 
 function currentMode() {
-  return document.querySelector('.mode-button.active').dataset.mode;
+  return document.getElementById('screen-overview').dataset.mode;
 }
 
 function createElement(tag, className, text) {
@@ -1161,18 +1338,7 @@ document.querySelectorAll('.location-preset').forEach(button => {
   button.addEventListener('click', () => updateLocation(button.dataset.location));
 });
 document.querySelectorAll('.mode-button').forEach(button => {
-  button.addEventListener('click', () => {
-    document.querySelectorAll('.mode-button').forEach(modeButton => {
-      const active = modeButton === button;
-      modeButton.classList.toggle('active', active);
-      modeButton.setAttribute('aria-pressed', String(active));
-    });
-    document.getElementById('mode-hint').textContent = button.dataset.mode === 'farmer'
-      ? 'Plain-language view · illustrative profile, not a sensor reading'
-      : 'Technical view · 0–100 sample indices, not measured telemetry';
-    updateCopilotInsight();
-    renderStrategyCards();
-  });
+  button.addEventListener('click', () => setDashboardMode(button.dataset.mode));
 });
 const questionnaireDialog = document.getElementById('questionnaire-dialog');
 document.getElementById('questionnaire-open').addEventListener('click', () => questionnaireDialog.showModal());
@@ -1209,6 +1375,7 @@ document.getElementById('task-done').addEventListener('click', event => {
   button.lastChild.textContent = done ? ' Marked done' : ' Mark as done';
 });
 
+setDashboardMode('farmer');
 initializeFieldLocationEditor();
 runSimulation('53590', 'typical');
 if (savedFieldLocations[activeFieldKey]?.allowProviderQueries) {

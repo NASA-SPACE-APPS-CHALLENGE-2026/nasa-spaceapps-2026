@@ -156,7 +156,7 @@ test('field history changes the plan: repeating last season’s crop is flagged 
 test('farmer and technical descriptions share identical scores', () => {
   for (const result of compareStrategies(fixtureInputs({ heatIndex: missing })).results) {
     const farmer = describeStrategy(result, 'farmer');
-    const technical = describeStrategy(result, 'judge');
+    const technical = describeStrategy(result, 'technical');
     assert.deepEqual(farmer.overall, technical.overall);
     assert.deepEqual(
       farmer.aspects.map(({ aspect, status, score, confidence }) => ({ aspect, status, score, confidence })),
