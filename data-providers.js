@@ -3,6 +3,7 @@
 
   const NASA_POWER_ENDPOINT = 'https://power.larc.nasa.gov/api/temporal/daily/point';
   const OPEN_METEO_ENDPOINT = 'https://api.open-meteo.com/v1/forecast';
+  const OPEN_METEO_GEOCODING_ENDPOINT = 'https://geocoding-api.open-meteo.com/v1/search';
   const NASA_POWER_DOCS = 'https://power.larc.nasa.gov/docs/services/api/temporal/daily/';
   const OPEN_METEO_DOCS = 'https://open-meteo.com/en/docs';
   const NASA_PARAMETERS = [
@@ -92,6 +93,21 @@
       timezone: 'auto'
     });
     return `${OPEN_METEO_ENDPOINT}?${query}`;
+  }
+
+  function buildGeocodingUrl({ query, count = 5 }) {
+    const trimmedQuery = typeof query === 'string' ? query.trim() : '';
+    if (trimmedQuery.length < 2) throw new TypeError('Enter at least two characters to search for a place.');
+    if (!Number.isInteger(count) || count < 1 || count > 10) {
+      throw new RangeError('Geocoding result count must be between 1 and 10.');
+    }
+    const params = new URLSearchParams({
+      name: trimmedQuery,
+      count: String(count),
+      language: 'en',
+      format: 'json'
+    });
+    return `${OPEN_METEO_GEOCODING_ENDPOINT}?${params}`;
   }
 
   async function requestJson(url, { provider, fetchImpl, signal, timeoutMs = 12000 } = {}) {
@@ -301,6 +317,31 @@
     };
   }
 
+  function normalizeGeocodingPayload(payload) {
+    if (payload?.results === undefined) return [];
+    if (!Array.isArray(payload.results)) {
+      throw new TypeError('Open-Meteo geocoding response has an invalid results list.');
+    }
+    return payload.results
+      .filter(result =>
+        typeof result?.name === 'string' &&
+        Number.isFinite(result.latitude) &&
+        Number.isFinite(result.longitude) &&
+        result.latitude >= -90 && result.latitude <= 90 &&
+        result.longitude >= -180 && result.longitude <= 180
+      )
+      .map(result => ({
+        name: result.name,
+        admin1: typeof result.admin1 === 'string' ? result.admin1 : null,
+        country: typeof result.country === 'string' ? result.country : null,
+        countryCode: typeof result.country_code === 'string' ? result.country_code : null,
+        latitude: result.latitude,
+        longitude: result.longitude,
+        timezone: typeof result.timezone === 'string' ? result.timezone : null,
+        population: Number.isFinite(result.population) ? result.population : null
+      }));
+  }
+
   async function fetchNasaPowerDaily({ location, fetchImpl, signal, now = new Date(), retrievedAt = new Date() } = {}) {
     validateLocation(location);
     const window = getPowerDateWindow(now);
@@ -316,12 +357,25 @@
     return normalizeOpenMeteoPayload(payload, { location, retrievedAt });
   }
 
+  async function geocodeLocation({ query, count = 5, fetchImpl, signal } = {}) {
+    const url = buildGeocodingUrl({ query, count });
+    const payload = await requestJson(url, {
+      provider: 'Open-Meteo Geocoding',
+      fetchImpl,
+      signal
+    });
+    return normalizeGeocodingPayload(payload);
+  }
+
   const api = Object.freeze({
     buildNasaPowerUrl,
     buildOpenMeteoUrl,
+    buildGeocodingUrl,
     fetchNasaPowerDaily,
     fetchOpenMeteoForecast,
+    geocodeLocation,
     getPowerDateWindow,
+    normalizeGeocodingPayload,
     normalizeNasaPowerPayload,
     normalizeOpenMeteoPayload
   });

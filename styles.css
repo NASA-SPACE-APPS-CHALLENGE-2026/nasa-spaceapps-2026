@@ -493,3 +493,63 @@ body { background: var(--paper); color: var(--ink); }
   .environment-data-card { padding: 8px; }
   .environment-data-card>strong { font-size: 14px; }
 }
+.field-location-editor { margin-top: 15px; padding: 16px; }
+.field-location-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.field-location-heading h2 { margin: 4px 0; font-size: 16px; }
+.field-location-heading p { margin: 0; color: #818b82; font-size: 12px; }
+.local-only-pill { flex: 0 0 auto; padding: 6px 8px; border: 1px solid #dfe8d5; border-radius: 20px; background: #f3f7ed; color: #647a4f; font-size: 9px; font-weight: 700; letter-spacing: .5px; }
+.field-editor-grid { display: grid; grid-template-columns: minmax(230px,.82fr) minmax(280px,1.18fr); gap: 18px; align-items: start; }
+.field-location-controls { display: grid; gap: 10px; min-width: 0; }
+.field-location-controls label { display: grid; gap: 5px; color: #667366; font-size: 11px; font-weight: 700; letter-spacing: .45px; }
+.field-location-controls input,.field-location-controls select { width: 100%; min-width: 0; min-height: 44px; padding: 9px 10px; border: 1px solid #e1e7de; border-radius: 7px; background: #fff; color: #35443a; font: 500 14px 'DM Sans',sans-serif; letter-spacing: normal; }
+.field-location-controls input:focus-visible,.field-location-controls select:focus-visible { outline: 3px solid #a9c77a; outline-offset: 2px; }
+.place-search-form { display: grid; grid-template-columns: minmax(0,1fr) minmax(100px,.7fr); gap: 8px; }
+.place-search-form button { grid-column: 1 / -1; justify-self: start; min-height: 42px; font-size: 12px; }
+.geocode-results { display: grid; gap: 5px; }
+.geocode-result { display: grid; gap: 3px; width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #e7ece3; border-radius: 7px; background: #fbfcf9; color: #435144; text-align: left; cursor: pointer; }
+.geocode-result:hover,.geocode-result[aria-pressed="true"] { border-color: #9db17d; background: #f2f6ec; }
+.geocode-result strong { font-size: 13px; }
+.geocode-result small { color: #687869; font-size: 11px; }
+.manual-coordinate-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.coordinate-apply-button { min-height: 42px; padding: 0 10px; border: 1px solid #e2e8de; border-radius: 7px; background: #fff; color: #52654f; font-size: 12px; font-weight: 700; cursor: pointer; }
+.coordinate-apply-button:hover { border-color: #b7c8a4; background: #f7f9f3; }
+.field-location-status,.boundary-area-status { min-height: 20px; margin: 0; color: #647360; font-size: 12px; line-height: 1.5; }
+.field-location-status[data-state="error"],.boundary-area-status[data-state="error"] { color: #9a5147; }
+.field-location-status[data-state="success"] { color: #527747; }
+.provider-consent { display: grid !important; grid-template-columns: auto minmax(0,1fr); align-items: start; gap: 10px !important; padding: 10px; border: 1px solid #eee6ce; border-radius: 7px; background: #fbf8ef; color: #625a42 !important; font-size: 12px !important; font-weight: 500 !important; letter-spacing: 0 !important; line-height: 1.5; }
+.provider-consent input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--forest); }
+.save-field-location-button { min-height: 44px; padding: 0 12px; border: 1px solid var(--forest); border-radius: 7px; background: var(--forest); color: white; font-size: 12px; font-weight: 700; cursor: pointer; }
+.save-field-location-button:disabled { opacity: .55; cursor: not-allowed; }
+.field-location-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.field-location-actions .text-button { min-height: 40px; padding: 0; font-size: 12px; }
+.field-location-actions button:disabled { opacity: .45; cursor: not-allowed; }
+.field-delete-button { color: #9a5147; }
+.boundary-sketch-panel { min-width: 0; padding: 10px; border: 1px solid #e9eee5; border-radius: 9px; background: #fbfcf9; }
+.boundary-sketch-heading { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.boundary-sketch-heading p { margin: 4px 0 0; color: #667466; font-size: 12px; line-height: 1.5; }
+.north-arrow { flex: 0 0 auto; color: #5c7553; font: 700 12px 'DM Sans',sans-serif; white-space: nowrap; }
+.boundary-editor { display: block; width: 100%; height: auto; min-height: 190px; border-radius: 8px; touch-action: none; user-select: none; }
+.boundary-editor:focus-visible { outline: 3px solid #a9c77a; outline-offset: 3px; }
+.boundary-editor[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.boundary-grid-bg { fill: url(#boundary-grid); stroke: #dce5d7; }
+.boundary-crosshair { stroke: #c9d6c3; stroke-dasharray: 4 5; stroke-width: 1; pointer-events: none; }
+.boundary-center-label { fill: #81907b; font: 7px 'DM Sans',sans-serif; pointer-events: none; }
+.boundary-polygon { fill: #9bb88355; stroke: #547a45; stroke-width: 2; stroke-linejoin: round; }
+.boundary-draft-line { fill: none; stroke: #668457; stroke-width: 2; stroke-dasharray: 5 4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.boundary-keyboard-cursor { fill: #fff; stroke: #b27624; stroke-width: 3; pointer-events: none; }
+.boundary-handle { fill: #fff; stroke: #466c3a; stroke-width: 2; cursor: grab; }
+.boundary-handle:focus { stroke: #b27624; stroke-width: 4; outline: none; }
+.boundary-handle:active { cursor: grabbing; }
+.boundary-sketch-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.boundary-area-status { margin-top: 8px; color: #526a45; font-weight: 700; }
+.boundary-scale-note { margin: 4px 0 0; color: #667466; font-size: 11px; line-height: 1.5; }
+@media (max-width: 850px) { .field-editor-grid { grid-template-columns: 1fr; } }
+@media (max-width: 650px) {
+  .field-location-editor { padding: 12px; }
+  .field-location-heading { align-items: flex-start; }
+  .local-only-pill { font-size: 8px; }
+  .field-editor-grid { gap: 13px; }
+  .boundary-sketch-panel { padding: 8px; }
+  .boundary-editor { min-height: 180px; }
+  .place-search-form { grid-template-columns: 1fr 1fr; }
+}

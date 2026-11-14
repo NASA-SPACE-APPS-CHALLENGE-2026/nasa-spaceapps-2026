@@ -10,6 +10,7 @@
     <link rel="icon" href="fieldshift.svg" type="image/svg+xml">
     <link rel="stylesheet" href="styles.css">
     <script src="data-providers.js" defer></script>
+    <script src="field-boundary.js" defer></script>
     <script src="app.js" defer></script>
   </head>
   <body>
@@ -93,12 +94,12 @@
                 </select>
               </label>
             </div>
-            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Most cards use sample data. The public-data panel below fetches city-point information — not a live reading from your field.</span></div>
+            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Most cards use sample data. The public-data panel below shows one coarse public-data point — not a live reading from your field.</span></div>
 
             <section class="environment-data panel" aria-labelledby="environment-data-title">
               <div class="environment-data-heading">
                 <div>
-                  <span class="panel-kicker">NASA POWER + OPEN-METEO · APPROXIMATE CITY POINT</span>
+                  <span class="panel-kicker">PUBLIC SOURCES · APPROXIMATE POINT DATA</span>
                   <h2 id="environment-data-title">Public weather and soil clues</h2>
                   <p id="environment-data-status" role="status" aria-live="polite">Waiting for a location profile.</p>
                 </div>
@@ -126,14 +127,14 @@
                   <small id="public-forecast-meta">Not loaded</small>
                 </article>
               </div>
-              <p class="environment-data-caveat"><strong>Not field-specific.</strong> These are coarse model/weather estimates for approximate demo city points, not farm sensors. Selecting a preset sends that approximate city coordinate to NASA POWER and Open-Meteo. NASA POWER does not provide NDVI here; vegetation, pest, erosion, strategy, and risk cards remain sample data. Source dates and limitations are shown in the data details.</p>
+              <p class="environment-data-caveat"><strong>One point, not a field average.</strong> These coarse model/weather estimates are not farm sensors. A demo city profile uses an approximate city point; a saved field point or boundary centroid is queried only after explicit consent, and the polygon stays on this device. NASA POWER does not provide NDVI here; vegetation, pest, erosion, strategy, and risk cards remain sample data. Source dates and limitations are shown in the data details.</p>
               <details class="environment-data-details">
                 <summary>Data sources and limitations</summary>
                 <div class="environment-source-notes">
                   <p><strong>NASA POWER:</strong> daily maximum air temperature, corrected precipitation, and modeled surface soil wetness. Source-native grid resolution varies by parameter and is much coarser than a field.</p>
                   <p><strong>Open-Meteo:</strong> seven-day forecast from an automatically selected weather model; resolution varies by region. This is a forecast, not an observation.</p>
                   <p><a href="https://power.larc.nasa.gov/docs/services/api/temporal/daily/" target="_blank" rel="noopener noreferrer">NASA POWER source documentation</a> · <a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener noreferrer">Open-Meteo forecast documentation</a> · <a href="https://open-meteo.com/en/terms" target="_blank" rel="noopener noreferrer">Open-Meteo usage terms</a></p>
-                  <p><strong>Not connected:</strong> satellite vegetation/NDVI, field sensors, erosion risk, and pest risk. No credentials or precise farm boundary are sent by this demo.</p>
+                  <p><strong>Not connected:</strong> satellite vegetation/NDVI, field sensors, erosion risk, and pest risk. No credentials or boundary polygon are sent; a saved point or centroid is sent only after explicit consent.</p>
                 </div>
               </details>
             </section>
@@ -463,12 +464,79 @@
 
           <section class="view placeholder-view" id="screen-fields" aria-labelledby="fields-title" hidden>
             <div class="page-heading"><div><div class="eyebrow"><span class="status-pulse"></span> KNOW EVERY CORNER</div><h1 id="fields-title">Your fields</h1><p class="page-subtitle">A simple picture of the land you're looking after.</p></div></div>
-            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Field sizes and readings shown here are sample data.</span></div>
+            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Field sketch, not a survey.</strong> Search for a place or enter coordinates, then draw an approximate boundary. Saved geometry stays in this browser.</span></div>
             <div class="field-list-grid">
               <button class="field-list-card" data-select-field="north"><span class="field-list-visual visual-north"><span>40</span><small>ACRES</small></span><span class="field-list-copy"><strong>North 40</strong><small>40 acres · Corn</small><span class="field-list-status"><i></i> Healthy growth</span></span><svg class="icon"><use href="#i-chevron"/></svg></button>
               <button class="field-list-card" data-select-field="creek"><span class="field-list-visual visual-creek"><span>28</span><small>ACRES</small></span><span class="field-list-copy"><strong>Creekside</strong><small>28 acres · Soybeans</small><span class="field-list-status"><i></i> Good moisture</span></span><svg class="icon"><use href="#i-chevron"/></svg></button>
               <button class="field-list-card" data-select-field="west"><span class="field-list-visual visual-west"><span>64</span><small>ACRES</small></span><span class="field-list-copy"><strong>West Meadow</strong><small>64 acres · Oats</small><span class="field-list-status"><i></i> Growth emerging</span></span><svg class="icon"><use href="#i-chevron"/></svg></button>
             </div>
+            <section class="field-location-editor panel" aria-labelledby="field-location-title">
+              <div class="field-location-heading">
+                <div><span class="panel-kicker">LOCATION &amp; BOUNDARY · SAVED ON THIS DEVICE</span><h2 id="field-location-title">Set up a field location</h2><p>Select a field above to edit its location and sketch.</p></div>
+                <span class="local-only-pill">PRIVATE BY DEFAULT</span>
+              </div>
+              <div class="field-editor-grid">
+                <div class="field-location-controls">
+                  <label for="boundary-field-select">FIELD
+                    <select id="boundary-field-select">
+                      <option value="north">North 40</option>
+                      <option value="creek">Creekside</option>
+                      <option value="west">West Meadow</option>
+                    </select>
+                  </label>
+                  <form id="place-search-form" class="place-search-form">
+                    <label for="place-search">CITY, REGION, OR POSTAL CODE
+                      <input id="place-search" name="place" type="search" minlength="2" maxlength="100" placeholder="e.g. Charlotte, NC or 53590" autocomplete="off">
+                    </label>
+                    <label for="place-country">COUNTRY (OPTIONAL)
+                      <input id="place-country" name="country" type="text" maxlength="80" placeholder="e.g. United States">
+                    </label>
+                    <button class="environment-data-refresh" type="submit" id="place-search-button">Search places</button>
+                  </form>
+                  <div class="geocode-results" id="geocode-results" role="group" aria-label="Place search results" hidden></div>
+                  <div class="manual-coordinate-fields">
+                    <label for="field-latitude">LATITUDE
+                      <input id="field-latitude" name="latitude" type="number" min="-90" max="90" step="any" inputmode="decimal" placeholder="35.2271">
+                    </label>
+                    <label for="field-longitude">LONGITUDE
+                      <input id="field-longitude" name="longitude" type="number" min="-180" max="180" step="any" inputmode="decimal" placeholder="-80.8431">
+                    </label>
+                  </div>
+                  <button class="coordinate-apply-button" id="apply-field-coordinates" type="button">Use these coordinates</button>
+                  <p class="field-location-status" id="field-location-status" role="status" aria-live="polite">No saved location for this field. Search for a place or enter coordinates.</p>
+                  <label class="provider-consent" for="provider-location-consent">
+                    <input id="provider-location-consent" type="checkbox">
+                    <span>When I save, send this approximate point (the field center if drawn) to NASA POWER and Open-Meteo for weather and coarse soil-model data. The boundary itself stays on this device.</span>
+                  </label>
+                  <button class="save-field-location-button" id="save-field-location" type="button">Save location &amp; fetch public data</button>
+                  <div class="field-location-actions">
+                    <button class="text-button" id="download-field-geojson" type="button" disabled>Download GeoJSON</button>
+                    <button class="text-button field-delete-button" id="delete-field-location" type="button" disabled>Remove saved location</button>
+                  </div>
+                </div>
+                <div class="boundary-sketch-panel">
+                  <div class="boundary-sketch-heading"><div><span class="panel-kicker">APPROXIMATE FIELD OUTLINE</span><p>Click to add points, or focus the sketch and use arrow keys + Enter. Finish the outline, then drag or focus points to adjust.</p></div><span class="north-arrow" aria-label="Top of sketch is north">↑ N</span></div>
+                  <svg class="boundary-editor" id="boundary-editor" viewBox="0 0 360 220" role="group" aria-label="Field boundary sketchpad. Use arrow keys to position a point and Enter to add it, or click to add points. Focus a boundary point and use arrow keys to adjust it." aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space" tabindex="0">
+                    <defs><pattern id="boundary-grid" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="#dce5d7" stroke-width="1"/></pattern></defs>
+                    <rect class="boundary-grid-bg" width="360" height="220" rx="8"></rect>
+                    <line class="boundary-crosshair" x1="180" y1="0" x2="180" y2="220"></line>
+                    <line class="boundary-crosshair" x1="0" y1="110" x2="360" y2="110"></line>
+                    <text class="boundary-center-label" x="188" y="106">LOCATION CENTER</text>
+                    <polygon class="boundary-polygon" id="boundary-polygon" points="" hidden></polygon>
+                    <polyline class="boundary-draft-line" id="boundary-draft-line" points="" hidden></polyline>
+                    <circle class="boundary-keyboard-cursor" id="boundary-keyboard-cursor" cx="180" cy="110" r="5" hidden></circle>
+                    <g id="boundary-handles"></g>
+                  </svg>
+                  <div class="boundary-sketch-actions">
+                    <button class="coordinate-apply-button" id="finish-boundary" type="button">Finish outline</button>
+                    <button class="coordinate-apply-button" id="undo-boundary-point" type="button">Undo point</button>
+                    <button class="coordinate-apply-button" id="clear-boundary" type="button">Clear outline</button>
+                  </div>
+                  <p class="boundary-area-status" id="boundary-area-status" aria-live="polite">Add a location to sketch a boundary.</p>
+                  <p class="boundary-scale-note">Sketch spans about 600 m east–west at the selected latitude. It is not a map, legal survey, or field-scale sensor footprint.</p>
+                </div>
+              </div>
+            </section>
           </section>
 
           <section class="view placeholder-view" id="screen-weather" aria-labelledby="weather-title" hidden>

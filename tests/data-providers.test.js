@@ -2,9 +2,12 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   buildNasaPowerUrl,
+  buildGeocodingUrl,
   buildOpenMeteoUrl,
   fetchNasaPowerDaily,
+  geocodeLocation,
   getPowerDateWindow,
+  normalizeGeocodingPayload,
   normalizeNasaPowerPayload,
   normalizeOpenMeteoPayload
 } = require('../data-providers.js');
@@ -140,5 +143,49 @@ test('rejects NASA values with missing unit provenance', () => {
   assert.throws(
     () => normalizeNasaPowerPayload(payload, { location }),
     /missing units for/
+  );
+});
+
+test('builds a bounded place lookup request and normalizes safe place results', () => {
+  const url = new URL(buildGeocodingUrl({ query: 'Charlotte, United States', count: 5 }));
+  assert.equal(url.searchParams.get('name'), 'Charlotte, United States');
+  assert.equal(url.searchParams.get('count'), '5');
+  assert.deepEqual(normalizeGeocodingPayload({
+    results: [
+      { name: 'Charlotte', admin1: 'North Carolina', country: 'United States', country_code: 'US', latitude: 35.2, longitude: -80.8 },
+      { name: 'Broken result', latitude: 95, longitude: 0 }
+    ]
+  }), [{
+    name: 'Charlotte',
+    admin1: 'North Carolina',
+    country: 'United States',
+    countryCode: 'US',
+    latitude: 35.2,
+    longitude: -80.8,
+    timezone: null,
+    population: null
+  }]);
+  assert.deepEqual(normalizeGeocodingPayload({}), []);
+  assert.throws(() => buildGeocodingUrl({ query: 'x' }), /at least two characters/);
+});
+
+test('geocodes postal codes and reports malformed lookup responses', async () => {
+  const places = await geocodeLocation({
+    query: '53590',
+    fetchImpl: async url => {
+      assert.match(String(url), /name=53590/);
+      return {
+        ok: true,
+        json: async () => ({
+          results: [{ name: 'Sun Prairie', country: 'United States', latitude: 43.1836, longitude: -89.2137 }]
+        })
+      };
+    }
+  });
+  assert.equal(places[0].name, 'Sun Prairie');
+
+  await assert.rejects(
+    geocodeLocation({ query: 'Charlotte', fetchImpl: async () => ({ ok: true, json: async () => ({ results: 'invalid' }) }) }),
+    /invalid results list/
   );
 });

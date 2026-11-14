@@ -72,9 +72,19 @@ const navButtons = document.querySelectorAll('[data-screen]');
 const sections = document.querySelectorAll('.view');
 let activeFieldKey = 'north';
 let activeDataRequest;
+let activePublicDataProfile = null;
 let dataRequestId = 0;
 const publicDataCache = new Map();
 const publicDataCacheTtl = 15 * 60 * 1000;
+let savedFieldLocations = {};
+let fieldLocationStorageError = null;
+let activeLocationDraft = null;
+let boundaryPoints = [];
+let boundaryFinished = false;
+let boundaryCursor = { x: 180, y: 110 };
+let boundaryCursorActive = false;
+let draggedBoundaryPoint = null;
+let geocodeController = null;
 
 function showScreen(name) {
   if (!views.includes(name)) return;
@@ -98,7 +108,11 @@ function showScreen(name) {
 function selectField(key) {
   const field = fieldData[key];
   if (!field) return;
+  geocodeController?.abort();
+  geocodeController = null;
+  document.getElementById('place-search-button').disabled = false;
   activeFieldKey = key;
+  document.getElementById('boundary-field-select').value = key;
   const [current, next, third] = field.rotation;
   const rotationPlans = [
     [current, next, third],
@@ -159,6 +173,8 @@ function selectField(key) {
     button.querySelector('.field-list-copy small').textContent =
       `${fieldForButton.acres} acres · ${fieldForButton.rotation[0]}`;
   });
+  renderFieldLocationEditor();
+  refreshSavedFieldData(key);
 }
 
 function updateLocation(key) {
@@ -280,21 +296,41 @@ function renderPublicDataResult(profile, results, cached = false, errors = {}) {
     !nasaResult ? formatSourceFailure('NASA POWER', errors.nasa) : null,
     !forecastResult ? formatSourceFailure('Open-Meteo', errors.forecast) : null
   ].filter(Boolean);
+  const locationDescription = describePublicLocation(profile);
   const status = providers.length && failures.length
-    ? `${providers.join(' and ')} loaded for the approximate ${profile.name} city point; ${failures.join('; ')}.`
+    ? `${providers.join(' and ')} loaded for ${locationDescription}; ${failures.join('; ')}.`
     : providers.length
-      ? `${providers.join(' and ')} loaded for the approximate ${profile.name} city point${cached ? ' from this session’s cache' : ''}.`
-      : `Public sources are unavailable for the approximate ${profile.name} city point: ${failures.join('; ')}. The rest of the dashboard remains sample data; try again later.`;
+      ? `${providers.join(' and ')} loaded for ${locationDescription}${cached ? ' from this session’s cache' : ''}.`
+      : `Public sources are unavailable for ${locationDescription}: ${failures.join('; ')}. The rest of the dashboard remains sample data; try again later.`;
   document.getElementById('environment-data-status').textContent = status;
   document.getElementById('environment-data-status').dataset.state =
     providers.length && failures.length ? 'partial' : providers.length ? 'loaded' : 'error';
 }
 
-function clearPublicDataValues() {
-  setPublicDataValue('public-temperature', 'public-temperature-meta', '—', 'Loading NASA POWER…');
-  setPublicDataValue('public-rainfall', 'public-rainfall-meta', '—', 'Loading NASA POWER…');
-  setPublicDataValue('public-wetness', 'public-wetness-meta', '—', 'Loading NASA POWER…');
-  setPublicDataValue('public-forecast', 'public-forecast-meta', '—', 'Loading Open-Meteo…');
+function describePublicLocation(profile) {
+  if (profile.type === 'field_boundary_centroid') {
+    return `the approximate centroid of ${profile.fieldName || profile.name}`;
+  }
+  if (profile.type === 'user_location_point' || profile.type === 'geocoded_place_point') {
+    return `the saved point for ${profile.fieldName || profile.name}`;
+  }
+  return `the approximate ${profile.name} demo city point`;
+}
+
+function clearPublicDataValues(message = 'Not loaded') {
+  setPublicDataValue('public-temperature', 'public-temperature-meta', '—', message);
+  setPublicDataValue('public-rainfall', 'public-rainfall-meta', '—', message);
+  setPublicDataValue('public-wetness', 'public-wetness-meta', '—', message);
+  setPublicDataValue('public-forecast', 'public-forecast-meta', '—', message);
+}
+
+function stopPublicDataRequest(message) {
+  activeDataRequest?.abort();
+  activeDataRequest = null;
+  activePublicDataProfile = null;
+  dataRequestId += 1;
+  document.getElementById('environment-data-refresh').disabled = false;
+  clearPublicDataValues(message);
 }
 
 async function loadPublicData(profile, force = false) {
@@ -304,15 +340,16 @@ async function loadPublicData(profile, force = false) {
     return;
   }
 
+  activePublicDataProfile = profile;
   const requestId = ++dataRequestId;
   activeDataRequest?.abort();
   const controller = new AbortController();
   activeDataRequest = controller;
   const refreshButton = document.getElementById('environment-data-refresh');
   refreshButton.disabled = true;
-  clearPublicDataValues();
+  clearPublicDataValues('Loading public source…');
   document.getElementById('environment-data-status').textContent =
-    `Loading NASA POWER and Open-Meteo for the approximate ${profile.name} city point…`;
+    `Loading NASA POWER and Open-Meteo for ${describePublicLocation(profile)}…`;
   document.getElementById('environment-data-status').dataset.state = 'loading';
 
   const cacheKey = `${profile.latitude.toFixed(3)},${profile.longitude.toFixed(3)}`;
@@ -329,7 +366,7 @@ async function loadPublicData(profile, force = false) {
   const location = {
     latitude: profile.latitude,
     longitude: profile.longitude,
-    type: 'approximate_city_point'
+    type: profile.type || 'approximate_city_point'
   };
   const [nasaResponse, forecastResponse] = await Promise.allSettled([
     window.FieldShiftData.fetchNasaPowerDaily({ location, signal: controller.signal }),
@@ -352,6 +389,539 @@ async function loadPublicData(profile, force = false) {
   renderPublicDataResult(profile, results, false, errors);
   refreshButton.disabled = false;
   activeDataRequest = null;
+}
+
+function setFieldLocationStatus(message, state = '') {
+  const status = document.getElementById('field-location-status');
+  status.textContent = message;
+  status.dataset.state = state;
+}
+
+function setBoundaryStatus(message, state = '') {
+  const status = document.getElementById('boundary-area-status');
+  status.textContent = message;
+  status.dataset.state = state;
+}
+
+function activeFieldName() {
+  return fieldData[activeFieldKey].name;
+}
+
+function setDraftLocation(latitude, longitude, details) {
+  window.FieldShiftFields.validateCoordinate(latitude, longitude);
+  const moved = activeLocationDraft &&
+    (Math.abs(activeLocationDraft.latitude - latitude) > 1e-7 ||
+      Math.abs(activeLocationDraft.longitude - longitude) > 1e-7);
+  if (moved && boundaryPoints.length &&
+      !window.confirm('Changing the location moves the sketch reference point. Clear the current outline and redraw it?')) {
+    return false;
+  }
+  if (moved) {
+    boundaryPoints = [];
+    boundaryFinished = false;
+  }
+  activeLocationDraft = {
+    latitude,
+    longitude,
+    label: details.label,
+    source: details.source,
+    locationType: details.locationType
+  };
+  document.getElementById('field-latitude').value = latitude.toFixed(6);
+  document.getElementById('field-longitude').value = longitude.toFixed(6);
+  document.getElementById('boundary-editor').setAttribute('aria-disabled', 'false');
+  setFieldLocationStatus(
+    `${details.label} · ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. ${details.source}.`,
+    'success'
+  );
+  renderBoundaryEditor();
+  return true;
+}
+
+function renderBoundaryEditor() {
+  const svg = document.getElementById('boundary-editor');
+  const polygon = document.getElementById('boundary-polygon');
+  const draftLine = document.getElementById('boundary-draft-line');
+  const handles = document.getElementById('boundary-handles');
+  const keyboardCursor = document.getElementById('boundary-keyboard-cursor');
+  const pointsText = boundaryPoints.map(point => `${point.x},${point.y}`).join(' ');
+  const canShowPolygon = boundaryFinished && boundaryPoints.length >= 3;
+  polygon.hidden = !canShowPolygon;
+  polygon.setAttribute('points', canShowPolygon ? pointsText : '');
+  draftLine.hidden = boundaryPoints.length === 0 || canShowPolygon;
+  draftLine.setAttribute('points', pointsText);
+  keyboardCursor.setAttribute('cx', boundaryCursor.x);
+  keyboardCursor.setAttribute('cy', boundaryCursor.y);
+  keyboardCursor.hidden = !boundaryCursorActive || !activeLocationDraft || boundaryFinished;
+  handles.replaceChildren();
+
+  boundaryPoints.forEach((point, index) => {
+    const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    handle.classList.add('boundary-handle');
+    handle.setAttribute('cx', point.x);
+    handle.setAttribute('cy', point.y);
+    handle.setAttribute('r', '8');
+    handle.setAttribute('tabindex', '0');
+    handle.setAttribute('role', 'button');
+    handle.setAttribute(
+      'aria-label',
+      `Boundary point ${index + 1}; use arrow keys to move, delete to remove`
+    );
+    handle.dataset.index = String(index);
+    handles.append(handle);
+  });
+
+  const finishButton = document.getElementById('finish-boundary');
+  finishButton.disabled = !activeLocationDraft || boundaryPoints.length < 3 || boundaryFinished;
+  document.getElementById('undo-boundary-point').disabled = boundaryPoints.length === 0 || boundaryFinished;
+  document.getElementById('clear-boundary').disabled = boundaryPoints.length === 0;
+  document.getElementById('save-field-location').disabled = fieldLocationStorageError !== null;
+
+  const saved = savedFieldLocations[activeFieldKey];
+  document.getElementById('delete-field-location').disabled = !saved || fieldLocationStorageError !== null;
+  document.getElementById('download-field-geojson').disabled = !saved?.geoJSON;
+
+  if (!activeLocationDraft) {
+    svg.setAttribute('aria-disabled', 'true');
+    if (!boundaryPoints.length) setBoundaryStatus('Add a location before sketching a boundary.');
+    return;
+  }
+  svg.setAttribute('aria-disabled', 'false');
+
+  if (!boundaryPoints.length) {
+    setBoundaryStatus('No outline yet. Click inside the grid to add boundary points.');
+  } else if (boundaryPoints.length < 3) {
+    setBoundaryStatus(`${boundaryPoints.length} point${boundaryPoints.length === 1 ? '' : 's'} added. Add at least 3 to close an outline.`);
+  } else {
+    try {
+      const { geoJSON, areaSquareMeters } = window.FieldShiftFields.buildBoundaryGeoJSON(
+        boundaryPoints,
+        activeLocationDraft,
+        activeFieldName()
+      );
+      const areaAcres = geoJSON.properties.areaAcres;
+      const areaHectares = geoJSON.properties.areaHectares;
+      setBoundaryStatus(
+        `${boundaryFinished ? 'Outline ready' : 'Approximate area'}: ${areaAcres.toFixed(2)} acres · ${areaHectares.toFixed(2)} ha (${Math.round(areaSquareMeters)} m²).`
+      );
+    } catch (error) {
+      setBoundaryStatus(error.message, 'error');
+    }
+  }
+}
+
+function renderFieldLocationEditor() {
+  const saved = savedFieldLocations[activeFieldKey];
+  boundaryPoints = saved?.points?.map(point => ({ x: point.x, y: point.y })) ?? [];
+  boundaryFinished = Boolean(saved?.geoJSON);
+  boundaryCursor = { x: 180, y: 110 };
+  boundaryCursorActive = false;
+  activeLocationDraft = saved
+    ? {
+      latitude: saved.anchorLatitude ?? saved.latitude,
+      longitude: saved.anchorLongitude ?? saved.longitude,
+      label: saved.label,
+      source: saved.locationSource,
+      locationType: saved.locationType
+    }
+    : null;
+  document.getElementById('field-latitude').value =
+    activeLocationDraft ? activeLocationDraft.latitude.toFixed(6) : '';
+  document.getElementById('field-longitude').value =
+    activeLocationDraft ? activeLocationDraft.longitude.toFixed(6) : '';
+  document.getElementById('provider-location-consent').checked = Boolean(saved?.allowProviderQueries);
+  document.getElementById('boundary-editor').setAttribute('aria-disabled', String(!activeLocationDraft));
+  document.getElementById('geocode-results').replaceChildren();
+  document.getElementById('geocode-results').hidden = true;
+  if (fieldLocationStorageError) {
+    setFieldLocationStatus(fieldLocationStorageError.message, 'error');
+  } else if (saved) {
+    setFieldLocationStatus(
+      `${saved.label} · ${saved.latitude.toFixed(5)}, ${saved.longitude.toFixed(5)}${saved.geoJSON ? ' · boundary saved locally' : ' · point saved locally'}.`,
+      'success'
+    );
+  } else {
+    setFieldLocationStatus('No saved location for this field. Search for a place or enter coordinates.');
+  }
+  renderBoundaryEditor();
+}
+
+function updateBoundaryPoint(index, point) {
+  if (!boundaryPoints[index]) return;
+  boundaryPoints[index] = {
+    x: Math.max(2, Math.min(358, point.x)),
+    y: Math.max(2, Math.min(218, point.y))
+  };
+  renderBoundaryEditor();
+}
+
+function svgPointFromPointer(event) {
+  const svg = document.getElementById('boundary-editor');
+  const point = svg.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+  return point.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+function handleBoundaryKeydown(event) {
+  const handle = event.target.closest('.boundary-handle');
+  if (!handle) {
+    if (event.target.id !== 'boundary-editor' || !activeLocationDraft || boundaryFinished) return;
+    const step = event.shiftKey ? 10 : 2;
+    const moves = {
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0]
+    };
+    if (moves[event.key]) {
+      event.preventDefault();
+      const [dx, dy] = moves[event.key];
+      boundaryCursor = {
+        x: Math.max(2, Math.min(358, boundaryCursor.x + dx)),
+        y: Math.max(2, Math.min(218, boundaryCursor.y + dy))
+      };
+      boundaryCursorActive = true;
+      renderBoundaryEditor();
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (boundaryPoints.length >= 100) {
+        setBoundaryStatus('This sketch has reached the 100-point limit.', 'error');
+        return;
+      }
+      if (boundaryPoints.some(point =>
+        Math.abs(point.x - boundaryCursor.x) < 0.5 &&
+        Math.abs(point.y - boundaryCursor.y) < 0.5
+      )) {
+        setBoundaryStatus('Move the keyboard marker to a new spot before adding another point.', 'error');
+        return;
+      }
+      boundaryPoints.push({ ...boundaryCursor });
+      boundaryCursorActive = true;
+      renderBoundaryEditor();
+    }
+    return;
+  }
+  const index = Number(handle.dataset.index);
+  const point = boundaryPoints[index];
+  if (!point) return;
+  const step = event.shiftKey ? 10 : 2;
+  const moves = {
+    ArrowUp: [0, -step],
+    ArrowDown: [0, step],
+    ArrowLeft: [-step, 0],
+    ArrowRight: [step, 0]
+  };
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault();
+    boundaryPoints.splice(index, 1);
+    boundaryFinished = false;
+    renderBoundaryEditor();
+    return;
+  }
+  if (!moves[event.key]) return;
+  event.preventDefault();
+  const [dx, dy] = moves[event.key];
+  updateBoundaryPoint(index, { x: point.x + dx, y: point.y + dy });
+  document.querySelector(`#boundary-handles [data-index="${index}"]`)?.focus();
+}
+
+function resolveGeocodeResults(results) {
+  const resultContainer = document.getElementById('geocode-results');
+  resultContainer.replaceChildren();
+  resultContainer.hidden = results.length === 0;
+  results.forEach(result => {
+    const button = document.createElement('button');
+    button.className = 'geocode-result';
+    button.type = 'button';
+    const title = document.createElement('strong');
+    title.textContent = result.name;
+    const details = document.createElement('small');
+    details.textContent = [result.admin1, result.country].filter(Boolean).join(', ');
+    button.append(title, details);
+    button.addEventListener('click', () => {
+      const label = [result.name, result.admin1, result.country].filter(Boolean).join(', ');
+      try {
+        const applied = setDraftLocation(result.latitude, result.longitude, {
+          label,
+          source: 'Open-Meteo Geocoding',
+          locationType: 'geocoded_place_point'
+        });
+        if (applied) {
+          resultContainer.hidden = true;
+          setFieldLocationStatus(
+            `${label} selected · ${result.latitude.toFixed(5)}, ${result.longitude.toFixed(5)}. Save to store it on this device.`
+          );
+        }
+      } catch (error) {
+        setFieldLocationStatus(error.message, 'error');
+      }
+    });
+    resultContainer.append(button);
+  });
+}
+
+async function searchPlaces(event) {
+  event.preventDefault();
+  const place = document.getElementById('place-search').value.trim();
+  const country = document.getElementById('place-country').value.trim();
+  const query = [place, country].filter(Boolean).join(', ');
+  const button = document.getElementById('place-search-button');
+  geocodeController?.abort();
+  const requestFieldKey = activeFieldKey;
+  const controller = new AbortController();
+  geocodeController = controller;
+  button.disabled = true;
+  setFieldLocationStatus('Searching Open-Meteo Geocoding. The place query is sent to Open-Meteo.');
+  try {
+    const results = await window.FieldShiftData.geocodeLocation({
+      query,
+      count: 5,
+      signal: controller.signal
+    });
+    if (controller.signal.aborted || activeFieldKey !== requestFieldKey) return;
+    resolveGeocodeResults(results);
+    setFieldLocationStatus(
+      results.length
+        ? `Choose the matching place below. ${results.length} result${results.length === 1 ? '' : 's'} found.`
+        : 'No matching places found. Try adding a country or enter exact coordinates.'
+    );
+  } catch (error) {
+    if (error.name !== 'AbortError') setFieldLocationStatus(error.message, 'error');
+  } finally {
+    if (geocodeController === controller) {
+      button.disabled = false;
+      geocodeController = null;
+    }
+  }
+}
+
+function applyManualCoordinates() {
+  const latitudeText = document.getElementById('field-latitude').value.trim();
+  const longitudeText = document.getElementById('field-longitude').value.trim();
+  if (!latitudeText || !longitudeText) {
+    setFieldLocationStatus('Enter both latitude and longitude.', 'error');
+    return;
+  }
+  const latitude = Number(latitudeText);
+  const longitude = Number(longitudeText);
+  try {
+    setDraftLocation(latitude, longitude, {
+      label: 'Manually entered coordinates',
+      source: 'User entry',
+      locationType: 'user_location_point'
+    });
+  } catch (error) {
+    setFieldLocationStatus(error.message, 'error');
+  }
+}
+
+function saveFieldLocation() {
+  if (fieldLocationStorageError) {
+    setFieldLocationStatus(fieldLocationStorageError.message, 'error');
+    return;
+  }
+  if (!activeLocationDraft) {
+    setFieldLocationStatus('Search for a place or enter valid coordinates before saving.', 'error');
+    return;
+  }
+  if (boundaryPoints.length && !boundaryFinished) {
+    setFieldLocationStatus('Finish the boundary outline or clear it before saving.', 'error');
+    return;
+  }
+
+  let boundary = null;
+  if (boundaryFinished) {
+    try {
+      boundary = window.FieldShiftFields.buildBoundaryGeoJSON(
+        boundaryPoints,
+        activeLocationDraft,
+        activeFieldName()
+      );
+    } catch (error) {
+      setBoundaryStatus(error.message, 'error');
+      return;
+    }
+  }
+
+  const locationForData = boundary?.centroid ?? {
+    latitude: activeLocationDraft.latitude,
+    longitude: activeLocationDraft.longitude
+  };
+  const record = {
+    label: activeLocationDraft.label,
+    locationSource: activeLocationDraft.source,
+    locationType: activeLocationDraft.locationType,
+    anchorLatitude: activeLocationDraft.latitude,
+    anchorLongitude: activeLocationDraft.longitude,
+    latitude: locationForData.latitude,
+    longitude: locationForData.longitude,
+    points: boundaryPoints.map(point => ({ x: point.x, y: point.y })),
+    geoJSON: boundary?.geoJSON ?? null,
+    areaSquareMeters: boundary?.areaSquareMeters ?? null,
+    allowProviderQueries: document.getElementById('provider-location-consent').checked,
+    updatedAt: new Date().toISOString()
+  };
+  const nextLocations = { ...savedFieldLocations, [activeFieldKey]: record };
+  try {
+    window.FieldShiftFields.writeSavedLocations(window.localStorage, nextLocations);
+  } catch (error) {
+    setFieldLocationStatus(`Could not save this field on the device: ${error.message}`, 'error');
+    return;
+  }
+  savedFieldLocations = nextLocations;
+  const savedGeometry = boundary ? 'Boundary and location saved on this device.' : 'Location saved on this device; no boundary was drawn.';
+  if (record.allowProviderQueries) {
+    const profile = {
+      name: record.label,
+      fieldName: activeFieldName(),
+      latitude: record.latitude,
+      longitude: record.longitude,
+      type: boundary ? 'field_boundary_centroid' : record.locationType
+    };
+    setFieldLocationStatus(`${savedGeometry} Fetching public point data at ${boundary ? 'the boundary centroid' : 'the saved point'}.`, 'success');
+    document.getElementById('farm-location').textContent = `${activeFieldName()} · saved location`;
+    loadPublicData(profile, true);
+    showScreen('overview');
+  } else {
+    stopPublicDataRequest('No field location data sent.');
+    const status = document.getElementById('environment-data-status');
+    status.textContent = `${savedGeometry} No coordinates were sent to data providers; enable consent to fetch public data.`;
+    status.dataset.state = 'idle';
+    setFieldLocationStatus(`${savedGeometry} No coordinates were sent to data providers.`, 'success');
+  }
+  renderFieldLocationEditor();
+}
+
+function refreshSavedFieldData(fieldKey, force = false) {
+  const record = savedFieldLocations[fieldKey];
+  if (!record?.allowProviderQueries) {
+    stopPublicDataRequest('No saved field location has been shared.');
+    const status = document.getElementById('environment-data-status');
+    status.textContent = 'No saved field coordinates have been shared. Public data for this field is not loaded; other dashboard readings remain sample data.';
+    status.dataset.state = 'idle';
+    return;
+  }
+  loadPublicData({
+    name: record.label,
+    fieldName: fieldData[fieldKey].name,
+    latitude: record.latitude,
+    longitude: record.longitude,
+    type: record.geoJSON ? 'field_boundary_centroid' : record.locationType
+  }, force);
+}
+
+function deleteFieldLocation() {
+  if (!savedFieldLocations[activeFieldKey]) return;
+  if (!window.confirm(`Remove the saved location and boundary for ${activeFieldName()} from this device?`)) return;
+  const nextLocations = { ...savedFieldLocations };
+  delete nextLocations[activeFieldKey];
+  try {
+    window.FieldShiftFields.writeSavedLocations(window.localStorage, nextLocations);
+  } catch (error) {
+    setFieldLocationStatus(`Could not remove the saved field: ${error.message}`, 'error');
+    return;
+  }
+  savedFieldLocations = nextLocations;
+  renderFieldLocationEditor();
+  updateLocation(document.getElementById('home-location').value);
+}
+
+function downloadFieldGeoJSON() {
+  const record = savedFieldLocations[activeFieldKey];
+  if (!record?.geoJSON) return;
+  const blob = new Blob([`${JSON.stringify(record.geoJSON, null, 2)}\n`], {
+    type: 'application/geo+json'
+  });
+  const url = URL.createObjectURL(blob);
+  const download = document.createElement('a');
+  download.href = url;
+  download.download = `${activeFieldKey}-boundary.geojson`;
+  download.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function initializeFieldLocationEditor() {
+  const svg = document.getElementById('boundary-editor');
+  try {
+    savedFieldLocations = window.FieldShiftFields.readSavedLocations(window.localStorage);
+  } catch (error) {
+    fieldLocationStorageError = error;
+  }
+  document.getElementById('boundary-field-select').addEventListener('change', event => selectField(event.target.value));
+  document.getElementById('place-search-form').addEventListener('submit', searchPlaces);
+  document.getElementById('apply-field-coordinates').addEventListener('click', applyManualCoordinates);
+  document.getElementById('save-field-location').addEventListener('click', saveFieldLocation);
+  document.getElementById('delete-field-location').addEventListener('click', deleteFieldLocation);
+  document.getElementById('download-field-geojson').addEventListener('click', downloadFieldGeoJSON);
+  document.getElementById('finish-boundary').addEventListener('click', () => {
+    if (boundaryPoints.length < 3) {
+      setBoundaryStatus('Add at least three points before finishing the outline.', 'error');
+      return;
+    }
+    if (!activeLocationDraft) {
+      setBoundaryStatus('Set a field location before finishing the outline.', 'error');
+      return;
+    }
+    try {
+      window.FieldShiftFields.buildBoundaryGeoJSON(boundaryPoints, activeLocationDraft, activeFieldName());
+      boundaryFinished = true;
+      renderBoundaryEditor();
+    } catch (error) {
+      setBoundaryStatus(error.message, 'error');
+    }
+  });
+  document.getElementById('undo-boundary-point').addEventListener('click', () => {
+    boundaryPoints.pop();
+    renderBoundaryEditor();
+  });
+  document.getElementById('clear-boundary').addEventListener('click', () => {
+    boundaryPoints = [];
+    boundaryFinished = false;
+    renderBoundaryEditor();
+  });
+  svg.addEventListener('click', event => {
+    if (!activeLocationDraft || boundaryFinished || event.target.closest('.boundary-handle')) return;
+    if (event.target.id !== 'boundary-editor' && event.target.id !== 'boundary-grid-bg') return;
+    if (boundaryPoints.length >= 100) {
+      setBoundaryStatus('This sketch has reached the 100-point limit.', 'error');
+      return;
+    }
+    const point = svgPointFromPointer(event);
+    boundaryPoints.push({
+      x: Math.max(2, Math.min(358, point.x)),
+      y: Math.max(2, Math.min(218, point.y))
+    });
+    renderBoundaryEditor();
+  });
+  svg.addEventListener('pointerdown', event => {
+    const handle = event.target.closest('.boundary-handle');
+    if (!handle || !boundaryFinished) return;
+    event.preventDefault();
+    draggedBoundaryPoint = Number(handle.dataset.index);
+    svg.setPointerCapture(event.pointerId);
+  });
+  svg.addEventListener('pointermove', event => {
+    if (draggedBoundaryPoint === null) return;
+    updateBoundaryPoint(draggedBoundaryPoint, svgPointFromPointer(event));
+  });
+  svg.addEventListener('pointerup', () => {
+    if (draggedBoundaryPoint === null) return;
+    draggedBoundaryPoint = null;
+    boundaryFinished = boundaryPoints.length >= 3;
+    renderBoundaryEditor();
+  });
+  svg.addEventListener('pointercancel', () => {
+    draggedBoundaryPoint = null;
+  });
+  svg.addEventListener('keydown', handleBoundaryKeydown);
+  svg.addEventListener('pointerdown', () => {
+    boundaryCursorActive = false;
+  });
+
+  renderFieldLocationEditor();
 }
 
 function updateCopilotInsight() {
@@ -480,7 +1050,8 @@ navButtons.forEach(button => button.addEventListener('click', () => showScreen(b
 document.getElementById('field-select').addEventListener('change', event => selectField(event.target.value));
 document.getElementById('home-location').addEventListener('change', event => updateLocation(event.target.value));
 document.getElementById('environment-data-refresh').addEventListener('click', () => {
-  const selectedLocation = locationProfiles[document.getElementById('home-location').value];
+  const selectedLocation = activePublicDataProfile ||
+    locationProfiles[document.getElementById('home-location').value];
   if (selectedLocation) loadPublicData(selectedLocation, true);
 });
 document.querySelectorAll('.location-preset').forEach(button => {
@@ -533,5 +1104,11 @@ document.getElementById('task-done').addEventListener('click', event => {
   button.lastChild.textContent = done ? ' Marked done' : ' Mark as done';
 });
 
+initializeFieldLocationEditor();
 runSimulation('53590', 'typical');
-updateLocation('charlotte');
+if (savedFieldLocations[activeFieldKey]?.allowProviderQueries) {
+  document.getElementById('farm-location').textContent = `${fieldData[activeFieldKey].name} · saved location`;
+  refreshSavedFieldData(activeFieldKey);
+} else {
+  updateLocation('charlotte');
+}
