@@ -5,10 +5,10 @@ const fieldData = {
 };
 
 const locationProfiles = {
-  charlotte: { name: 'Charlotte, NC', moisture: 65, erosion: 42, heat: 62, pest: 84, coverage: 88 },
-  nigeria: { name: 'Kano, Nigeria', moisture: 34, erosion: 63, heat: 82, pest: 58, coverage: 76 },
-  india: { name: 'Pune, India', moisture: 51, erosion: 54, heat: 73, pest: 67, coverage: 81 },
-  netherlands: { name: 'Wageningen, Netherlands', moisture: 74, erosion: 33, heat: 36, pest: 48, coverage: 92 }
+  charlotte: { name: 'Charlotte, NC', latitude: 35.2271, longitude: -80.8431, moisture: 65, erosion: 42, heat: 62, pest: 84, coverage: 88 },
+  nigeria: { name: 'Kano, Nigeria', latitude: 12.0022, longitude: 8.5919, moisture: 34, erosion: 63, heat: 82, pest: 58, coverage: 76 },
+  india: { name: 'Pune, India', latitude: 18.5204, longitude: 73.8567, moisture: 51, erosion: 54, heat: 73, pest: 67, coverage: 81 },
+  netherlands: { name: 'Wageningen, Netherlands', latitude: 51.9851, longitude: 5.8987, moisture: 74, erosion: 33, heat: 36, pest: 48, coverage: 92 }
 };
 
 const regionalProfiles = {
@@ -71,6 +71,10 @@ const views = ['overview', 'rotation', 'simulator', 'fields', 'weather'];
 const navButtons = document.querySelectorAll('[data-screen]');
 const sections = document.querySelectorAll('.view');
 let activeFieldKey = 'north';
+let activeDataRequest;
+let dataRequestId = 0;
+const publicDataCache = new Map();
+const publicDataCacheTtl = 15 * 60 * 1000;
 
 function showScreen(name) {
   if (!views.includes(name)) return;
@@ -184,6 +188,170 @@ function updateLocation(key) {
     meter.firstElementChild.style.setProperty('--score', `${value}%`);
   });
   updateCopilotInsight();
+  loadPublicData(profile);
+}
+
+function setPublicDataValue(valueId, metaId, value, metadata) {
+  document.getElementById(valueId).textContent = value;
+  document.getElementById(metaId).textContent = metadata;
+}
+
+function formatPublicObservation(observation, decimals = 1) {
+  if (!observation || observation.value === null) return 'Unavailable';
+  const displayUnit = observation.unit === 'C' ? '°C' : observation.unit === '1' ? '' : observation.unit;
+  return `${observation.value.toFixed(decimals)}${displayUnit ? ` ${displayUnit}` : ''}`;
+}
+
+function formatObservationMetadata(observation) {
+  if (!observation || observation.value === null) return 'No valid value in the requested period';
+  const sourceNames = observation.source.modelSources.length
+    ? ` · ${observation.source.modelSources.join(', ')}`
+    : '';
+  const freshness = observation.quality.status === 'stale' ? ' · delayed' : '';
+  return `${observation.source.provider} · ${observation.temporal.date}${sourceNames}${freshness} · grid estimate`;
+}
+
+function formatSourceFailure(provider, error) {
+  const detail = error?.message
+    ?.replace(new RegExp(`^${provider} `), '')
+    .replace(/[.!?]+$/, '');
+  return `${provider} unavailable${detail ? `: ${detail}` : ''}`;
+}
+
+function renderPublicDataResult(profile, results, cached = false, errors = {}) {
+  const nasaResult = results.nasa;
+  const forecastResult = results.forecast;
+  const nasaObservations = nasaResult?.observations ?? [];
+  const temperature = nasaObservations.find(item => item.variable === 'daily_max_air_temperature');
+  const rainfall = nasaObservations.find(item => item.variable === 'corrected_daily_precipitation');
+  const wetness = nasaObservations.find(item => item.variable === 'surface_soil_wetness');
+  const forecastRows = forecastResult?.forecasts ?? [];
+  const forecastHighs = forecastRows
+    .filter(item => item.variable === 'daily_max_temperature_forecast' && item.value !== null)
+    .map(item => item.value);
+  const forecastRainfall = forecastRows
+    .filter(item => item.variable === 'daily_precipitation_forecast' && item.value !== null)
+    .map(item => item.value);
+
+  setPublicDataValue(
+    'public-temperature',
+    'public-temperature-meta',
+    formatPublicObservation(temperature),
+    nasaResult ? formatObservationMetadata(temperature) : errors.nasa?.message || 'NASA POWER unavailable'
+  );
+  setPublicDataValue(
+    'public-rainfall',
+    'public-rainfall-meta',
+    formatPublicObservation(rainfall),
+    nasaResult ? formatObservationMetadata(rainfall) : errors.nasa?.message || 'NASA POWER unavailable'
+  );
+  setPublicDataValue(
+    'public-wetness',
+    'public-wetness-meta',
+    formatPublicObservation(wetness, 2),
+    !nasaResult
+      ? errors.nasa?.message || 'NASA POWER unavailable'
+      : wetness?.value === null || !wetness
+        ? formatObservationMetadata(wetness)
+      : `${formatObservationMetadata(wetness)} · unitless index, not a sensor percentage`
+  );
+
+  const forecastValue = forecastHighs.length
+    ? `${Math.min(...forecastHighs).toFixed(0)}–${Math.max(...forecastHighs).toFixed(0)} °C`
+    : 'Unavailable';
+  const rainfallTotal = forecastRainfall.length
+    ? `${forecastRainfall.reduce((sum, value) => sum + value, 0).toFixed(1)} mm rain`
+    : 'rainfall unavailable';
+  const forecastDate = forecastRows.find(item => item.temporal.date)?.temporal.date;
+  setPublicDataValue(
+    'public-forecast',
+    'public-forecast-meta',
+    forecastValue,
+    forecastHighs.length
+      ? `Open-Meteo · ${forecastRows.length ? '7-day forecast' : ''} · ${rainfallTotal}${forecastDate ? ` · from ${forecastDate}` : ''}${cached ? ' · cached' : ''}`
+      : errors.forecast?.message || 'Open-Meteo forecast unavailable'
+  );
+
+  const providers = [
+    nasaResult ? 'NASA POWER daily data' : null,
+    forecastResult ? 'Open-Meteo forecast' : null
+  ].filter(Boolean);
+  const failures = [
+    !nasaResult ? formatSourceFailure('NASA POWER', errors.nasa) : null,
+    !forecastResult ? formatSourceFailure('Open-Meteo', errors.forecast) : null
+  ].filter(Boolean);
+  const status = providers.length && failures.length
+    ? `${providers.join(' and ')} loaded for the approximate ${profile.name} city point; ${failures.join('; ')}.`
+    : providers.length
+      ? `${providers.join(' and ')} loaded for the approximate ${profile.name} city point${cached ? ' from this session’s cache' : ''}.`
+      : `Public sources are unavailable for the approximate ${profile.name} city point: ${failures.join('; ')}. The rest of the dashboard remains sample data; try again later.`;
+  document.getElementById('environment-data-status').textContent = status;
+  document.getElementById('environment-data-status').dataset.state =
+    providers.length && failures.length ? 'partial' : providers.length ? 'loaded' : 'error';
+}
+
+function clearPublicDataValues() {
+  setPublicDataValue('public-temperature', 'public-temperature-meta', '—', 'Loading NASA POWER…');
+  setPublicDataValue('public-rainfall', 'public-rainfall-meta', '—', 'Loading NASA POWER…');
+  setPublicDataValue('public-wetness', 'public-wetness-meta', '—', 'Loading NASA POWER…');
+  setPublicDataValue('public-forecast', 'public-forecast-meta', '—', 'Loading Open-Meteo…');
+}
+
+async function loadPublicData(profile, force = false) {
+  if (!window.FieldShiftData) {
+    document.getElementById('environment-data-status').textContent =
+      'Public data adapter is unavailable. The rest of the dashboard remains sample data.';
+    return;
+  }
+
+  const requestId = ++dataRequestId;
+  activeDataRequest?.abort();
+  const controller = new AbortController();
+  activeDataRequest = controller;
+  const refreshButton = document.getElementById('environment-data-refresh');
+  refreshButton.disabled = true;
+  clearPublicDataValues();
+  document.getElementById('environment-data-status').textContent =
+    `Loading NASA POWER and Open-Meteo for the approximate ${profile.name} city point…`;
+  document.getElementById('environment-data-status').dataset.state = 'loading';
+
+  const cacheKey = `${profile.latitude.toFixed(3)},${profile.longitude.toFixed(3)}`;
+  const cached = publicDataCache.get(cacheKey);
+  if (!force && cached && Date.now() - cached.fetchedAt < publicDataCacheTtl) {
+    if (requestId === dataRequestId) {
+      renderPublicDataResult(profile, cached.results, true, cached.errors);
+      refreshButton.disabled = false;
+      activeDataRequest = null;
+    }
+    return;
+  }
+
+  const location = {
+    latitude: profile.latitude,
+    longitude: profile.longitude,
+    type: 'approximate_city_point'
+  };
+  const [nasaResponse, forecastResponse] = await Promise.allSettled([
+    window.FieldShiftData.fetchNasaPowerDaily({ location, signal: controller.signal }),
+    window.FieldShiftData.fetchOpenMeteoForecast({ location, signal: controller.signal })
+  ]);
+  if (requestId !== dataRequestId) return;
+
+  const results = {
+    nasa: nasaResponse.status === 'fulfilled' ? nasaResponse.value : null,
+    forecast: forecastResponse.status === 'fulfilled' ? forecastResponse.value : null
+  };
+  const errors = {
+    nasa: nasaResponse.status === 'rejected' ? nasaResponse.reason : null,
+    forecast: forecastResponse.status === 'rejected' ? forecastResponse.reason : null
+  };
+  if (results.nasa && results.forecast) {
+    publicDataCache.set(cacheKey, { fetchedAt: Date.now(), results, errors });
+    while (publicDataCache.size > 8) publicDataCache.delete(publicDataCache.keys().next().value);
+  }
+  renderPublicDataResult(profile, results, false, errors);
+  refreshButton.disabled = false;
+  activeDataRequest = null;
 }
 
 function updateCopilotInsight() {
@@ -311,6 +479,10 @@ function runSimulation(zip, situationKey) {
 navButtons.forEach(button => button.addEventListener('click', () => showScreen(button.dataset.screen)));
 document.getElementById('field-select').addEventListener('change', event => selectField(event.target.value));
 document.getElementById('home-location').addEventListener('change', event => updateLocation(event.target.value));
+document.getElementById('environment-data-refresh').addEventListener('click', () => {
+  const selectedLocation = locationProfiles[document.getElementById('home-location').value];
+  if (selectedLocation) loadPublicData(selectedLocation, true);
+});
 document.querySelectorAll('.location-preset').forEach(button => {
   button.addEventListener('click', () => updateLocation(button.dataset.location));
 });

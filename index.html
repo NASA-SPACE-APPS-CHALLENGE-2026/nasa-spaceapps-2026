@@ -9,6 +9,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="fieldshift.svg" type="image/svg+xml">
     <link rel="stylesheet" href="styles.css">
+    <script src="data-providers.js" defer></script>
     <script src="app.js" defer></script>
   </head>
   <body>
@@ -70,7 +71,7 @@
           <button class="icon-button mobile-menu" id="menu-toggle" aria-label="Open navigation"><svg class="icon"><use href="#i-menu"/></svg></button>
           <div class="breadcrumbs"><span>Meadow Path Farm</span><svg class="icon"><use href="#i-chevron"/></svg><strong id="breadcrumb-current">Overview</strong></div>
           <div class="topbar-actions">
-            <span class="sample-pill"><span></span> SAMPLE DATA</span>
+            <span class="sample-pill"><span></span> DEMO + PUBLIC DATA</span>
             <button class="icon-button notification-button" aria-label="Notifications"><svg class="icon"><use href="#i-bell"/></svg><i></i></button>
             <button class="help-button"><svg class="icon"><use href="#i-help"/></svg><span>Help</span></button>
           </div>
@@ -92,7 +93,50 @@
                 </select>
               </label>
             </div>
-            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Everything here is sample data to show how FieldShift could work — not a live farm reading.</span></div>
+            <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Most cards use sample data. The public-data panel below fetches city-point information — not a live reading from your field.</span></div>
+
+            <section class="environment-data panel" aria-labelledby="environment-data-title">
+              <div class="environment-data-heading">
+                <div>
+                  <span class="panel-kicker">NASA POWER + OPEN-METEO · APPROXIMATE CITY POINT</span>
+                  <h2 id="environment-data-title">Public weather and soil clues</h2>
+                  <p id="environment-data-status" role="status" aria-live="polite">Waiting for a location profile.</p>
+                </div>
+                <button class="environment-data-refresh" id="environment-data-refresh" type="button">Refresh sources</button>
+              </div>
+              <div class="environment-data-grid">
+                <article class="environment-data-card">
+                  <span>NASA · LATEST DAILY HIGH</span>
+                  <strong id="public-temperature">—</strong>
+                  <small id="public-temperature-meta">Not loaded</small>
+                </article>
+                <article class="environment-data-card">
+                  <span>NASA · LATEST DAILY RAIN</span>
+                  <strong id="public-rainfall">—</strong>
+                  <small id="public-rainfall-meta">Not loaded</small>
+                </article>
+                <article class="environment-data-card">
+                  <span>NASA · MODELED SURFACE WETNESS</span>
+                  <strong id="public-wetness">—</strong>
+                  <small id="public-wetness-meta">Not loaded</small>
+                </article>
+                <article class="environment-data-card">
+                  <span>OPEN-METEO · NEXT 7 DAYS</span>
+                  <strong id="public-forecast">—</strong>
+                  <small id="public-forecast-meta">Not loaded</small>
+                </article>
+              </div>
+              <p class="environment-data-caveat"><strong>Not field-specific.</strong> These are coarse model/weather estimates for approximate demo city points, not farm sensors. Selecting a preset sends that approximate city coordinate to NASA POWER and Open-Meteo. NASA POWER does not provide NDVI here; vegetation, pest, erosion, strategy, and risk cards remain sample data. Source dates and limitations are shown in the data details.</p>
+              <details class="environment-data-details">
+                <summary>Data sources and limitations</summary>
+                <div class="environment-source-notes">
+                  <p><strong>NASA POWER:</strong> daily maximum air temperature, corrected precipitation, and modeled surface soil wetness. Source-native grid resolution varies by parameter and is much coarser than a field.</p>
+                  <p><strong>Open-Meteo:</strong> seven-day forecast from an automatically selected weather model; resolution varies by region. This is a forecast, not an observation.</p>
+                  <p><a href="https://power.larc.nasa.gov/docs/services/api/temporal/daily/" target="_blank" rel="noopener noreferrer">NASA POWER source documentation</a> · <a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener noreferrer">Open-Meteo forecast documentation</a> · <a href="https://open-meteo.com/en/terms" target="_blank" rel="noopener noreferrer">Open-Meteo usage terms</a></p>
+                  <p><strong>Not connected:</strong> satellite vegetation/NDVI, field sensors, erosion risk, and pest risk. No credentials or precise farm boundary are sent by this demo.</p>
+                </div>
+              </details>
+            </section>
 
             <div class="planning-toolbar">
               <label class="location-control" for="home-location"><span>LOCATION PROFILE</span>
@@ -299,7 +343,7 @@
                 <button class="task-button" id="task-done"><span><svg class="icon"><use href="#i-check"/></svg></span> Mark as done</button>
               </article>
             </div>
-            <footer class="page-footer"><span>FieldShift preview <span class="footer-dot">·</span> Made for the people who grow our food</span><span>All readings are illustrative sample data</span></footer>
+            <footer class="page-footer"><span>FieldShift preview <span class="footer-dot">·</span> Made for the people who grow our food</span><span>Only the named panel above uses public data; other readings are illustrative.</span></footer>
           </section>
 
           <section class="view" id="screen-rotation" aria-labelledby="rotation-title" hidden>
