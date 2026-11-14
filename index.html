@@ -40,7 +40,7 @@
         </a>
         <div class="farm-switcher">
           <span class="farm-avatar">MP</span>
-          <span class="farm-copy"><strong>Meadow Path Farm</strong><small>Wisconsin, USA</small></span>
+          <span class="farm-copy"><strong>Meadow Path Farm</strong><small id="farm-location">Charlotte, NC · demo</small></span>
           <svg class="icon switch-chevron"><use href="#i-chevron-down"/></svg>
         </div>
         <span class="nav-label">WORKSPACE</span>
@@ -93,6 +93,126 @@
               </label>
             </div>
             <div class="demo-notice"><svg class="icon"><use href="#i-help"/></svg><span><strong>Preview mode.</strong> Everything here is sample data to show how FieldShift could work — not a live farm reading.</span></div>
+
+            <div class="planning-toolbar">
+              <label class="location-control" for="home-location"><span>LOCATION PROFILE</span>
+                <select id="home-location">
+                  <option value="charlotte">Charlotte, NC</option>
+                  <option value="nigeria">Kano, Nigeria</option>
+                  <option value="india">Pune, India</option>
+                  <option value="netherlands">Wageningen, Netherlands</option>
+                </select>
+              </label>
+              <div class="location-presets" role="group" aria-label="Quick location profiles">
+                <button class="location-preset active" type="button" data-location="charlotte" aria-pressed="true">Charlotte</button>
+                <button class="location-preset" type="button" data-location="nigeria" aria-pressed="false">Nigeria</button>
+                <button class="location-preset" type="button" data-location="india" aria-pressed="false">India</button>
+                <button class="location-preset" type="button" data-location="netherlands" aria-pressed="false">Netherlands</button>
+              </div>
+              <div class="mode-toggle" role="group" aria-label="Dashboard mode">
+                <button class="mode-button active" data-mode="farmer" aria-pressed="true">Farmer mode</button>
+                <button class="mode-button" data-mode="judge" aria-pressed="false">Judge / Tech</button>
+              </div>
+              <button class="questionnaire-open" id="questionnaire-open"><svg class="icon"><use href="#i-sprout"/></svg> Open field questionnaire</button>
+            </div>
+
+            <article class="copilot-insight">
+              <div class="insight-header"><span class="insight-emblem">✳</span><span class="panel-kicker">CO-PILOT INSIGHT · DEMO</span><span class="insight-sample">SAMPLE NOTE</span></div>
+              <p id="copilot-insight-copy">For this rain-fed Charlotte sample following corn, repeating corn may increase pest pressure and heat exposure. Compare a cover crop or a different rotation, then check local field history before deciding.</p>
+              <div class="insight-footnote">Questionnaire-style example with synthetic indicators only · no AI or live NASA / ESA / JAXA telemetry connected</div>
+            </article>
+
+            <section class="risk-section" aria-labelledby="risk-title">
+              <div class="section-heading">
+                <div><span class="panel-kicker">01 · FIELD SIGNALS</span><h2 id="risk-title">What to keep an eye on</h2><p id="mode-hint">Plain-language view · illustrative profile, not a sensor reading</p></div>
+                <span class="sample-location-chip"><span class="live-dot"></span><span id="risk-location-name">Charlotte, NC</span> sample profile</span>
+              </div>
+              <div class="risk-grid">
+                <article class="risk-card">
+                  <div class="risk-card-heading"><span>Soil moisture</span><strong id="risk-moisture-value">65%</strong></div>
+                  <div class="risk-track moisture-track" id="risk-moisture-meter" role="meter" aria-label="Sample soil moisture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="65"><span style="--score:65%"></span></div>
+                  <div class="risk-card-foot"><span>Dry</span><strong id="risk-moisture-status">Optimal</strong><span>Wet</span></div>
+                </article>
+                <article class="risk-card">
+                  <div class="risk-card-heading"><span>Erosion risk</span><strong id="risk-erosion-value">42 / 100</strong></div>
+                  <div class="risk-track risk-track-reverse" id="risk-erosion-meter" role="meter" aria-label="Sample erosion risk" aria-valuemin="0" aria-valuemax="100" aria-valuenow="42"><span style="--score:42%"></span></div>
+                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-erosion-status">Moderate</strong><span>Higher</span></div>
+                </article>
+                <article class="risk-card">
+                  <div class="risk-card-heading"><span>Heat anomaly</span><strong id="risk-heat-value">62 / 100</strong></div>
+                  <div class="risk-track risk-track-reverse" id="risk-heat-meter" role="meter" aria-label="Sample heat anomaly" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62"><span style="--score:62%"></span></div>
+                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-heat-status">Elevated</strong><span>Higher</span></div>
+                </article>
+                <article class="risk-card">
+                  <div class="risk-card-heading"><span>Pest / insect risk</span><strong id="risk-pest-value">84 / 100</strong></div>
+                  <div class="risk-track risk-track-reverse" id="risk-pest-meter" role="meter" aria-label="Sample pest and insect risk" aria-valuemin="0" aria-valuemax="100" aria-valuenow="84"><span style="--score:84%"></span></div>
+                  <div class="risk-card-foot"><span>Lower</span><strong id="risk-pest-status">High</strong><span>Higher</span></div>
+                </article>
+              </div>
+              <div class="confidence-note"><svg class="icon"><use href="#i-help"/></svg><span><strong>Sample profile coverage: <span id="sample-coverage">88%</span>.</strong> Two of 12 illustrative tiles are marked cloudy; verify topsoil moisture in the field before sowing. This is not a real confidence score or satellite observation.</span></div>
+            </section>
+
+            <section class="strategy-section" aria-labelledby="strategy-title">
+              <div class="section-heading">
+                <div><span class="panel-kicker">02 · SAME FIVE LENSES FOR EACH OPTION</span><h2 id="strategy-title">Compare three strategies</h2><p>Illustrative planning scores only—not yield, cost, or pest forecasts.</p></div>
+                <button class="text-button" data-screen="rotation">Explore crop rotations <svg class="icon"><use href="#i-chevron"/></svg></button>
+              </div>
+              <div class="strategy-grid">
+                <article class="strategy-card">
+                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY A · STATUS QUO</span><span class="strategy-number">01</span></div>
+                  <h3>Repeat corn</h3><p class="strategy-sequence">Corn → corn monoculture</p>
+                  <div class="strategy-scores">
+                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:72%"></i></span><strong>72</strong></div>
+                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:45%"></i></span><strong>45</strong></div>
+                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:38%"></i></span><strong>38</strong></div>
+                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:30%"></i></span><strong>30</strong></div>
+                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:95%"></i></span><strong>95</strong></div>
+                  </div>
+                  <div class="strategy-risk"><strong>Trade-off</strong><span>Familiar approach; repeated corn can increase some pest and input pressures.</span></div>
+                </article>
+                <article class="strategy-card strategy-recommended">
+                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY B · COVER CROP</span><span class="strategy-number">02</span></div>
+                  <h3>Corn + crimson clover</h3><p class="strategy-sequence">Corn → crimson clover cover</p>
+                  <div class="strategy-scores">
+                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:88%"></i></span><strong>88</strong></div>
+                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:82%"></i></span><strong>82</strong></div>
+                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:94%"></i></span><strong>94</strong></div>
+                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:91%"></i></span><strong>91</strong></div>
+                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:84%"></i></span><strong>84</strong></div>
+                  </div>
+                  <div class="strategy-risk"><strong>Trade-off</strong><span>May improve soil cover; needs a workable spring termination plan.</span></div>
+                </article>
+                <article class="strategy-card">
+                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY C · CLIMATE SHIFT</span><span class="strategy-number">03</span></div>
+                  <h3>Sorghum + rye</h3><p class="strategy-sequence">Sorghum → winter rye cover</p>
+                  <div class="strategy-scores">
+                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:81%"></i></span><strong>81</strong></div>
+                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:95%"></i></span><strong>95</strong></div>
+                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:86%"></i></span><strong>86</strong></div>
+                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:89%"></i></span><strong>89</strong></div>
+                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:70%"></i></span><strong>70</strong></div>
+                  </div>
+                  <div class="strategy-risk"><strong>Trade-off</strong><span>Could suit hotter conditions; buyer access and equipment may be limiting.</span></div>
+                </article>
+              </div>
+            </section>
+
+            <dialog class="questionnaire-dialog" id="questionnaire-dialog" aria-labelledby="questionnaire-title">
+              <form id="questionnaire-form">
+                <div class="dialog-heading"><div><span class="panel-kicker">FIELD PROFILE · SAMPLE</span><h2 id="questionnaire-title">A few details about this field</h2></div><button class="dialog-close" type="button" id="questionnaire-close" aria-label="Close questionnaire">×</button></div>
+                <label for="last-crop">What grew here last season?
+                  <select id="last-crop"><option value="corn">Corn</option><option value="soybeans">Soybeans</option><option value="sorghum">Sorghum</option><option value="other">Another crop</option></select>
+                </label>
+                <label for="irrigation-type">How is the field watered?
+                  <select id="irrigation-type"><option value="rainfed">Rain-fed</option><option value="supplemental">Some supplemental irrigation</option><option value="irrigated">Irrigated</option></select>
+                </label>
+                <label for="farm-priority">What matters most this season?
+                  <select id="farm-priority"><option value="soil">Protecting soil</option><option value="water">Managing water stress</option><option value="cost">Managing input costs</option></select>
+                </label>
+                <div class="dialog-actions"><button class="dialog-cancel" type="button" id="questionnaire-cancel">Cancel</button><button class="questionnaire-submit" type="submit">Update demo insight</button></div>
+                <p class="dialog-disclaimer">Creates a sample planning note in this browser; no AI service or farm data is contacted.</p>
+              </form>
+            </dialog>
 
             <div class="metric-grid">
               <article class="metric-card soil-card">

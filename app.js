@@ -4,6 +4,13 @@ const fieldData = {
   west: { name: 'West Meadow', acres: 64, moisture: 27, soil: 'sandy', crop: 'small-grains', rain: '0.6', rainDays: [0, 0, 0.1, 0.3, 0.1, 0.1, 0], ndvi: '0.64', rotation: ['Oats', 'Corn', 'Soybeans'] }
 };
 
+const locationProfiles = {
+  charlotte: { name: 'Charlotte, NC', moisture: 65, erosion: 42, heat: 62, pest: 84, coverage: 88 },
+  nigeria: { name: 'Kano, Nigeria', moisture: 34, erosion: 63, heat: 82, pest: 58, coverage: 76 },
+  india: { name: 'Pune, India', moisture: 51, erosion: 54, heat: 73, pest: 67, coverage: 81 },
+  netherlands: { name: 'Wageningen, Netherlands', moisture: 74, erosion: 33, heat: 36, pest: 48, coverage: 92 }
+};
+
 const regionalProfiles = {
   0: { name: 'New England', rain: 1, high: 65 },
   1: { name: 'Northeast', rain: 0.9, high: 67 },
@@ -150,6 +157,64 @@ function selectField(key) {
   });
 }
 
+function updateLocation(key) {
+  const profile = locationProfiles[key];
+  if (!profile) return;
+  document.getElementById('home-location').value = key;
+  document.getElementById('farm-location').textContent = `${profile.name} · demo`;
+  document.getElementById('risk-location-name').textContent = profile.name;
+  document.getElementById('sample-coverage').textContent = `${profile.coverage}%`;
+  document.querySelectorAll('.location-preset').forEach(button => {
+    const active = button.dataset.location === key;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const riskSignals = [
+    { key: 'moisture', id: 'moisture', format: value => `${value}%`, status: value => value < 35 ? 'Dry' : value <= 75 ? 'Optimal' : 'Wet' },
+    { key: 'erosion', id: 'erosion', format: value => `${value} / 100`, status: value => value < 35 ? 'Low' : value < 65 ? 'Moderate' : 'High' },
+    { key: 'heat', id: 'heat', format: value => `${value} / 100`, status: value => value < 35 ? 'Low' : value < 55 ? 'Moderate' : value < 75 ? 'Elevated' : 'High' },
+    { key: 'pest', id: 'pest', format: value => `${value} / 100`, status: value => value < 35 ? 'Low' : value < 60 ? 'Moderate' : value < 75 ? 'Elevated' : 'High' }
+  ];
+  riskSignals.forEach(signal => {
+    const value = profile[signal.key];
+    document.getElementById(`risk-${signal.id}-value`).textContent = signal.format(value);
+    document.getElementById(`risk-${signal.id}-status`).textContent = signal.status(value);
+    const meter = document.getElementById(`risk-${signal.id}-meter`);
+    meter.setAttribute('aria-valuenow', value);
+    meter.firstElementChild.style.setProperty('--score', `${value}%`);
+  });
+  updateCopilotInsight();
+}
+
+function updateCopilotInsight() {
+  const locationName = locationProfiles[document.getElementById('home-location').value].name;
+  const lastCrop = document.getElementById('last-crop').value;
+  const irrigation = document.getElementById('irrigation-type').value;
+  const priority = document.getElementById('farm-priority').value;
+  const cropLabels = { corn: 'corn', soybeans: 'soybeans', sorghum: 'sorghum', other: 'another crop' };
+  const irrigationLabels = {
+    rainfed: 'rain-fed',
+    supplemental: 'partly irrigated',
+    irrigated: 'irrigated'
+  };
+  const priorityNotes = {
+    soil: 'A cover crop may be worth comparing for added ground cover.',
+    water: 'Compare options for water demand and check field moisture locally.',
+    cost: 'Compare seed, termination, and input costs with a local advisor.'
+  };
+  const historyNote = lastCrop === 'corn'
+    ? 'Repeating corn may increase some pest and input pressures in certain systems.'
+    : 'Changing crop families may add diversity; local disease and residue history still matter.';
+  const waterNote = irrigation === 'rainfed'
+    ? 'Rainfall timing is an important planning factor for a rain-fed field.'
+    : 'Irrigation can add flexibility, but water availability and cost still matter.';
+  const mode = document.querySelector('.mode-button.active').dataset.mode;
+  const plainNote = `${historyNote} ${waterNote} ${priorityNotes[priority]}`;
+  const technicalNote = `Sample inputs: ${cropLabels[lastCrop]} last season · ${irrigationLabels[irrigation]} · priority ${priority}. These general signals need local field and crop-history checks.`;
+  document.getElementById('copilot-insight-copy').textContent =
+    `${locationName} demo profile: ${mode === 'farmer' ? plainNote : technicalNote}`;
+}
+
 function runSimulation(zip, situationKey) {
   const region = regionalProfiles[zip[0]];
   const situation = situations[situationKey];
@@ -245,6 +310,32 @@ function runSimulation(zip, situationKey) {
 
 navButtons.forEach(button => button.addEventListener('click', () => showScreen(button.dataset.screen)));
 document.getElementById('field-select').addEventListener('change', event => selectField(event.target.value));
+document.getElementById('home-location').addEventListener('change', event => updateLocation(event.target.value));
+document.querySelectorAll('.location-preset').forEach(button => {
+  button.addEventListener('click', () => updateLocation(button.dataset.location));
+});
+document.querySelectorAll('.mode-button').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('.mode-button').forEach(modeButton => {
+      const active = modeButton === button;
+      modeButton.classList.toggle('active', active);
+      modeButton.setAttribute('aria-pressed', String(active));
+    });
+    document.getElementById('mode-hint').textContent = button.dataset.mode === 'farmer'
+      ? 'Plain-language view · illustrative profile, not a sensor reading'
+      : 'Technical view · 0–100 sample indices, not measured telemetry';
+    updateCopilotInsight();
+  });
+});
+const questionnaireDialog = document.getElementById('questionnaire-dialog');
+document.getElementById('questionnaire-open').addEventListener('click', () => questionnaireDialog.showModal());
+document.getElementById('questionnaire-close').addEventListener('click', () => questionnaireDialog.close());
+document.getElementById('questionnaire-cancel').addEventListener('click', () => questionnaireDialog.close());
+document.getElementById('questionnaire-form').addEventListener('submit', event => {
+  event.preventDefault();
+  updateCopilotInsight();
+  questionnaireDialog.close();
+});
 document.querySelectorAll('[data-select-field]').forEach(button => {
   button.addEventListener('click', () => {
     selectField(button.dataset.selectField);
@@ -271,3 +362,4 @@ document.getElementById('task-done').addEventListener('click', event => {
 });
 
 runSimulation('53590', 'typical');
+updateLocation('charlotte');
