@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="styles.css">
     <script src="data-providers.js" defer></script>
     <script src="field-boundary.js" defer></script>
+    <script src="strategy-scoring.js" defer></script>
     <script src="app.js" defer></script>
   </head>
   <body>
@@ -199,47 +200,11 @@
 
             <section class="strategy-section" aria-labelledby="strategy-title">
               <div class="section-heading">
-                <div><span class="panel-kicker">02 · SAME FIVE LENSES FOR EACH OPTION</span><h2 id="strategy-title">Compare three strategies</h2><p>Illustrative planning scores only—not yield, cost, or pest forecasts.</p></div>
+                <div><span class="panel-kicker">02 · SAME FIVE LENSES FOR EACH OPTION</span><h2 id="strategy-title">Compare three strategies</h2><p>Sample/demo scores on a 0–100 scale (higher is more favorable) — not a forecast of yield, profit, savings, or pest outcomes.</p></div>
                 <button class="text-button" data-screen="rotation">Explore crop rotations <svg class="icon"><use href="#i-chevron"/></svg></button>
               </div>
-              <div class="strategy-grid">
-                <article class="strategy-card">
-                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY A · STATUS QUO</span><span class="strategy-number">01</span></div>
-                  <h3>Repeat corn</h3><p class="strategy-sequence">Corn → corn monoculture</p>
-                  <div class="strategy-scores">
-                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:72%"></i></span><strong>72</strong></div>
-                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:45%"></i></span><strong>45</strong></div>
-                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:38%"></i></span><strong>38</strong></div>
-                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:30%"></i></span><strong>30</strong></div>
-                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:95%"></i></span><strong>95</strong></div>
-                  </div>
-                  <div class="strategy-risk"><strong>Trade-off</strong><span>Familiar approach; repeated corn can increase some pest and input pressures.</span></div>
-                </article>
-                <article class="strategy-card strategy-recommended">
-                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY B · COVER CROP</span><span class="strategy-number">02</span></div>
-                  <h3>Corn + crimson clover</h3><p class="strategy-sequence">Corn → crimson clover cover</p>
-                  <div class="strategy-scores">
-                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:88%"></i></span><strong>88</strong></div>
-                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:82%"></i></span><strong>82</strong></div>
-                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:94%"></i></span><strong>94</strong></div>
-                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:91%"></i></span><strong>91</strong></div>
-                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:84%"></i></span><strong>84</strong></div>
-                  </div>
-                  <div class="strategy-risk"><strong>Trade-off</strong><span>May improve soil cover; needs a workable spring termination plan.</span></div>
-                </article>
-                <article class="strategy-card">
-                  <div class="strategy-card-header"><span class="strategy-label">STRATEGY C · CLIMATE SHIFT</span><span class="strategy-number">03</span></div>
-                  <h3>Sorghum + rye</h3><p class="strategy-sequence">Sorghum → winter rye cover</p>
-                  <div class="strategy-scores">
-                    <div class="strategy-score"><span>Yield / wallet</span><span class="strategy-bar"><i style="--score:81%"></i></span><strong>81</strong></div>
-                    <div class="strategy-score"><span>Water / heat</span><span class="strategy-bar"><i style="--score:95%"></i></span><strong>95</strong></div>
-                    <div class="strategy-score"><span>Soil health</span><span class="strategy-bar"><i style="--score:86%"></i></span><strong>86</strong></div>
-                    <div class="strategy-score"><span>Insect control</span><span class="strategy-bar"><i style="--score:89%"></i></span><strong>89</strong></div>
-                    <div class="strategy-score"><span>Feasibility</span><span class="strategy-bar"><i style="--score:70%"></i></span><strong>70</strong></div>
-                  </div>
-                  <div class="strategy-risk"><strong>Trade-off</strong><span>Could suit hotter conditions; buyer access and equipment may be limiting.</span></div>
-                </article>
-              </div>
+              <div class="strategy-grid" id="strategy-grid" aria-live="polite"></div>
+              <p class="strategy-method" id="strategy-method">Each card uses the same five lenses and the same rubric. Only the objective weights differ. Placeholder heuristics, not yet reviewed by agronomists.</p>
             </section>
 
             <dialog class="questionnaire-dialog" id="questionnaire-dialog" aria-labelledby="questionnaire-title">
