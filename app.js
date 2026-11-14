@@ -73,6 +73,7 @@ const sections = document.querySelectorAll('.view');
 let activeFieldKey = 'north';
 let activeDataRequest;
 let activePublicDataProfile = null;
+let latestNasaObservations = [];
 let dataRequestId = 0;
 const publicDataCache = new Map();
 const publicDataCacheTtl = 15 * 60 * 1000;
@@ -176,6 +177,7 @@ function selectField(key) {
   renderTechnicalTable();
   renderFieldLocationEditor();
   refreshSavedFieldData(key);
+  renderStrategyCards();
 }
 
 function updateLocation(key) {
@@ -193,6 +195,7 @@ function updateLocation(key) {
   renderGroundCheck(profile);
   renderTechnicalTable();
   updateCopilotInsight();
+  renderStrategyCards();
   loadPublicData(profile);
 }
 
@@ -381,6 +384,7 @@ function setDashboardMode(mode) {
     technical ? 'Agronomist / Research mode active' : 'Farmer mode active';
   updateCopilotInsight();
   renderTechnicalTable();
+  renderStrategyCards();
 }
 
 function setPublicDataValue(valueId, metaId, value, metadata) {
@@ -414,6 +418,8 @@ function renderPublicDataResult(profile, results, cached = false, errors = {}) {
   const nasaResult = results.nasa;
   const forecastResult = results.forecast;
   const nasaObservations = nasaResult?.observations ?? [];
+  latestNasaObservations = nasaObservations;
+  renderStrategyCards();
   const temperature = nasaObservations.find(item => item.variable === 'daily_max_air_temperature');
   const rainfall = nasaObservations.find(item => item.variable === 'corrected_daily_precipitation');
   const wetness = nasaObservations.find(item => item.variable === 'surface_soil_wetness');
@@ -494,6 +500,8 @@ function describePublicLocation(profile) {
 }
 
 function clearPublicDataValues(message = 'Not loaded') {
+  latestNasaObservations = [];
+  renderStrategyCards();
   setPublicDataValue('public-temperature', 'public-temperature-meta', '—', message);
   setPublicDataValue('public-rainfall', 'public-rainfall-meta', '—', message);
   setPublicDataValue('public-wetness', 'public-wetness-meta', '—', message);
@@ -1100,6 +1108,102 @@ function initializeFieldLocationEditor() {
   renderFieldLocationEditor();
 }
 
+function currentMode() {
+  return document.getElementById('screen-overview').dataset.mode;
+}
+
+function createElement(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function renderStrategyCards() {
+  const grid = document.getElementById('strategy-grid');
+  if (!grid || !window.FieldShiftStrategies) return;
+  const { buildFieldInputs, compareStrategies, describeStrategy } = window.FieldShiftStrategies;
+  const inputs = buildFieldInputs({
+    field: fieldData[activeFieldKey],
+    locationProfile: locationProfiles[document.getElementById('home-location').value],
+    observations: latestNasaObservations,
+    questionnaire: {
+      lastCrop: document.getElementById('last-crop').value,
+      irrigation: document.getElementById('irrigation-type').value
+    }
+  });
+  const mode = currentMode();
+  const cards = compareStrategies(inputs).results.map((result, index) => {
+    const view = describeStrategy(result, mode);
+    const card = createElement('article', 'strategy-card');
+    const header = createElement('div', 'strategy-card-header');
+    header.append(
+      createElement('span', 'strategy-label', `OBJECTIVE · ${view.objectiveLabel.toUpperCase()}`),
+      createElement('span', 'strategy-number', String(index + 1).padStart(2, '0'))
+    );
+    const crop = view.plannedCrop ? view.plannedCrop[0].toUpperCase() + view.plannedCrop.slice(1) : 'Crop unknown';
+    card.append(
+      header,
+      createElement('h3', '', view.title),
+      createElement('p', 'strategy-sequence', `Next season: ${crop}${view.coverCrop ? ' + winter cover crop' : ''}`),
+      createElement('span', 'strategy-sample', 'Sample/demo score — not a forecast')
+    );
+
+    const scores = createElement('div', 'strategy-scores');
+    view.aspects.forEach(aspect => {
+      const row = createElement('div', `strategy-score${aspect.status === 'scored' ? '' : ' strategy-score-unavailable'}`);
+      const label = mode === 'farmer' ? aspect.label : `${aspect.label} · ×${aspect.weight.toFixed(2)}`;
+      const bar = createElement('span', 'strategy-bar');
+      const fill = document.createElement('i');
+      fill.style.setProperty('--score', `${aspect.score ?? 0}%`);
+      bar.append(fill);
+      row.append(
+        createElement('span', '', label),
+        bar,
+        createElement('strong', '', aspect.status === 'scored' ? String(aspect.score) : 'N/A')
+      );
+      row.title = aspect.status === 'scored'
+        ? `${aspect.label}: ${aspect.score} / 100 · ${aspect.confidence} confidence`
+        : `${aspect.label}: unavailable — not enough evidence`;
+      scores.append(row);
+    });
+    card.append(scores);
+
+    const overall = view.overall.status === 'scored'
+      ? `${view.overall.score} / 100 · ${view.overall.confidence} confidence`
+      : 'Unavailable — too few aspects scored';
+    const excluded = view.overall.excluded.length
+      ? ` · ${view.overall.excluded.length} aspect${view.overall.excluded.length > 1 ? 's' : ''} not scored`
+      : '';
+    const overallRow = createElement('p', 'strategy-overall');
+    overallRow.append(createElement('strong', '', 'Weighted sample score'), createElement('span', '', `${overall}${excluded}`));
+    card.append(overallRow);
+
+    if (mode === 'farmer') {
+      [['Benefit', view.benefit], ['Trade-off', view.tradeOff], ['Practical constraint', view.constraint]].forEach(([title, text]) => {
+        const note = createElement('div', 'strategy-risk');
+        note.append(createElement('strong', '', title), createElement('span', '', text));
+        card.append(note);
+      });
+    } else {
+      const details = createElement('ul', 'strategy-details');
+      view.aspects.forEach(aspect => {
+        const item = createElement('li');
+        item.append(
+          createElement('strong', '', `${aspect.label} (${aspect.confidence} confidence)`),
+          createElement('span', '', aspect.reason),
+          createElement('small', '', `Inputs: ${aspect.inputsUsed.join('; ') || 'none'}`)
+        );
+        if (aspect.assumptions.length) item.append(createElement('small', '', `Assumptions: ${aspect.assumptions.join(' ')}`));
+        details.append(item);
+      });
+      card.append(details);
+    }
+    return card;
+  });
+  grid.replaceChildren(...cards);
+}
+
 function updateCopilotInsight() {
   const locationName = locationProfiles[document.getElementById('home-location').value].name;
   const lastCrop = document.getElementById('last-crop').value;
@@ -1122,7 +1226,7 @@ function updateCopilotInsight() {
   const waterNote = irrigation === 'rainfed'
     ? 'Rainfall timing is an important planning factor for a rain-fed field.'
     : 'Irrigation can add flexibility, but water availability and cost still matter.';
-  const mode = document.getElementById('screen-overview').dataset.mode;
+  const mode = currentMode();
   const plainNote = `${historyNote} ${waterNote} ${priorityNotes[priority]}`;
   const technicalNote = `Sample inputs: ${cropLabels[lastCrop]} last season · ${irrigationLabels[irrigation]} · priority ${priority}. These general signals need local field and crop-history checks.`;
   document.getElementById('copilot-insight-copy').textContent =
@@ -1243,6 +1347,7 @@ document.getElementById('questionnaire-cancel').addEventListener('click', () => 
 document.getElementById('questionnaire-form').addEventListener('submit', event => {
   event.preventDefault();
   updateCopilotInsight();
+  renderStrategyCards();
   questionnaireDialog.close();
 });
 document.querySelectorAll('[data-select-field]').forEach(button => {

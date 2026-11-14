@@ -404,6 +404,16 @@ h1 { margin-bottom: 4px; font-size: clamp(24px, 2.4vw, 31px); letter-spacing: -1
 .strategy-risk { display: grid; gap: 4px; margin-top: 12px; padding-top: 9px; border-top: 1px solid #edf0e9; }
 .strategy-risk strong { color: #8a7a4d; font-size: 7px; text-transform: uppercase; letter-spacing: .6px; }
 .strategy-risk span { color: #858e83; font-size: 8px; line-height: 1.45; }
+.strategy-sample { display: inline-block; margin-bottom: 11px; padding: 4px 7px; border-radius: 20px; background: #f2ebd1; color: #8e7843; font-size: 7px; font-weight: 700; letter-spacing: .4px; }
+.strategy-score-unavailable strong { color: #a0703f; }
+.strategy-score-unavailable .strategy-bar { background: repeating-linear-gradient(135deg,#edf0e9 0 4px,#f8f9f5 4px 8px); }
+.strategy-overall { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; margin: 12px 0 0; padding-top: 9px; border-top: 1px solid #edf0e9; color: #5d685e; font-size: 8px; }
+.strategy-overall strong { color: #445046; }
+.strategy-details { display: grid; gap: 8px; margin: 12px 0 0; padding: 9px 0 0; border-top: 1px solid #edf0e9; list-style: none; }
+.strategy-details li { display: grid; gap: 2px; color: #6f7a6f; font-size: 8px; line-height: 1.45; }
+.strategy-details strong { color: #445046; }
+.strategy-details small { color: #8a9489; font-size: 7px; overflow-wrap: anywhere; }
+.strategy-method { margin: 10px 0 0; color: #79816d; font-size: 8px; line-height: 1.5; }
 .questionnaire-dialog { width: min(440px,calc(100vw - 28px)); padding: 0; border: 1px solid #dce4d5; border-radius: 13px; background: #fff; color: var(--ink); box-shadow: 0 18px 60px #10201535; }
 .questionnaire-dialog::backdrop { background: #12201870; backdrop-filter: blur(3px); }
 .questionnaire-dialog form { display: grid; gap: 13px; padding: 20px; }
