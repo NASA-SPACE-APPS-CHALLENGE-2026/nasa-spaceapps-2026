@@ -1,13 +1,14 @@
-/** PlotTwist mark: a wheat sprout over field rows (from the prototype's fieldshift.svg, recoloured). */
-export function Logo({ className }: { className?: string }) {
+/** PlotTwist mark: a sprout over field rows. `dark` is for the soil-coloured nav bar. */
+export function Logo({ className, tone = 'light' }: { className?: string; tone?: 'light' | 'dark' }) {
+  const c = tone === 'dark' ? { tile: '#2a231b', rows: '#d9b65a', leaf: '#b5d47a' } : { tile: '#e3ead9', rows: '#7d6648', leaf: '#2e5426' };
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
-      <rect width="48" height="48" rx="14" fill="#e7f1fb" />
-      <path d="M8 40h32M11 35h26" stroke="#2b7fd0" strokeWidth="2.5" strokeLinecap="round" />
+      <rect width="48" height="48" rx="8" fill={c.tile} />
+      <path d="M8 40h32M11 35h26" stroke={c.rows} strokeWidth="2.5" strokeLinecap="round" />
       <path
         d="M24 33V17m0 8c-9 0-12-5-12-12 8 0 12 3 12 12Zm0-5c0-8 3-13 12-13 0 8-3 13-12 13Z"
         fill="none"
-        stroke="#2f6b3a"
+        stroke={c.leaf}
         strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
