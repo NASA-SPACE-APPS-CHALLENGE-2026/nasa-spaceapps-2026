@@ -45,11 +45,11 @@ export function FieldPicker({ fields, field, onSelect }: { fields: Field[]; fiel
 }
 
 /** Shown when the farm has no fields yet. */
-export function NoFieldsYet({ what }: { what: string }) {
+export function NoFieldsYet({ what, text }: { what: string; text?: string }) {
   return (
     <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-6">
       <h2 className="font-plate text-xl">Add a field first</h2>
-      <p className="mt-2 text-[16px] text-ink-soft">{what} works one field at a time. Draw a field and enter its crops, then come back here.</p>
+      <p className="mt-2 text-[16px] text-ink-soft">{text ?? `${what} works one field at a time. Draw a field and enter its crops, then come back here.`}</p>
       <Link href="/fields" className="mt-4 inline-flex min-h-12 items-center rounded-[var(--radius-control)] bg-sky px-5 font-semibold text-white hover:bg-sky-deep">
         Go to Fields
       </Link>

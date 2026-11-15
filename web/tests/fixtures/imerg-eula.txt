@@ -1,0 +1,38 @@
+Dataset: 3B-DAY-L.MS.MRG.3IMERG.20261113-S000000-E235959.V07C.nc4
+Error { 
+    code = 403;
+    message = "EffectiveUrlCache::get_effective_url() - Error while attempting to retrieve a redirect URL. CurlUtils::process_get_redirect_http_code() - ERROR -  I tried 3 times to access:
+    https://data.gesdisc.earthdata.nasa.gov/data/GPM_L3/GPM_3IMERGDL.07/2026/11/3B-DAY-L.MS.MRG.3IMERG.20261113-S000000-E235959.V07C.nc4
+I was expecting to receive an HTTP redirect code and location header in the response. 
+Unfortunately this did not happen.
+Here are the details of the most recent transaction:
+
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+HTTP Response Details
+The remote service returned an HTTP code of: 403
+Response Headers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+  content-type: application/json
+  content-length: 160
+  date: Sun, 15 Nov 2026 07:31:19 GMT
+  x-amzn-remapped-date: Sun, 15 Nov 2026 07:31:19 GMT
+  x-amzn-requestid: 1b520794-89ad-4247-8b45-19c97cb16f2b
+  x-amzn-remapped-x-amzn-requestid: b70f36f0-3f91-4f4f-b2b2-3821bdf0a27f
+  x-xss-protection: 1; mode=block
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-amzn-remapped-content-length: 160
+  x-frame-options: SAMEORIGIN
+  x-amzn-remapped-connection: keep-alive
+  x-request-id: 175fcee1-f8f5-46ed-bf7e-677e2c429bef
+  x-amz-apigw-id: G3vnNEoKvHcEuBQ=
+  x-amzn-remapped-server: Server
+  x-content-type-options: nosniff
+  x-amzn-trace-id: Root=1-6af95fc7-2103d87b78a812163403d2a3;Parent=06d3332af9569d1f;Sampled=0;Lineage=1:2af9a976:0
+  x-amzn-remapped-x-forwarded-for: 54.190.110.130, 15.158.54.145
+  x-cache: Error from cloudfront
+  via: 1.1 c03a4954a1bffe652f0bc5bc615a5530.cloudfront.net (CloudFront)
+  x-amz-cf-pop: HIO52-P3
+  x-amz-cf-id: rP5uFNIPhkxX4Z0Pyqnv-mVT9N8w8-FFR81IsUkqvdNkPwpqnJkGUg==
+# BEGIN Response Body -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+{"status_code":403,"error_description":"EULA Acceptance Failure","resolution_url":"https://urs.earthdata.nasa.gov/approve_app?client_id=e2WVk8Pw6weeLUKZYOxvTQ"}
+# END Response Body   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --";
+}

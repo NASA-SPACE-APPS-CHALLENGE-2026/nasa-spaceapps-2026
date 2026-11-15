@@ -1,7 +1,7 @@
 import { BoundaryImportCard } from '@/components/imports/BoundaryImportCard';
 import { StubImportCard } from '@/components/imports/StubImportCard';
 
-export const metadata = { title: 'Imports | FieldShift' };
+export const metadata = { title: 'Imports | PlotTwist' };
 
 export default function ImportsPage() {
   return (
@@ -34,7 +34,7 @@ export default function ImportsPage() {
             acceptLabel="CSV exports"
             note={
               <>
-                Export a CSV from QuickBooks (Reports, then Export to CSV) or from the Stripe Dashboard (Payments, then Export). FieldShift never asks for your account passwords or API keys.
+                Export a CSV from QuickBooks (Reports, then Export to CSV) or from the Stripe Dashboard (Payments, then Export). PlotTwist never asks for your account passwords or API keys.
               </>
             }
           />

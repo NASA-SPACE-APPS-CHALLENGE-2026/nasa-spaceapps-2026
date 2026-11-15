@@ -11,6 +11,7 @@ import {
   removeOldestSeason,
   setSeasonCrop,
 } from '@/lib/domain/cropHistory';
+import { isDemoField } from '@/lib/demo/demoFarm';
 import type { Field, FieldCrops, SeasonCrop } from '@/lib/domain/types';
 import { HonestyBadge } from '../ui/HonestyBadge';
 import { CropPicker } from './CropPicker';
@@ -25,6 +26,7 @@ interface Props {
 
 export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Props) {
   const { crops } = field;
+  const demo = isDemoField(field);
   const unconfirmed = countUnconfirmed(crops);
 
   return (
@@ -44,12 +46,12 @@ export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Prop
       <CdlStatus field={field} lookupsOn={lookupsOn} onRetry={onRetryDetection} />
 
       <div className="mt-4 space-y-4">
-        <SeasonRow label="This season" season={crops.current} onPick={(c) => onChange(setSeasonCrop(crops, crops.current.year, c))} onConfirm={() => onChange(confirmSeason(crops, crops.current.year))} />
+        <SeasonRow demo={demo} label="This season" season={crops.current} onPick={(c) => onChange(setSeasonCrop(crops, crops.current.year, c))} onConfirm={() => onChange(confirmSeason(crops, crops.current.year))} />
         <div className="border-t border-line pt-3">
           <p className="mb-3 text-[15px] font-semibold">Earlier seasons</p>
           <div className="space-y-4">
             {crops.history.map((s) => (
-              <SeasonRow key={s.year} season={s} onPick={(c) => onChange(setSeasonCrop(crops, s.year, c))} onConfirm={() => onChange(confirmSeason(crops, s.year))} />
+              <SeasonRow demo={demo} key={s.year} season={s} onPick={(c) => onChange(setSeasonCrop(crops, s.year, c))} onConfirm={() => onChange(confirmSeason(crops, s.year))} />
             ))}
           </div>
         </div>
@@ -119,7 +121,7 @@ function CdlStatus({ field, lookupsOn, onRetry }: { field: Field; lookupsOn: boo
   return <div className="mt-2">{again}</div>;
 }
 
-function SeasonRow({ season, label, onPick, onConfirm }: { season: SeasonCrop; label?: string; onPick: (c: SeasonCrop['crop']) => void; onConfirm: () => void }) {
+function SeasonRow({ season, label, demo, onPick, onConfirm }: { season: SeasonCrop; label?: string; demo?: boolean; onPick: (c: SeasonCrop['crop']) => void; onConfirm: () => void }) {
   const d = season.detection;
   const detected = season.status === 'detected';
   return (
@@ -150,7 +152,7 @@ function SeasonRow({ season, label, onPick, onConfirm }: { season: SeasonCrop; l
       {detected && d?.nonCrop && (
         <p className="ml-[68px] mt-1 text-[13.5px] text-wheat-deep">USDA maps show this spot as {d.cdlName.toLowerCase()}, not cropland. Check that the boundary is on your field.</p>
       )}
-      {season.status === 'confirmed' && season.origin === 'farmer' && <p className="ml-[68px] mt-1.5 text-[13.5px] text-ink-faint">You entered this</p>}
+      {season.status === 'confirmed' && season.origin === 'farmer' && <p className="ml-[68px] mt-1.5 text-[13.5px] text-ink-faint">{demo ? 'Example data (demo farm)' : 'You entered this'}</p>}
     </div>
   );
 }

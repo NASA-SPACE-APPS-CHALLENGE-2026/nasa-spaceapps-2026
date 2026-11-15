@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { DndContext, DragOverlay, MouseSensor, pointerWithin, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { useEffect, useId, useRef, useState } from 'react';
 import { cropColor } from '@/lib/domain/cropColors';
 import { cropLabel } from '@/lib/domain/crops';
 import { MONTH_NAMES, MONTH_SHORT } from '@/lib/domain/management';
-import { addSeason, addTask, MAX_PLAN_SEASONS, removeLastSeason, removeTask, renamePlan, setPlanCover, setPlanCrop, TASK_KIND_LABEL, TASK_KINDS, updateTask } from '@/lib/domain/plan';
+import { addSeason, addTask, MAX_PLAN_SEASONS, moveTask, removeLastSeason, removeTask, renamePlan, setPlanCover, setPlanCrop, TASK_KIND_LABEL, TASK_KINDS, updateTask } from '@/lib/domain/plan';
 import { COVER_SPECIES } from '@/lib/domain/rotation/coverCrops';
 import type { CropRef, Plan, PlanSeason, PlanTask, PlanTaskKind } from '@/lib/domain/types';
 import { useFarm, useStore } from '@/lib/client/StoreProvider';
@@ -93,7 +94,7 @@ export function PlannerScreen() {
                 </div>
 
                 <Legend />
-                <MonthGrid plan={plan} onEditTask={(year, task) => setEditing({ kind: 'task', year, task, month: task.month })} onAddTask={(year, month) => setEditing({ kind: 'task', year, task: null, month })} onEditSeason={(year) => setEditing({ kind: 'season', year })} />
+                <MonthGrid plan={plan} onMove={(id, year, month) => save(moveTask(plan, id, year, month))} onEditTask={(year, task) => setEditing({ kind: 'task', year, task, month: task.month })} onAddTask={(year, month) => setEditing({ kind: 'task', year, task: null, month })} onEditSeason={(year) => setEditing({ kind: 'season', year })} />
                 <SeasonList plan={plan} onEditTask={(year, task) => setEditing({ kind: 'task', year, task, month: task.month })} onAddTask={(year) => setEditing({ kind: 'task', year, task: null, month: 1 })} onEditSeason={(year) => setEditing({ kind: 'season', year })} />
 
                 <div className="pt-2">
@@ -221,15 +222,18 @@ function SeasonCropButton({ season, onEdit }: { season: PlanSeason; onEdit: () =
   );
 }
 
-function TaskChip({ task, year, onClick }: { task: PlanTask; year: number; onClick: () => void }) {
+type ChipProps = { task: PlanTask; year: number; onClick?: () => void; dragging?: boolean; ref?: React.Ref<HTMLButtonElement> } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'>;
+
+function TaskChip({ task, year, onClick, dragging, className, ...rest }: ChipProps) {
   return (
     <button
       type="button"
+      {...rest}
       onClick={onClick}
       data-testid="plan-task"
       data-month={task.month}
       data-year={year}
-      className={`block w-full rounded-md border px-1.5 py-1 text-left text-[12.5px] font-semibold leading-tight ${KIND_STYLE[task.kind]} hover:brightness-95`}
+      className={`block w-full rounded-md border px-1.5 py-1 text-left text-[12.5px] font-semibold leading-tight ${KIND_STYLE[task.kind]} hover:brightness-95 ${dragging ? 'opacity-40' : ''} ${className ?? ''}`}
       aria-label={`${task.label}, ${MONTH_NAMES[task.month - 1]} ${year}. Edit`}
     >
       {task.label}
@@ -237,58 +241,93 @@ function TaskChip({ task, year, onClick }: { task: PlanTask; year: number; onCli
   );
 }
 
-/** Desktop: one row per year, one column per month. */
-function MonthGrid({ plan, onEditTask, onAddTask, onEditSeason }: { plan: Plan; onEditTask: (year: number, t: PlanTask) => void; onAddTask: (year: number, month: number) => void; onEditSeason: (year: number) => void }) {
+/** Desktop: one row per year, one column per month. Tasks can be dragged to another month or year. */
+function MonthGrid({ plan, onMove, onEditTask, onAddTask, onEditSeason }: { plan: Plan; onMove: (taskId: string, year: number, month: number) => void; onEditTask: (year: number, t: PlanTask) => void; onAddTask: (year: number, month: number) => void; onEditSeason: (year: number) => void }) {
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }));
+  const [active, setActive] = useState<{ task: PlanTask; year: number } | null>(null);
+  const [announce, setAnnounce] = useState('');
+
+  const onDragStart = (e: DragStartEvent) => {
+    const data = e.active.data.current as { task: PlanTask; year: number } | undefined;
+    if (data) setActive(data);
+  };
+  const onDragEnd = (e: DragEndEvent) => {
+    setActive(null);
+    const from = e.active.data.current as { task: PlanTask; year: number } | undefined;
+    const to = e.over?.data.current as { year: number; month: number } | undefined;
+    if (!from || !to || (from.year === to.year && from.task.month === to.month)) return;
+    onMove(from.task.id, to.year, to.month);
+    setAnnounce(`Moved ${from.task.label} to ${MONTH_NAMES[to.month - 1]} ${to.year}.`);
+  };
+
   return (
     <div className="hidden lg:block" data-testid="plan-grid">
-      <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-panel">
-        <caption className="sr-only">Month-by-month schedule. Rows are years, columns are months.</caption>
-        <thead>
-          <tr>
-            <th scope="col" className="w-40 border-b border-line px-3 py-2 text-left text-[13px] font-semibold text-ink-soft">
-              Season
-            </th>
-            {MONTH_SHORT.map((m, i) => (
-              <th key={m} scope="col" className="border-b border-l border-line px-1 py-2 text-[13px] font-semibold text-ink-soft">
-                <abbr title={MONTH_NAMES[i]} className="no-underline">
-                  {m}
-                </abbr>
+      <p className="mb-2 text-[14px] text-ink-faint">Drag a task to move it to another month or year. Click a task to edit it.</p>
+      <p className="sr-only" aria-live="polite">
+        {announce}
+      </p>
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActive(null)}>
+        <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-panel">
+          <caption className="sr-only">Month-by-month schedule. Rows are years, columns are months.</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="w-40 border-b border-line px-3 py-2 text-left text-[13px] font-semibold text-ink-soft">
+                Season
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {plan.seasons.map((s) => (
-            <tr key={s.year}>
-              <th scope="row" className="border-b border-line px-2 py-2 align-top font-normal">
-                <SeasonCropButton season={s} onEdit={() => onEditSeason(s.year)} />
-              </th>
-              {MONTH_SHORT.map((m, i) => {
-                const tasks = s.tasks.filter((t) => t.month === i + 1);
-                return (
-                  <td key={m} className="group border-b border-l border-line p-1 align-top">
-                    <div className="flex min-h-20 flex-col gap-1">
-                      {tasks.map((t) => (
-                        <TaskChip key={t.id} task={t} year={s.year} onClick={() => onEditTask(s.year, t)} />
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => onAddTask(s.year, i + 1)}
-                        className="mt-auto min-h-8 rounded-md text-[13px] font-semibold text-ink-faint opacity-0 hover:bg-sky-tint hover:text-sky-deep focus-visible:opacity-100 group-hover:opacity-100"
-                        aria-label={`Add a task in ${MONTH_NAMES[i]} ${s.year}`}
-                      >
-                        + Add
-                      </button>
-                    </div>
-                  </td>
-                );
-              })}
+              {MONTH_SHORT.map((m, i) => (
+                <th key={m} scope="col" className="border-b border-l border-line px-1 py-2 text-[13px] font-semibold text-ink-soft">
+                  <abbr title={MONTH_NAMES[i]} className="no-underline">
+                    {m}
+                  </abbr>
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {plan.seasons.map((s) => (
+              <tr key={s.year}>
+                <th scope="row" className="border-b border-line px-2 py-2 align-top font-normal">
+                  <SeasonCropButton season={s} onEdit={() => onEditSeason(s.year)} />
+                </th>
+                {MONTH_SHORT.map((m, i) => (
+                  <MonthCell key={m} year={s.year} month={i + 1} dragging={!!active}>
+                    {s.tasks
+                      .filter((t) => t.month === i + 1)
+                      .map((t) => (
+                        <DraggableTask key={t.id} task={t} year={s.year} onClick={() => onEditTask(s.year, t)} />
+                      ))}
+                    <button
+                      type="button"
+                      onClick={() => onAddTask(s.year, i + 1)}
+                      className="mt-auto min-h-8 rounded-md text-[13px] font-semibold text-ink-faint opacity-0 hover:bg-sky-tint hover:text-sky-deep focus-visible:opacity-100 group-hover:opacity-100"
+                      aria-label={`Add a task in ${MONTH_NAMES[i]} ${s.year}`}
+                    >
+                      + Add
+                    </button>
+                  </MonthCell>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <DragOverlay dropAnimation={null}>{active ? <TaskChip task={active.task} year={active.year} className="cursor-grabbing shadow-lg" /> : null}</DragOverlay>
+      </DndContext>
     </div>
   );
+}
+
+function MonthCell({ year, month, dragging, children }: { year: number; month: number; dragging: boolean; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${year}-${month}`, data: { year, month } });
+  return (
+    <td ref={setNodeRef} data-testid="plan-cell" data-year={year} data-month={month} className={`group border-b border-l border-line p-1 align-top transition-colors ${isOver ? 'bg-sky-tint' : dragging ? 'bg-paper/60' : ''}`}>
+      <div className="flex min-h-20 flex-col gap-1">{children}</div>
+    </td>
+  );
+}
+
+function DraggableTask({ task, year, onClick }: { task: PlanTask; year: number; onClick: () => void }) {
+  const { setNodeRef, listeners, isDragging } = useDraggable({ id: task.id, data: { task, year } });
+  return <TaskChip ref={setNodeRef} task={task} year={year} onClick={onClick} dragging={isDragging} className="cursor-grab touch-manipulation" {...listeners} />;
 }
 
 /** Phones and tablets: one card per year with the months that have tasks. */

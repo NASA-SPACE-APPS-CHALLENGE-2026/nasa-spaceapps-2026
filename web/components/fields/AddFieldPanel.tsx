@@ -168,7 +168,7 @@ function ZipStep({ onLocate, back }: { onLocate: (l: Located) => void; back: Rea
       if (!res.ok) setError(body.error ?? 'That ZIP code could not be found.');
       else onLocate({ center: [body.lon, body.lat], via: 'zip', label: `Near ZIP ${zip.trim()}` });
     } catch {
-      setError('FieldShift could not reach its server. Check that it is running and try again.');
+      setError('PlotTwist could not reach its server. Check that it is running and try again.');
     } finally {
       setBusy(false);
     }

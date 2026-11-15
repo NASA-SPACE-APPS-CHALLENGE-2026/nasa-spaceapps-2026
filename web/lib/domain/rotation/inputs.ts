@@ -92,7 +92,7 @@ export function buildInputs(field: Field, profile: FieldProfile | undefined, ans
     rain30: numberPoint(p, 'power', 'rain30', 'Rain, last 30 days'),
     rainNormal30: numberPoint(p, 'power', 'rainNormal', 'Normal rain for those dates'),
     imergRain30: numberPoint(p, 'imerg', 'imergRain30', 'Satellite rain, last 30 days'),
-    smapSoilMoisture: numberPoint(p, 'smap', 'smapLatest', 'Satellite surface soil moisture'),
+    smapSoilMoisture: numberPoint(p, 'smap', 'smapLatest', 'Satellite topsoil moisture'),
     texture: stringPoint(p, 'ssurgo', 'texture', 'Surface texture'),
     organicMatter,
     drainage: stringPoint(p, 'ssurgo', 'drainage', 'Drainage class'),

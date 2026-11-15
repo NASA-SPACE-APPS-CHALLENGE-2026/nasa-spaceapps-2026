@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { squareAroundPoint } from '@/lib/domain/acreage';
 import { MemoryCache } from '@/lib/server/cache';
 import { albersToLonLat, detectCdl, dominantClass, lonLatToAlbers, parseCdlValue, parseReturnUrl, resetCdlBreaker, zonalHistogram } from '@/lib/sources/cdl';
-import { imergSource, smapSource } from '@/lib/sources/earthdataStubs';
+import { centreOrMean, parseCmrGranules, parseDapCsv } from '@/lib/sources/earthdata';
+import { ease2M09Centre, ease2M09RowCol } from '@/lib/sources/ease2';
+import { imergIndex, imergSource } from '@/lib/sources/imerg';
+import { smapSource } from '@/lib/sources/smap';
 import { compositeCode, ndviSource, readNdvi, sinusoidalToLonLat } from '@/lib/sources/ndvi';
 import { elevationSource, parseEpqs, planeSlopePct } from '@/lib/sources/elevation';
 import { gddF, parseDaily, powerSource } from '@/lib/sources/power';
@@ -141,23 +144,88 @@ describe('USGS elevation (EPQS)', () => {
   });
 });
 
-describe('Earthdata stubs (SMAP, IMERG)', () => {
+describe('NASA Earthdata (SMAP, IMERG)', () => {
+  // Point the SMAP fixtures were recorded for (pixel row 267, column 925).
+  const smapCtx: SourceContext = { ...ctx, point: [-93.62, 42.03] };
+  const auth = (init?: RequestInit) => (init?.headers as Record<string, string>)?.Authorization;
+  const tokenOk = (_u: string, init?: RequestInit) => text('{}', auth(init) === 'Bearer good' ? 200 : 401);
+
   it('needs a token when EARTHDATA_TOKEN is unset, without any network call', async () => {
     const f = mockFetch([]);
-    const r = await smapSource.run(ctx, deps(f));
-    expect(r).toMatchObject({ status: 'needs_token', values: [], message: 'Not available yet.' });
-    expect(JSON.stringify(r)).not.toMatch(/EARTHDATA_TOKEN|env/);
+    for (const src of [smapSource, imergSource]) {
+      const r = await src.run(ctx, deps(f));
+      expect(r).toMatchObject({ status: 'needs_token', values: [], message: 'Not available yet.' });
+      expect(JSON.stringify(r)).not.toMatch(/EARTHDATA_TOKEN|env/);
+    }
     expect(f.calls).toHaveLength(0);
   });
 
-  it('validates a token and then says "not built yet" with no values', async () => {
-    const f = mockFetch([[/cmr\.earthdata/, (_u, init) => text('{}', (init?.headers as Record<string, string>).Authorization === 'Bearer good' ? 200 : 401)]]);
-    const ok = await imergSource.run(ctx, deps(f, { EARTHDATA_TOKEN: 'good' }));
-    expect(ok).toMatchObject({ status: 'not_built', values: [] });
-    expect(ok.message).toMatch(/Coming soon/);
-    const bad = await imergSource.run(ctx, deps(f, { EARTHDATA_TOKEN: 'bad' }));
-    expect(bad).toMatchObject({ status: 'needs_token' });
-    expect(bad.message).toBe('Not available right now.');
+  it('reports a rejected token plainly', async () => {
+    const f = mockFetch([[/collections\.json/, tokenOk]]);
+    const bad = await smapSource.run(ctx, deps(f, { EARTHDATA_TOKEN: 'bad' }));
+    expect(bad).toMatchObject({ status: 'needs_token', message: 'Not available right now.' });
+  });
+
+  it('maps lon/lat onto the EASE-Grid 2.0 9 km grid (checked against the live file)', () => {
+    expect(ease2M09RowCol([-93.62, 42.03])).toEqual({ row: 267, col: 925 });
+    const [lon, lat] = ease2M09Centre(267, 925);
+    expect(lon).toBeCloseTo(-93.594, 2);
+    expect(lat).toBeCloseTo(42.043, 2);
+  });
+
+  it('parses DAP4 CSV subsets and CMR granule lists', () => {
+    const v = parseDapCsv(fixture('smap-subset-am.csv'), 'SMAP');
+    expect(v.soil_moisture).toHaveLength(9);
+    expect(v.soil_moisture[4]).toBeCloseTo(0.293937, 6);
+    expect(v.soil_moisture_pm.every((x) => x === -9999)).toBe(true);
+    const g = parseCmrGranules(fixture('smap-cmr.json'));
+    expect(g[0].date).toBe('2026-11-13');
+    expect(new Set(g.map((x) => x.date)).size).toBe(g.length);
+    expect(centreOrMean([-1, -1, -1, -1, -1, -1, -1, 2, 4], (x) => x >= 0)).toBe(3);
+    expect(centreOrMean([1, 2], (x) => x >= 0)).toBeNull();
+  });
+
+  it('SMAP: skips days with no pass and reports the newest reading as plain values', async () => {
+    const f = mockFetch([
+      [/collections\.json/, tokenOk],
+      [/granules\.json/, () => text(fixture('smap-cmr.json'))],
+      [/20261113.*dap\.csv|20261112.*dap\.csv/, () => text(fixture('smap-subset-fill.csv'))],
+      [/20261111.*dap\.csv/, () => text(fixture('smap-subset-am.csv'))],
+      [/dap\.csv/, () => text(fixture('smap-subset-pm.csv'))],
+    ]);
+    const r = await smapSource.run(smapCtx, deps(f, { EARTHDATA_TOKEN: 'good' }));
+    expect(r.status).toBe('ok');
+    const v = Object.fromEntries(r.values.map((x) => [x.key, x.value]));
+    expect(v).toMatchObject({ smapLatest: 29, smapCondition: 'Good' });
+    expect(r.values[0].label).toMatch(/Nov 11/);
+    expect(f.calls.some((u) => u.includes(encodeURIComponent('[266:268][924:926]')))).toBe(true);
+    expect(f.calls.filter((u) => u.includes('dap.csv')).every((u) => !u.includes('good'))).toBe(true);
+  });
+
+  it('turns the "approve the data licence" error into "Not available yet"', async () => {
+    const f = mockFetch([
+      [/collections\.json/, tokenOk],
+      [/granules\.json/, () => text(fixture('imerg-cmr.json'))],
+      [/dap\.csv/, () => text(fixture('imerg-eula.txt'))],
+    ]);
+    const r = await imergSource.run(ctx, deps(f, { EARTHDATA_TOKEN: 'good' }));
+    expect(r).toMatchObject({ status: 'needs_token', message: 'Not available yet.', values: [] });
+  });
+
+  it('IMERG: sums 30 days of the centre cell into inches', async () => {
+    const { lonIdx, latIdx } = imergIndex([-93.62, 42.03]);
+    expect({ lonIdx, latIdx }).toEqual({ lonIdx: 863, latIdx: 1320 });
+    // Synthetic body in the DAP4 CSV layout recorded from SMAP: 2.54 mm/day in the centre cell.
+    const day = 'Dataset: x\n/precipitation[0][0], 9, 9, 9\n/precipitation[0][1], 9, 2.54, 9\n/precipitation[0][2], 9, 9, 9\n';
+    const f = mockFetch([
+      [/collections\.json/, tokenOk],
+      [/granules\.json/, () => text(fixture('imerg-cmr.json'))],
+      [/dap\.csv/, () => text(day)],
+    ]);
+    const r = await imergSource.run(smapCtx, deps(f, { EARTHDATA_TOKEN: 'good' }));
+    expect(r.status).toBe('ok');
+    const v = Object.fromEntries(r.values.map((x) => [x.key, x.value]));
+    expect(v).toMatchObject({ imergRain30: 3, imergRain7: 0.7, imergWettest: 0.1 });
   });
 });
 

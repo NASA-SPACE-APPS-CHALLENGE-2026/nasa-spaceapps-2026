@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { squareAroundPoint } from '@/lib/domain/acreage';
 import { createField, withGeometry } from '@/lib/domain/field';
-import type { Field, SavedScenario, SourceId, SourceResult } from '@/lib/domain/types';
+import type { Field, SourceId, SourceResult } from '@/lib/domain/types';
 import { FarmStore, type StoreApi } from '@/lib/client/store';
 import { createLocalRepositories, STORAGE_KEYS } from '@/lib/repo/local';
 import { MemoryStorage } from '@/lib/repo/local/storage';
 import type { CdlResponse } from '@/lib/sources/cdl';
-import { DEFAULT_SCENARIO_CONFIG } from '@/lib/domain/scenario';
 
 function fakeApi(opts: { delayMs?: number; failSource?: SourceId } = {}): StoreApi & { sourceCalls: string[]; cdlCalls: number } {
   const api = {
@@ -112,36 +111,6 @@ describe('FarmStore + local repositories', () => {
     expect(storage.getItem(STORAGE_KEYS.fields)).not.toContain('Private');
   });
 
-  it('persists saved scenarios locally and removes them with their field', async () => {
-    const storage = new MemoryStorage();
-    const store = new FarmStore(createLocalRepositories(storage), fakeApi(), NOW);
-    await store.load();
-    await store.setSettings({ externalLookups: false });
-    const field = createField({ name: 'Scenario field', geometry: squareAroundPoint([-93.6, 42], 40), definedBy: 'pin', now: NOW() });
-    await store.addFields([field]);
-    const scenario: SavedScenario = {
-      id: 'scenario-1',
-      fieldId: field.id,
-      name: 'Drier cover plan',
-      currentStrategyId: 'keep',
-      fieldUpdatedAt: field.updatedAt,
-      answersUpdatedAt: '2026-11-14T12:00:00.000Z',
-      proposal: { kind: 'strategy', id: 'cover' },
-      config: { ...DEFAULT_SCENARIO_CONFIG, preset: 'drier', rainfallPct: -20 },
-      createdAt: NOW().toISOString(),
-      updatedAt: NOW().toISOString(),
-    };
-    await store.saveScenario(scenario);
-
-    const reloaded = new FarmStore(createLocalRepositories(storage), fakeApi(), NOW);
-    await reloaded.load();
-    expect(reloaded.getSnapshot().scenarios).toEqual([scenario]);
-
-    await reloaded.deleteField(field.id);
-    expect(reloaded.getSnapshot().scenarios).toEqual([]);
-    expect(storage.getItem(STORAGE_KEYS.scenarios)).not.toContain(scenario.id);
-  });
-
   it('keeps corrupt storage aside instead of crashing', async () => {
     const storage = new MemoryStorage();
     storage.setItem(STORAGE_KEYS.fields, '{not json');
@@ -157,10 +126,10 @@ describe('transient failures', () => {
     const storage = new MemoryStorage();
     const failing: StoreApi = {
       async fetchSource(source) {
-        return { sourceId: source, sourceName: 'x', docsUrl: '', status: 'unavailable', transient: true, values: [], message: 'FieldShift server could not be reached' };
+        return { sourceId: source, sourceName: 'x', docsUrl: '', status: 'unavailable', transient: true, values: [], message: 'PlotTwist server could not be reached' };
       },
       async fetchCdl() {
-        return { status: 'unavailable', transient: true, years: [], message: 'FieldShift server could not be reached' };
+        return { status: 'unavailable', transient: true, years: [], message: 'PlotTwist server could not be reached' };
       },
     };
     const first = new FarmStore(createLocalRepositories(storage), failing, NOW);

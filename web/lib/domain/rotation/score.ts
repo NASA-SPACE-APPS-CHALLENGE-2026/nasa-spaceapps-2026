@@ -66,7 +66,6 @@ export interface RotationResult {
 }
 
 export const MIN_SCORED_BARS = 3;
-export type BarWeights = Partial<Record<BarId, 2>>;
 const LEVELS: Confidence[] = ['low', 'medium', 'high'];
 const lower = (c: Confidence, steps = 1): Confidence => LEVELS[Math.max(0, LEVELS.indexOf(c) - steps)];
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
@@ -184,7 +183,7 @@ function soilCoverBar(st: Strategy, inputs: RotationInputs, firstYear: number): 
   if (tillage === 'no-till') bar.add(5, 'No-till leaves crop residue on the surface through the bare months.', [answer(tq, TILLAGE_LABELS['no-till']), ...cite('nrcs-329')]);
   else if (tillage === 'reduced') bar.note('Reduced tillage leaves some residue on the surface.', [answer(tq, TILLAGE_LABELS.reduced), ...cite('nrcs-329')]);
   else if (tillage === 'conventional') bar.add(-10, 'Full tillage buries most residue, so bare months are fully exposed to wind and rain.', [answer(tq, TILLAGE_LABELS.conventional), ...cite('nrcs-329')]);
-  else bar.assume(-10, 'tillage', 'Tillage is unknown, so FieldShift assumed some residue is buried (half the full-tillage penalty).', [answer(tq, 'Not answered'), ...cite('nrcs-329')]);
+  else bar.assume(-10, 'tillage', 'Tillage is unknown, so PlotTwist assumed some residue is buried (half the full-tillage penalty).', [answer(tq, 'Not answered'), ...cite('nrcs-329')]);
   if (known(inputs.answers.harvestMonth) === undefined) {
     bar.confidence = lower(bar.confidence);
     bar.missing.push('harvest month');
@@ -220,7 +219,7 @@ const PEST_CITES: Record<'rootworm' | 'scn' | 'white-mold', CitationId> = { root
 
 function pestsBar(st: Strategy, inputs: RotationInputs, knownSeasons: number, unconfirmed: boolean): BarScore {
   if (knownSeasons < 2) {
-    return unscored('pests', ['an earlier season'], 'Not enough info: enter at least one earlier season on the Fields tab so FieldShift can see what follows what.', [{ kind: 'history', text: 'Crop history on the Fields tab' }]);
+    return unscored('pests', ['an earlier season'], 'Not enough info: enter at least one earlier season on the Fields tab so PlotTwist can see what follows what.', [{ kind: 'history', text: 'Crop history on the Fields tab' }]);
   }
   const current = inputs.seasons[inputs.seasons.length - 1].ids!;
   const seq: string[][] = [current, ...st.seasons.map(seasonIds)];
@@ -247,7 +246,7 @@ function pestsBar(st: Strategy, inputs: RotationInputs, knownSeasons: number, un
   const problems = inputs.answers.problems;
   const pq = 'Which problems have you had on this field?';
   if (problems === undefined || problems === 'unsure') {
-    bar.assume(-10, 'pest history', 'Pest history is unknown, so FieldShift assumed some pressure (half of a repeated-host penalty).', [answer(pq, problems === 'unsure' ? 'Not sure' : 'Not answered')]);
+    bar.assume(-10, 'pest history', 'Pest history is unknown, so PlotTwist assumed some pressure (half of a repeated-host penalty).', [answer(pq, problems === 'unsure' ? 'Not sure' : 'Not answered')]);
   } else if (problems.length === 0) {
     bar.note('You reported none of the listed pest problems.', [answer(pq, 'None of these')]);
   } else {
@@ -319,10 +318,6 @@ function climateBar(st: Strategy, inputs: RotationInputs): BarScore {
   const sum = (months: number[]) => Math.round(months.reduce((a, m) => a + c.monthlyRainIn[m - 1], 0) * 10) / 10;
   bar.note('Based on 30-year normals for a roughly 50 km NASA POWER grid cell, not your field’s own weather.', [climateSrc]);
 
-  if (st.id === 'custom') {
-    return unscored('climate', ['a reviewed climate-fit rule for this custom plan'], 'Not enough info: the existing climate-fit rubric only covers the three Rotation Explorer strategies, so this custom plan is not scored for climate fit.', [{ kind: 'history', text: 'Custom Planner schedule' }, climateSrc]);
-  }
-
   if (st.id === 'keep') {
     bar.start(70, 'Starts at 70: you already grow these crops here, which is good evidence they suit the climate.', [{ kind: 'history', text: 'Your crop history' }]);
     const summerRain = sum([5, 6, 7, 8]);
@@ -381,7 +376,7 @@ function recentDryness(bar: Bar, inputs: RotationInputs) {
     signals.push({ dry: pct < 50, src: data(inputs.imergRain30), text: `satellite rain is ${pct}% of normal (GPM IMERG)` });
   }
   if (inputs.smapSoilMoisture) {
-    signals.push({ dry: inputs.smapSoilMoisture.value < 0.15, src: data(inputs.smapSoilMoisture), text: `surface soil moisture is ${inputs.smapSoilMoisture.value} m³/m³ (SMAP)` });
+    signals.push({ dry: inputs.smapSoilMoisture.value < 15, src: data(inputs.smapSoilMoisture), text: `topsoil moisture is ${inputs.smapSoilMoisture.value}% water by volume (NASA SMAP)` });
   }
   if (!signals.length) {
     bar.assume(-5, 'recent rain and soil moisture', 'Recent rain and soil moisture are unknown, so the risk of a dry fall seeding was assumed to be moderate.', cite('sare-mccp'));
@@ -443,33 +438,17 @@ function overallOf(bars: BarScore[], weights: Record<BarId, number>): number | n
   return Math.round((10 * scored.reduce((a, b) => a + b.score! * weights[b.id], 0)) / w) / 10;
 }
 
-/** Score supplied rotations with the same four-bar rubric used by Rotation Explorer. */
-export function scoreStrategySet(inputs: RotationInputs, strategies: Strategy[], knownSeasons: number, extraWeights: BarWeights = {}) {
-  const { weights: baseWeights, reasons } = weightsFor(inputs);
-  const weights = { ...baseWeights };
-  const weightReasons = [...reasons];
-  for (const [id, weight] of Object.entries(extraWeights) as Array<[BarId, 2]>) {
-    if (weights[id] < weight) {
-      weights[id] = weight;
-      weightReasons.push({ text: `Your selected priority gives ${label(id).toLowerCase()} extra weight in this comparison.`, sources: [{ kind: 'history', text: 'Scenario priority' }] });
-    }
-  }
-
-  const firstYear = inputs.currentYear + 1;
-  const unconfirmed = inputs.seasons.some((s) => s.status === 'detected');
-  const scored = strategies.map((st) => {
-    const bars = [soilCoverBar(st, inputs, firstYear), diversityBar(st, inputs, knownSeasons, unconfirmed), pestsBar(st, inputs, knownSeasons, unconfirmed), climateBar(st, inputs)];
-    return { strategy: st, bars, overall: overallOf(bars, weights), caveats: caveats(st, inputs) };
-  });
-  return { strategies: scored, weights, weightReasons };
-}
-
 /** Score all three strategies for one field and pick the best fit. */
 export function scoreRotation(inputs: RotationInputs): RotationResult {
   const set = buildStrategies(inputs);
   const { weights, reasons: weightReasons } = weightsFor(inputs);
   if (set.problem) return { strategies: [], bestFit: null, bestFitReason: set.problem, weights, weightReasons, problem: set.problem, knownSeasons: 0 };
-  const { strategies, weightReasons: sharedWeightReasons } = scoreStrategySet(inputs, set.strategies, set.knownSeasons);
+  const firstYear = inputs.currentYear + 1;
+  const unconfirmed = inputs.seasons.some((s) => s.status === 'detected');
+  const strategies: StrategyScore[] = set.strategies.map((st) => {
+    const bars = [soilCoverBar(st, inputs, firstYear), diversityBar(st, inputs, set.knownSeasons, unconfirmed), pestsBar(st, inputs, set.knownSeasons, unconfirmed), climateBar(st, inputs)];
+    return { strategy: st, bars, overall: overallOf(bars, weights), caveats: caveats(st, inputs) };
+  });
   const ranked = strategies.filter((s) => s.overall !== null).sort((a, b) => b.overall! - a.overall! || a.strategy.practiceChanges - b.strategy.practiceChanges);
   if (!ranked.length) {
     return {
@@ -477,7 +456,7 @@ export function scoreRotation(inputs: RotationInputs): RotationResult {
       bestFit: null,
       bestFitReason: `Not enough info to pick a best fit: each strategy needs at least ${MIN_SCORED_BARS} of the 4 bars scored.`,
       weights,
-      weightReasons: sharedWeightReasons,
+      weightReasons,
       knownSeasons: set.knownSeasons,
     };
   }
@@ -490,5 +469,5 @@ export function scoreRotation(inputs: RotationInputs): RotationResult {
     tied.length > 1
       ? `${best.strategy.title} ties within a point (${best.overall}) and changes the least, so it is the best fit.`
       : `${best.strategy.title} has the highest average across the bars (${best.overall}${others.length ? `, vs ${others.join(' and ')}` : ''}).`;
-  return { strategies, bestFit: best.strategy.id === 'custom' ? null : best.strategy.id, bestFitReason: reason, weights, weightReasons: sharedWeightReasons, knownSeasons: set.knownSeasons };
+  return { strategies, bestFit: best.strategy.id, bestFitReason: reason, weights, weightReasons, knownSeasons: set.knownSeasons };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryCache } from '@/lib/server/cache';
 import { geocodeAddress, parseCensus, prettyAddress } from '@/lib/server/geocode';
+import { parsePhoton, photonLabel, suggestAddresses } from '@/lib/server/photon';
 import { fixture, mockFetch, text } from './helpers';
 
 describe('US Census geocoder', () => {
@@ -39,5 +40,39 @@ describe('US Census geocoder', () => {
   it('surfaces HTTP failures', async () => {
     const f = mockFetch([[/geocoding/, () => text('busy', 503)]]);
     await expect(geocodeAddress('1 Main St, Ames, IA', { fetch: f, cache: new MemoryCache() })).rejects.toThrow(/HTTP 503/);
+  });
+});
+
+describe('Photon type-ahead suggestions', () => {
+  it('collapses POIs at one street address into a single US-style label (recorded live response)', () => {
+    const m = parsePhoton(fixture('photon-lincoln.json'));
+    expect(m).toEqual([{ label: '2229 Lincoln Way, Ames, IA 50014', lat: expect.any(Number), lon: expect.any(Number) }]);
+    expect(m[0].lat).toBeCloseTo(42.024, 2);
+    expect(m[0].lon).toBeCloseTo(-93.646, 2);
+  });
+
+  it('labels towns, counties and streets, de-duplicated, at most five', () => {
+    const labels = parsePhoton(fixture('photon-town.json')).map((x) => x.label);
+    expect(labels).toContain('Boone County, IA');
+    expect(labels).toContain('Boone, IA 50036');
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(labels.length).toBeLessThanOrEqual(5);
+    expect(photonLabel({ type: 'street', name: '280th St', city: 'Boone', state: 'Iowa' })).toBe('280th St, Boone, IA');
+  });
+
+  it('drops non-US results, ignores short queries, and caches by query', async () => {
+    const body = JSON.stringify({ features: [{ properties: { countrycode: 'CA', type: 'city', name: 'Ottawa', state: 'Ontario' }, geometry: { coordinates: [-75.7, 45.4] } }] });
+    expect(parsePhoton(body)).toEqual([]);
+    const f = mockFetch([[/photon\.komoot\.io/, () => text(fixture('photon-lincoln.json'))]]);
+    const cache = new MemoryCache();
+    expect(await suggestAddresses('22', { fetch: f, cache })).toEqual([]);
+    await suggestAddresses('2229 lincoln way am', { fetch: f, cache });
+    await suggestAddresses('2229  Lincoln Way AM ', { fetch: f, cache });
+    expect(f.calls).toHaveLength(1);
+    expect(f.calls[0]).toMatch(/bbox=-125,24,-66,50/);
+  });
+
+  it('reports a format error for unexpected bodies', () => {
+    expect(() => parsePhoton('{"oops":1}')).toThrow(/unexpected response/);
   });
 });

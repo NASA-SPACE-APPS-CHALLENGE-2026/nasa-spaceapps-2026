@@ -29,7 +29,7 @@ function seasonCrop(ids: string[]): CropRef {
   return ids.length === 2 ? { kind: 'double', first: ids[0], second: ids[1] } : catalog(ids[0]);
 }
 
-const STRATEGY_PLAN_NAMES: Record<StrategyId | 'custom', string> = { keep: 'Keep the rotation', cover: 'Cover crop plan', 'small-grains': 'Small grains plan', custom: 'Custom plan' };
+const STRATEGY_PLAN_NAMES: Record<StrategyId, string> = { keep: 'Keep the rotation', cover: 'Cover crop plan', 'small-grains': 'Small grains plan' };
 
 /** Turn a scored strategy into a plan: one row per year, with plant / harvest / cover tasks at the usual months. */
 export function planFromStrategy(strategy: Strategy, field: Field, answers: RotationAnswers, opts: { now?: Date; id?: () => string } = {}): Plan {
@@ -123,6 +123,12 @@ export function updateTask(plan: Plan, taskId: string, patch: Partial<Omit<PlanT
     return tasks === s.tasks ? s : { ...s, tasks };
   });
   return touch(plan, seasons, now);
+}
+
+/** Drag and drop: move a task to another month and/or another year of the plan. */
+export function moveTask(plan: Plan, taskId: string, year: number, month: number, now = new Date()): Plan {
+  if (!plan.seasons.some((s) => s.year === year)) return plan;
+  return updateTask(plan, taskId, { year, month }, now);
 }
 
 export function removeTask(plan: Plan, taskId: string, now = new Date()): Plan {

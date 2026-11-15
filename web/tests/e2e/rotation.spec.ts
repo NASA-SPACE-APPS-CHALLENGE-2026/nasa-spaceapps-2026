@@ -23,7 +23,7 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await page.getByRole('button', { name: 'Save field' }).click();
   await expect(page.getByTestId('season-2025')).toContainText('Check this info');
   await page.getByRole('button', { name: /Crop in 2026/ }).click();
-  await page.getByRole('combobox').fill('soybeans');
+  await page.getByRole('combobox', { expanded: true }).fill('soybeans');
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: /These look right/ }).click();
 
@@ -62,6 +62,8 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
     }
   }
   await expect(page.getByTestId('best-fit')).toHaveCount(1);
+  // Cards stay simple: the only link is "See the details", no citation or data links.
+  await expect(page.getByTestId('strategy-cover').getByRole('link')).toHaveCount(1);
   await expect(page.getByTestId('best-fit-summary')).toContainText('Best fit:');
   await expect(page.getByText('8 of 8 questions answered, soil test added.')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -75,6 +77,13 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await expect(covers.getByText('In this strategy').first()).toBeVisible();
   await expect(page.getByText('Organic matter (your soil test)').or(page.getByText('4.2 %')).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Managing Cover Crops Profitably/ }).first()).toHaveAttribute('href', /sare\.org/);
+  // Scores are collapsed; opening one shows why.
+  const soil = page.getByTestId('score-soilCover');
+  const why = soil.getByRole('button', { name: /Why this score/ });
+  await expect(why).toHaveAttribute('aria-expanded', 'false');
+  await why.click();
+  await expect(soil.getByRole('button', { name: /Hide why/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(soil.getByRole('listitem').first()).toBeVisible();
 
   // Make it a plan, then move a task to another month.
   await page.getByRole('button', { name: 'Make this my plan' }).click();
@@ -89,43 +98,62 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await expect(dialog).toHaveCount(0);
   await expect(page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first()).toHaveAttribute('data-month', '6');
 
+  // Desktop: drag "Plant corn" from June to April of the same year, then back with the dialog.
+  if (!isMobile) {
+    const chip = page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first();
+    const year = await chip.getAttribute('data-year');
+    const target = page.locator(`[data-testid="plan-cell"][data-year="${year}"][data-month="4"]`);
+    const from = (await chip.boundingBox())!;
+    const to = (await target.boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2, { steps: 3 });
+    await page.mouse.move(to.x + to.width / 2, to.y + 20, { steps: 12 });
+    await page.mouse.up();
+    const moved = page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first();
+    await expect(moved).toHaveAttribute('data-month', '4');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await moved.click();
+    await page.getByRole('dialog', { name: 'Edit task' }).getByLabel('Month').selectOption('6');
+    await page.getByRole('button', { name: 'Save task' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
+
   // Reload: the plan and the edit persist.
   await page.reload();
   await expect(page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first()).toHaveAttribute('data-month', '6');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-  // Simulator compares the saved, editable Planner plan against the current rotation.
-  const planUrl = new URL(page.url());
-  const fieldId = planUrl.searchParams.get('field')!;
-  const planId = planUrl.searchParams.get('plan')!;
-  await page.goto(`/simulator?field=${fieldId}&plan=${planId}`);
-  await expect(page.getByRole('heading', { name: 'Scenario Simulator', level: 1 })).toBeVisible();
-  await expect(page.getByText('Monthly rainfall')).toBeVisible();
-  await expect(page.getByText('Monthly average temperature')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Seasonal crop-cover timeline' })).toBeVisible();
-  await page.getByRole('button', { name: 'Drier season' }).click();
-  await expect(page.getByLabel('Rainfall adjustment')).toHaveValue('-20');
-  await expect(page.getByText(/Scaling every month by -20%/)).toBeVisible();
-  await page.getByLabel('What matters most for this comparison?').selectOption('operational');
-  await expect(page.getByRole('heading', { name: 'Practical fit needs your judgment' })).toBeVisible();
-  await page.getByLabel('Name this comparison').fill('Dry spring scenario');
-  await page.getByRole('button', { name: 'Save new' }).click();
-  await expect(page.getByText('Saved “Dry spring scenario” on this device.')).toBeVisible();
-  await page.getByLabel('Saved comparison name').fill('Dry spring - renamed');
-  await page.getByRole('button', { name: 'Rename' }).click();
-  await expect(page.getByText('Renamed to “Dry spring - renamed”.')).toBeVisible();
-  await page.getByRole('button', { name: 'Duplicate' }).click();
-  await expect(page.getByText('Saved a copy as “Copy of Dry spring - renamed”.')).toBeVisible();
-  await page.getByRole('button', { name: 'Delete', exact: true }).click();
-  await page.getByRole('button', { name: 'Delete comparison' }).click();
-  await expect(page.getByLabel('Load a saved comparison')).toContainText('Dry spring - renamed');
-  await page.getByLabel('Load a saved comparison').selectOption({ label: 'Dry spring - renamed' });
-  await expect(page.getByLabel('Saved comparison name')).toHaveValue('Dry spring - renamed');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-
   // Logo goes to Overview; Rotation Explorer reopens the last field with its answers.
-  await page.getByRole('link', { name: /FieldShift home/ }).click();
+  await page.getByRole('link', { name: /PlotTwist home/ }).click();
   await expect(page).toHaveURL(/\/overview$/);
+  await expect(page.getByTestId('overview-metrics')).toContainText('29%');
+  await expect(page.getByTestId('overview-rotation')).toContainText('Back forty');
+  await expect(page.getByTestId('overview-rotation')).toContainText('plan');
+
+  // Simulator: the plan from the Planner is filled in automatically and compared with the current rotation.
+  await page.goto('/simulator');
+  await expect(page.getByTestId('sim-plan-proposed')).toContainText('Proposed Planner rotation');
+  await expect(page.getByTestId('eco-results')).toBeVisible();
+  await expect(page.getByTestId('sim-pros').getByRole('listitem').first()).toBeVisible();
+  await page.getByLabel('Use a temporary scenario acreage override').check();
+  await page.getByTestId('sim-acres').fill('120');
+  await page.getByTestId('sim-acres').press('Enter');
+  await expect(page.getByTestId('sim-acres')).toHaveValue('120');
+
+  // Finance: results for the whole farm, and the farmer's own number changes them.
+  await page.goto('/finance');
+  const headline = page.getByTestId('finance-headline');
+  await expect(headline).toContainText('Whole farm over 5 years');
+  const before = await headline.textContent();
+  for (const id of ['partial', 'cash', 'risk', 'savings', 'sensitivity', 'transparency']) await expect(page.getByTestId(`section-${id}`)).toBeVisible();
+  await page.getByRole('radio', { name: 'Your numbers' }).click();
+  await page.getByText('Market: yields, prices and contracts').click();
+  await page.getByTestId('input-corn.price').fill('6');
+  await page.getByTestId('input-corn.price').press('Enter');
+  await page.getByRole('radio', { name: 'Results' }).click();
+  await expect(headline).not.toHaveText(before!);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.goto('/rotation');
   await expect(page.getByLabel('Field', { exact: true })).toHaveValue(/.+/);
   await expect(page.getByLabel('Field', { exact: true }).locator('option:checked')).toContainText('Back forty');

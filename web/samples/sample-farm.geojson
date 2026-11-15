@@ -1,6 +1,6 @@
 {
   "type": "FeatureCollection",
-  "name": "FieldShift sample boundaries (traced on USGS imagery near Ames, Iowa; for testing imports)",
+  "name": "PlotTwist sample boundaries (traced on USGS imagery near Ames, Iowa; for testing imports)",
   "features": [
     {
       "type": "Feature",

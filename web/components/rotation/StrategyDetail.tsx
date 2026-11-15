@@ -17,7 +17,7 @@ import { useActiveField } from '@/lib/client/useActiveField';
 import { useRotation } from '@/lib/client/useRotation';
 import { Button } from '../ui/Button';
 import { NoFieldsYet } from '../ui/FieldPicker';
-import { ScoreBar } from './ScoreBar';
+import { ScoreAccordion } from './ScoreAccordion';
 import { SeasonTable } from './SeasonPreview';
 import { InputBadge, ReasonList, SourceList } from './Sources';
 
@@ -99,15 +99,10 @@ export function StrategyDetail({ strategyId }: { strategyId: StrategyId }) {
             <h2 id="scores-h" className="font-plate text-xl">
               Scores and why
             </h2>
-            <p className="mt-1 text-[14px] text-ink-faint">Average {s.overall ?? 'not available'}. Each point added or taken away is shown with its source.</p>
-            <div className="mt-4 space-y-6">
+            <p className="mt-1 text-[14px] text-ink-faint">Average {s.overall ?? 'not available'}. Open a score to see why.</p>
+            <div className="mt-4 space-y-3">
               {s.bars.map((b) => (
-                <div key={b.id}>
-                  <ScoreBar bar={b} />
-                  <div className="mt-3">
-                    <ReasonList reasons={b.reasons} />
-                  </div>
-                </div>
+                <ScoreAccordion key={b.id} bar={b} />
               ))}
             </div>
           </section>
@@ -245,7 +240,7 @@ function InputsUsed({ inputs }: { inputs: RotationInputs }) {
           </div>
         ))}
       </dl>
-      <p className="mt-2 text-[13.5px] text-ink-faint">Missing values are shown as missing; FieldShift never fills them in.</p>
+      <p className="mt-2 text-[13.5px] text-ink-faint">Missing values are shown as missing; PlotTwist never fills them in.</p>
     </section>
   );
 }

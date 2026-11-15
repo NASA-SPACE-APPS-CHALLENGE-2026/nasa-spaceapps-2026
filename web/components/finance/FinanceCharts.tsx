@@ -1,7 +1,8 @@
 'use client';
 
 import { useId } from 'react';
-import { FINANCIAL_COST_CATEGORIES, type FinancialProjection, type ProjectionYear } from '@/lib/domain/finance';
+// AP chart presentation, now fed by main's financial engine through a small view model.
+export interface FinancialProjection { years: Array<{ year: number; netReturn: number | null }> }
 
 const CURRENT_COLOR = '#647d78';
 const PROPOSED_COLOR = '#347a52';
@@ -81,7 +82,7 @@ function NetChart({ current, proposed, cumulative, currentLabel, proposedLabel }
   return (
     <div>
       <svg className="h-auto w-full" viewBox={`0 0 ${width} 210`} role="img" aria-labelledby={titleId}>
-        <title id={titleId}>{cumulative ? 'Cumulative net operating return' : 'Annual net operating return'} for the current rotation and selected alternative</title>
+        <title id={titleId}>{cumulative ? 'Cumulative net return' : 'Annual net return'} for the current rotation and Planner scenario</title>
         {ticks.map((tick) => (
           <g key={tick}>
             <line x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} stroke="#dce5dc" strokeWidth="1" />
@@ -103,7 +104,7 @@ function NetChart({ current, proposed, cumulative, currentLabel, proposedLabel }
                 return (
                   <g key={seriesIndex}>
                     {previous !== null && previous !== undefined && <line x1={previousCenter} y1={y(previous)} x2={pointX} y2={pointY} stroke={seriesIndex === 0 ? CURRENT_COLOR : PROPOSED_COLOR} strokeWidth="3" strokeLinecap="round" />}
-                    <circle cx={pointX} cy={pointY} r="4.5" fill={seriesIndex === 0 ? CURRENT_COLOR : PROPOSED_COLOR} />
+                    <circle cx={pointX} cy={pointY} r="4.5" fill={seriesIndex === 0 ? CURRENT_COLOR : PROPOSED_COLOR}><title>{`${year}: ${seriesIndex === 0 ? currentLabel : proposedLabel} ${money(value)}`}</title></circle>
                   </g>
                 );
               }) : values.map((value, seriesIndex) => {
@@ -112,7 +113,7 @@ function NetChart({ current, proposed, cumulative, currentLabel, proposedLabel }
                 const x = center + (seriesIndex === 0 ? -barWidth - 2 : 2);
                 const valueY = y(value);
                 const height = Math.max(2, Math.abs(zero - valueY));
-                return <rect key={seriesIndex} x={x} y={Math.min(zero, valueY)} width={barWidth} height={height} rx="3" fill={seriesIndex === 0 ? CURRENT_COLOR : PROPOSED_COLOR} />;
+                return <rect key={seriesIndex} x={x} y={Math.min(zero, valueY)} width={barWidth} height={height} rx="3" fill={seriesIndex === 0 ? CURRENT_COLOR : PROPOSED_COLOR}><title>{`${year}: ${seriesIndex === 0 ? currentLabel : proposedLabel} ${money(value)}`}</title></rect>;
               })}
               <text x={center} y={bottom + 18} textAnchor="middle" fill="#62726a" fontSize="12">{year}</text>
             </g>
@@ -134,105 +135,3 @@ export function CumulativeNetChart(props: Omit<Parameters<typeof NetChart>[0], '
   return <NetChart {...props} cumulative />;
 }
 
-export function RevenueCostChart({ current, proposed, currentLabel, proposedLabel }: {
-  current: ProjectionYear | undefined;
-  proposed: ProjectionYear | undefined;
-  currentLabel: string;
-  proposedLabel: string;
-}) {
-  const titleId = useId();
-  if (!current || !proposed || current.revenue === null || current.costs === null || proposed.revenue === null || proposed.costs === null) {
-    return <ChartEmpty>Year-one revenue and costs appear once both schedules have complete financial inputs.</ChartEmpty>;
-  }
-  const values = [current.revenue, current.costs, proposed.revenue, proposed.costs];
-  const max = Math.max(1, ...values);
-  const width = 620;
-  const left = 72;
-  const right = 18;
-  const top = 18;
-  const bottom = 164;
-  const plotHeight = bottom - top;
-  const series = [
-    { label: currentLabel, revenue: current.revenue, costs: current.costs, color: CURRENT_COLOR },
-    { label: proposedLabel, revenue: proposed.revenue, costs: proposed.costs, color: PROPOSED_COLOR },
-  ];
-  return (
-    <div>
-      <svg className="h-auto w-full" viewBox={`0 0 ${width} 210`} role="img" aria-labelledby={titleId}>
-        <title id={titleId}>Season-one revenue and operating costs for the current rotation and selected alternative</title>
-        {[0, 0.25, 0.5, 0.75, 1].map((step) => {
-          const y = bottom - plotHeight * step;
-          return <g key={step}><line x1={left} x2={width - right} y1={y} y2={y} stroke="#dce5dc" /><text x={left - 8} y={y + 4} textAnchor="end" fill="#62726a" fontSize="11">{MONEY.format(max * step)}</text></g>;
-        })}
-        {series.map((item, index) => {
-          const center = left + ((width - left - right) * (index + 0.5)) / series.length;
-          const barWidth = 34;
-          const revenueHeight = (item.revenue / max) * plotHeight;
-          const costHeight = (item.costs / max) * plotHeight;
-          return (
-            <g key={item.label}>
-              <rect x={center - barWidth - 3} y={bottom - revenueHeight} width={barWidth} height={revenueHeight} rx="3" fill={item.color} />
-              <rect x={center + 3} y={bottom - costHeight} width={barWidth} height={costHeight} rx="3" fill={item.color} opacity="0.42" />
-              <text x={center} y={bottom + 18} textAnchor="middle" fill="#33443b" fontSize="12">{index === 0 ? 'Current' : 'Alternative'}</text>
-            </g>
-          );
-        })}
-        <text x={left} y="202" fill="#62726a" fontSize="11">First season · USD / field</text>
-      </svg>
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-ink-soft">
-        {series.map((item) => <span key={item.label} className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: item.color }} />{item.label}: revenue / costs</span>)}
-        <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-ink-faint/40" />Shaded bar = operating costs</span>
-      </div>
-    </div>
-  );
-}
-
-const COST_LABELS: Record<string, string> = {
-  aggregate: 'Operating costs entered as one total',
-  'cash-rent': 'Cash rent',
-  'share-rent': 'Landowner crop share',
-  cover: 'Cover crop establishment',
-  transition: 'One-time transition',
-};
-for (const category of FINANCIAL_COST_CATEGORIES) COST_LABELS[category.id] = category.label;
-
-export function ExpenseBreakdown({ current, proposed, currentLabel, proposedLabel }: {
-  current: ProjectionYear | undefined;
-  proposed: ProjectionYear | undefined;
-  currentLabel: string;
-  proposedLabel: string;
-}) {
-  const categories = [...new Set([...Object.keys(current?.costBreakdown ?? {}), ...Object.keys(proposed?.costBreakdown ?? {})])];
-  const max = Math.max(1, ...categories.flatMap((id) => [current?.costBreakdown[id as keyof ProjectionYear['costBreakdown']] ?? 0, proposed?.costBreakdown[id as keyof ProjectionYear['costBreakdown']] ?? 0]));
-  if (!current || !proposed || current.costs === null || proposed.costs === null) {
-    return <ChartEmpty>Complete both cost estimates to compare the first-season expense mix.</ChartEmpty>;
-  }
-  if (!categories.length) return <ChartEmpty>No expense categories were entered.</ChartEmpty>;
-  return (
-    <div>
-      <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-ink-soft">
-        <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: CURRENT_COLOR }} />{currentLabel}</span>
-        <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: PROPOSED_COLOR }} />{proposedLabel}</span>
-      </div>
-      <div className="space-y-4">
-        {categories.map((id) => {
-          const currentValue = current.costBreakdown[id as keyof ProjectionYear['costBreakdown']] ?? 0;
-          const proposedValue = proposed.costBreakdown[id as keyof ProjectionYear['costBreakdown']] ?? 0;
-          return (
-            <div key={id}>
-              <div className="mb-1 flex justify-between gap-3 text-[13px]">
-                <span className="font-medium text-ink">{COST_LABELS[id] ?? id}</span>
-                <span className="shrink-0 text-ink-soft">{money(currentValue)} / {money(proposedValue)}</span>
-              </div>
-              <div className="space-y-1">
-                <div className="h-2 overflow-hidden rounded-full bg-field-tint"><div className="h-full rounded-full" style={{ width: `${(currentValue / max) * 100}%`, backgroundColor: CURRENT_COLOR }} /></div>
-                <div className="h-2 overflow-hidden rounded-full bg-field-tint"><div className="h-full rounded-full" style={{ width: `${(proposedValue / max) * 100}%`, backgroundColor: PROPOSED_COLOR }} /></div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="mt-4 text-[12px] text-ink-faint">First season · USD / field. Crop yields and costs use your per-acre entries across the full field area.</p>
-    </div>
-  );
-}
