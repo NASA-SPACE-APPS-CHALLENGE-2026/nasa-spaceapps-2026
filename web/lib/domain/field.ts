@@ -1,11 +1,12 @@
 import { areaM2, geometryHash } from './acreage';
 import { clearUnconfirmedDetections, defaultCrops } from './cropHistory';
-import type { DefinedBy, Field, FieldGeometry, LonLat } from './types';
+import type { DefinedBy, Field, FieldGeometry, LocatedVia, LonLat } from './types';
 
 export interface NewFieldInput {
   name: string;
   geometry: FieldGeometry;
   definedBy: DefinedBy;
+  locatedVia?: LocatedVia;
   pin?: { center: LonLat; acres: number };
   importMeta?: { fileName: string; sourceFeatureIndex: number };
   now?: Date;
@@ -29,6 +30,8 @@ export function createField(input: NewFieldInput): Field {
     areaM2: areaM2(input.geometry),
     geometryHash: geometryHash(input.geometry),
     definedBy: input.definedBy,
+    boundary: input.pin ? 'approximate' : 'drawn',
+    locatedVia: input.locatedVia,
     pin: input.pin,
     importMeta: input.importMeta,
     crops: defaultCrops(),
@@ -52,6 +55,8 @@ export function withGeometry(
     geometryHash: hash,
     pin: opts.pin === null ? undefined : (opts.pin ?? field.pin),
     definedBy: opts.pin === null && field.pin ? 'polygon' : field.definedBy,
+    // Any shape the farmer edits or draws is a real boundary from now on.
+    boundary: opts.pin ? 'approximate' : 'drawn',
     crops: hash === field.geometryHash ? field.crops : clearUnconfirmedDetections(field.crops),
     cdl: hash === field.geometryHash ? field.cdl : { status: 'idle' },
   };

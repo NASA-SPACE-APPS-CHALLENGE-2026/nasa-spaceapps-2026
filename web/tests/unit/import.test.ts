@@ -49,15 +49,15 @@ describe('GeoJSON', () => {
 });
 
 describe('normalize', () => {
-  it('turns polygons into boundaries, points into 40-ac pins, and skips lines and empties', () => {
+  it('turns polygons into boundaries and skips points, lines and empties with reasons', () => {
     const { candidates, skipped } = normalizeFeatures(parseGeoJSON(JSON.stringify(sampleFC)), { splitMultiPolygons: false });
     expect(candidates.map((c) => [c.key, c.kind, c.geometry.type])).toEqual([
       ['0', 'boundary', 'Polygon'],
       ['1', 'boundary', 'MultiPolygon'],
-      ['2', 'pin', 'Polygon'],
     ]);
-    expect(acresFromM2(areaM2(candidates[2].geometry))).toBeCloseTo(40, 0);
+    expect(candidates.some((c) => c.geometry.type === 'Polygon' && acresFromM2(areaM2(c.geometry)) > 30)).toBe(true);
     expect(skipped).toEqual([
+      { sourceIndex: 2, reason: 'A point has no boundary. Add this field with Draw on the Fields screen.' },
       { sourceIndex: 3, reason: 'Not a boundary (a line, not a closed shape)' },
       { sourceIndex: 4, reason: 'No geometry' },
     ]);
@@ -110,8 +110,9 @@ describe('KML', () => {
     expect(features).toHaveLength(2);
     expect(features[0].properties?.name).toBe('South field');
     expect(features[0].geometry?.type).toBe('Polygon');
-    const { candidates } = normalizeFeatures(features, { splitMultiPolygons: false });
-    expect(candidates.map((c) => c.kind)).toEqual(['boundary', 'pin']);
+    const { candidates, skipped } = normalizeFeatures(features, { splitMultiPolygons: false });
+    expect(candidates.map((c) => c.kind)).toEqual(['boundary']);
+    expect(skipped[0].reason).toMatch(/A point has no boundary/);
   });
 
   it('rejects files that are not KML', async () => {

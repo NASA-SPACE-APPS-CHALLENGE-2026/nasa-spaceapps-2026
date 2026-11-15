@@ -12,7 +12,14 @@ export type FieldGeometry = Polygon | MultiPolygon;
 export type FieldFeature = Feature<FieldGeometry>;
 export type LonLat = [number, number];
 
+/** How the boundary was made. 'pin' | 'coordinates' | 'zip-pin' only exist on legacy (v1) approximate squares. */
 export type DefinedBy = 'polygon' | 'pin' | 'coordinates' | 'zip-pin' | 'import';
+
+/** How the farmer found the field on the map before drawing it. */
+export type LocatedVia = 'address' | 'zip' | 'pin' | 'coordinates' | 'map';
+
+/** 'drawn' = the farmer drew or imported the real boundary. 'approximate' = legacy auto-square around a pin. */
+export type BoundaryKind = 'drawn' | 'approximate';
 
 // ---------- Layer 1: shape + crops ----------
 
@@ -70,6 +77,8 @@ export interface Field {
   areaM2: number;
   geometryHash: string;
   definedBy: DefinedBy;
+  boundary: BoundaryKind;
+  locatedVia?: LocatedVia;
   pin?: { center: LonLat; acres: number };
   importMeta?: { fileName: string; sourceFeatureIndex: number };
   crops: FieldCrops;

@@ -20,7 +20,8 @@ interface Props {
 }
 
 export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAdd, onToggleLookups }: Props) {
-  const totalM2 = fields.reduce((s, f) => s + f.areaM2, 0);
+  const drawn = fields.filter((f) => f.boundary !== 'approximate');
+  const totalM2 = drawn.reduce((s, f) => s + f.areaM2, 0);
   return (
     <div className="flex min-h-full flex-col p-4">
       <div className="flex items-end justify-between gap-3">
@@ -29,6 +30,7 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
           {fields.length > 0 && (
             <p className="text-[15px] text-ink-soft">
               {fields.length} field{fields.length === 1 ? '' : 's'}, {formatAcres(totalM2)}
+              {drawn.length < fields.length && ` (${fields.length - drawn.length} without a boundary)`}
             </p>
           )}
         </div>
@@ -65,7 +67,7 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="min-w-0 truncate text-[17px] font-semibold">{f.name}</span>
-                  <span className="shrink-0 text-[15px] text-ink-soft">{formatAcres(f.areaM2)}</span>
+                  <span className="shrink-0 text-[15px] text-ink-soft">{f.boundary === 'approximate' ? 'No boundary' : formatAcres(f.areaM2)}</span>
                 </div>
                 <p className="mt-0.5 truncate text-[14.5px] text-ink-soft">
                   {f.crops.current.crop ? `${f.crops.current.year}: ${cropLabel(f.crops.current.crop)}` : `${f.crops.current.year}: crop not entered`}
@@ -73,6 +75,7 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
                 <div className="mt-3">
                   <RotationStrip crops={f.crops} />
                 </div>
+                {f.boundary === 'approximate' && <p className="mt-2 text-[13.5px] font-semibold text-wheat-deep">Boundary not drawn</p>}
                 {review && <p className="mt-2 text-[13.5px] font-semibold text-wheat-deep">Crops not confirmed</p>}
               </button>
             </li>

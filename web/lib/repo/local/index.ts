@@ -1,5 +1,6 @@
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers } from '../../domain/types';
 import type { Repositories } from '../interfaces';
+import { FIELDS_MIGRATIONS, FIELDS_VERSION } from './migrations';
 import { type KeyValueStorage, VersionedCollection } from './storage';
 
 export const STORAGE_KEYS = {
@@ -17,7 +18,7 @@ function byCreated(a: Field, b: Field) {
 
 /** localStorage-backed repositories. One storage key per layer keeps the layers separate. */
 export function createLocalRepositories(storage: KeyValueStorage): Repositories {
-  const fields = new VersionedCollection<Field>(storage, STORAGE_KEYS.fields);
+  const fields = new VersionedCollection<Field>(storage, STORAGE_KEYS.fields, FIELDS_MIGRATIONS, FIELDS_VERSION);
   const profiles = new VersionedCollection<FieldProfile>(storage, STORAGE_KEYS.profiles);
   const management = new VersionedCollection<ManagementAnswers>(storage, STORAGE_KEYS.management);
   const settings = new VersionedCollection<FarmSettings>(storage, STORAGE_KEYS.settings);

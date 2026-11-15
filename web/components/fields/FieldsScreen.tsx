@@ -3,14 +3,13 @@
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DEFAULT_PIN_ACRES, squareAroundPoint } from '@/lib/domain/acreage';
 import { createField, renamed, withGeometry } from '@/lib/domain/field';
 import type { Field, FieldGeometry, LonLat } from '@/lib/domain/types';
 import { overlapIssues, validateGeometry } from '@/lib/domain/validation';
 import { useFarm, useStore } from '@/lib/client/StoreProvider';
 import type { MapFocus, MapMode, MapShape } from '../map/FieldMap';
 import { ResponsivePanel, sheetInset, type Snap, useIsDesktop } from '../ui/ResponsivePanel';
-import { AddFieldPanel, type AddStep, type Draft } from './AddFieldPanel';
+import { AddFieldPanel, type AddStep, type Draft, type Located } from './AddFieldPanel';
 import { FieldEditor, type ShapeEdit } from './FieldEditor';
 import { FieldList } from './FieldList';
 
@@ -19,7 +18,13 @@ const FieldMap = dynamic(() => import('../map/FieldMap'), {
   loading: () => <div className="absolute inset-0 flex items-center justify-center bg-[#dfe8e2] text-ink-soft">Loading map…</div>,
 });
 
-type View = { kind: 'list' } | { kind: 'add'; step: AddStep; draft: Draft | null; via?: 'zip' | 'coords'; zip?: string } | { kind: 'field'; id: string; edit: ShapeEdit | null };
+/** Zoom level where individual field edges are clear on the imagery. */
+export const DRAW_ZOOM = 17;
+
+type View =
+  | { kind: 'list' }
+  | { kind: 'add'; step: AddStep; located: Located | null; draft: Draft | null }
+  | { kind: 'field'; id: string; edit: ShapeEdit | null };
 
 export function FieldsScreen() {
   const store = useStore();
@@ -61,7 +66,11 @@ export function FieldsScreen() {
     if (selected) store.ensureLookups(selected.id);
   }, [selected?.id, store]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const others = useCallback((excludeId?: string) => fields.filter((f) => f.id !== excludeId).map((f) => ({ id: f.id, name: f.name, geometry: f.feature.geometry })), [fields]);
+  // Overlap checks only against real (drawn) boundaries; a legacy pin's square is not a boundary.
+  const others = useCallback(
+    (excludeId?: string) => fields.filter((f) => f.id !== excludeId && f.boundary !== 'approximate').map((f) => ({ id: f.id, name: f.name, geometry: f.feature.geometry })),
+    [fields],
+  );
 
   const draftIssues = useMemo(() => {
     if (view.kind !== 'add' || !view.draft) return [];
@@ -71,34 +80,40 @@ export function FieldsScreen() {
   const fieldIssues = useMemo(() => (selected ? [...validateGeometry(selected.feature.geometry), ...overlapIssues(selected.feature.geometry, others(selected.id))] : []), [selected, others]);
 
   const editIssues = useMemo(() => {
-    if (view.kind !== 'field' || !view.edit) return [];
+    if (view.kind !== 'field' || !view.edit?.geometry) return [];
     return [...validateGeometry(view.edit.geometry), ...overlapIssues(view.edit.geometry, others(view.id))];
   }, [view, others]);
 
   // ---------- map wiring ----------
   const shapes: MapShape[] = useMemo(
-    () => fields.map((f) => ({ id: f.id, name: f.name, geometry: f.feature.geometry, tone: view.kind === 'field' && view.id === f.id ? 'selected' : view.kind === 'add' ? 'muted' : 'default' })),
+    () =>
+      fields.map((f) => ({
+        id: f.id,
+        name: f.name,
+        geometry: f.feature.geometry,
+        pinOnly: f.boundary === 'approximate' && f.pin ? f.pin.center : undefined,
+        tone: view.kind === 'field' && view.id === f.id ? 'selected' : view.kind === 'add' ? 'muted' : 'default',
+      })),
     [fields, view],
   );
 
   let mode: MapMode = 'browse';
   let draft: { geometry?: FieldGeometry; pin?: LonLat } | null = null;
   if (view.kind === 'add') {
+    if (view.step === 'pin' && !view.located) mode = 'pin';
     if (view.step === 'draw' && !view.draft) mode = 'draw';
-    if ((view.step === 'pin' || view.step === 'coords' || view.step === 'zip') && (view.draft?.pin || view.step === 'pin')) mode = 'pin';
-    if (view.draft) draft = { geometry: view.draft.geometry, pin: view.draft.pin?.center };
+    draft = view.draft ? { geometry: view.draft.geometry } : view.located ? { pin: view.located.center } : null;
   } else if (view.kind === 'field' && view.edit) {
     if (view.edit.kind === 'vertices') mode = 'edit';
-    else {
-      mode = 'pin';
-      draft = { geometry: view.edit.geometry, pin: view.edit.center };
-    }
+    else if (!view.edit.geometry) mode = 'draw';
+    else draft = { geometry: view.edit.geometry };
+    if (view.edit.kind === 'draw' && !view.edit.geometry && selected?.boundary === 'approximate' && selected.pin) draft = { pin: selected.pin.center };
   }
 
   // Keep the map usable on phones while drawing or placing a pin.
   useEffect(() => {
-    if (mode === 'draw' || (mode === 'pin' && view.kind === 'add' && !view.draft)) setSnap('peek');
-  }, [mode, view]);
+    if (mode === 'draw' || mode === 'pin' || mode === 'edit') setSnap('peek');
+  }, [mode]);
 
   const selectField = (id: string) => {
     const f = fields.find((x) => x.id === id);
@@ -107,22 +122,15 @@ export function FieldsScreen() {
     if (f) setFocus({ key: `sel-${id}-${Date.now()}`, kind: 'geometry', geometry: f.feature.geometry });
   };
 
-  const placePin = (center: LonLat) => {
-    if (view.kind === 'add') {
-      const acres = view.draft?.pin?.acres ?? DEFAULT_PIN_ACRES;
-      const definedBy = view.via === 'zip' ? 'zip-pin' : view.via === 'coords' ? 'coordinates' : 'pin';
-      const geometry = squareAroundPoint(center, acres);
-      if (!view.draft) setFocus({ key: `pin-${Date.now()}`, kind: 'geometry', geometry });
-      setView({ ...view, step: view.step === 'draw' ? 'pin' : view.step, draft: { geometry, definedBy, pin: { center, acres } } });
-      setSnap('half');
-    } else if (view.kind === 'field' && view.edit?.kind === 'pin') {
-      setView({ ...view, edit: { ...view.edit, center, geometry: squareAroundPoint(center, view.edit.acres) } });
-    }
+  /** A location was chosen (address, ZIP, pin, coordinates): zoom in and go straight to drawing. */
+  const locate = (where: Located) => {
+    setFocus({ key: `loc-${Date.now()}`, kind: 'point', center: where.center, zoom: DRAW_ZOOM });
+    setView({ kind: 'add', step: 'draw', located: where, draft: null });
   };
 
   const saveDraft = async (name: string) => {
     if (view.kind !== 'add' || !view.draft) return;
-    const field = createField({ name, geometry: view.draft.geometry, definedBy: view.draft.definedBy, pin: view.draft.pin });
+    const field = createField({ name, geometry: view.draft.geometry, definedBy: 'polygon', locatedVia: view.located?.via ?? 'map' });
     await store.addFields([field]);
     setView({ kind: 'field', id: field.id, edit: null });
     setSnap('half');
@@ -143,7 +151,7 @@ export function FieldsScreen() {
             settings={settings}
             onSelect={selectField}
             onAdd={() => {
-              setView({ kind: 'add', step: 'choose', draft: null });
+              setView({ kind: 'add', step: 'choose', located: null, draft: null });
               setSnap('half');
             }}
             onToggleLookups={(on) => void store.setSettings({ ...settings, externalLookups: on })}
@@ -153,24 +161,15 @@ export function FieldsScreen() {
           <AddFieldPanel
             key={view.draft ? 'draft' : view.step}
             step={view.step}
+            located={view.located}
             draft={view.draft}
             issues={draftIssues}
             defaultName={`Field ${fields.length + 1}`}
-            zipArea={view.via === 'zip' && view.zip ? { zip: view.zip } : null}
-            onStep={(step) => setView({ kind: 'add', step, draft: null, via: step === 'draw' || step === 'pin' ? view.via : undefined, zip: view.zip })}
+            lookupsOn={settings.externalLookups}
+            onStep={(step) => setView({ kind: 'add', step, located: null, draft: null })}
             onCancel={() => setView({ kind: 'list' })}
-            onLocate={(center, via, zip) => {
-              setFocus({ key: `loc-${Date.now()}`, kind: 'point', center, zoom: via === 'zip' ? 13 : 16 });
-              if (via === 'zip') {
-                setView({ kind: 'add', step: 'pin', draft: null, via, zip });
-              } else {
-                setView({ kind: 'add', step: 'coords', via, draft: { geometry: squareAroundPoint(center, DEFAULT_PIN_ACRES), definedBy: 'coordinates', pin: { center, acres: DEFAULT_PIN_ACRES } } });
-              }
-            }}
-            onAcres={(acres) => {
-              if (view.draft?.pin) setView({ ...view, draft: { ...view.draft, geometry: squareAroundPoint(view.draft.pin.center, acres), pin: { ...view.draft.pin, acres } } });
-            }}
-            onRedraw={() => setView({ kind: 'add', step: 'draw', draft: null, via: view.via, zip: view.zip })}
+            onLocate={locate}
+            onRedraw={() => setView({ ...view, step: 'draw', draft: null })}
             onSave={saveDraft}
           />
         )}
@@ -186,21 +185,24 @@ export function FieldsScreen() {
             onRename={(name) => update(renamed(selected, name))}
             onCrops={(crops) => update({ ...selected, crops, updatedAt: new Date().toISOString() })}
             onStartEdit={(kind) => {
-              if (kind === 'pin' && selected.pin) setView({ ...view, edit: { kind: 'pin', center: selected.pin.center, acres: selected.pin.acres, geometry: selected.feature.geometry } });
-              else setView({ ...view, edit: { kind: 'vertices', geometry: selected.feature.geometry } });
-              setSnap('peek');
-            }}
-            onPinAcres={(acres) => {
-              if (view.edit?.kind === 'pin') setView({ ...view, edit: { ...view.edit, acres, geometry: squareAroundPoint(view.edit.center, acres) } });
+              if (kind === 'vertices') {
+                setView({ ...view, edit: { kind: 'vertices', geometry: selected.feature.geometry } });
+              } else {
+                setView({ ...view, edit: { kind: 'draw', geometry: null } });
+                if (selected.boundary === 'approximate' && selected.pin) setFocus({ key: `draw-${Date.now()}`, kind: 'point', center: selected.pin.center, zoom: DRAW_ZOOM });
+              }
             }}
             onSaveEdit={() => {
-              if (!view.edit) return;
-              const next = view.edit.kind === 'pin' ? withGeometry(selected, view.edit.geometry, { pin: { center: view.edit.center, acres: view.edit.acres } }) : withGeometry(selected, view.edit.geometry, { pin: null });
-              update(next);
+              if (!view.edit?.geometry) return;
+              update(withGeometry(selected, view.edit.geometry, { pin: null }));
+              setView({ ...view, edit: null });
+              setSnap('half');
+              setFocus({ key: `edited-${Date.now()}`, kind: 'geometry', geometry: view.edit.geometry });
+            }}
+            onCancelEdit={() => {
               setView({ ...view, edit: null });
               setSnap('half');
             }}
-            onCancelEdit={() => setView({ ...view, edit: null })}
             onDelete={() => {
               void store.deleteField(selected.id);
               setToast(`Deleted ${selected.name}.`);
@@ -223,13 +225,14 @@ export function FieldsScreen() {
           focus={focus}
           bottomInset={sheetInset(desktop, snap)}
           onSelect={selectField}
-          onDrawn={(geometry) => {
-            if (view.kind === 'add') {
-              setView({ ...view, draft: { geometry, definedBy: 'polygon' } });
-              setSnap('half');
-            }
+          onPinPlaced={(center) => {
+            if (view.kind === 'add' && view.step === 'pin') locate({ center, via: 'pin', label: 'At your pin' });
           }}
-          onPinPlaced={placePin}
+          onDrawn={(geometry) => {
+            if (view.kind === 'add') setView({ ...view, draft: { geometry } });
+            else if (view.kind === 'field' && view.edit?.kind === 'draw') setView({ ...view, edit: { kind: 'draw', geometry } });
+            setSnap('half');
+          }}
           onEditChange={(geometry) => {
             if (view.kind === 'field' && view.edit?.kind === 'vertices') setView({ ...view, edit: { kind: 'vertices', geometry } });
           }}

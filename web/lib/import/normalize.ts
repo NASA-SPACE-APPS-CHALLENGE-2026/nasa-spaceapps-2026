@@ -1,6 +1,5 @@
 import type { Polygon } from 'geojson';
-import { DEFAULT_PIN_ACRES, squareAroundPoint } from '../domain/acreage';
-import type { FieldGeometry, LonLat } from '../domain/types';
+import type { FieldGeometry } from '../domain/types';
 import { type GeometryIssue, validateGeometry } from '../domain/validation';
 import type { AnyFeature } from './parse';
 
@@ -10,8 +9,7 @@ export interface BoundaryCandidate {
   partIndex?: number;
   properties: Record<string, unknown>;
   geometry: FieldGeometry;
-  kind: 'boundary' | 'pin';
-  pinCenter?: LonLat;
+  kind: 'boundary';
   issues: GeometryIssue[];
 }
 
@@ -66,14 +64,14 @@ function tidy(g: FieldGeometry): FieldGeometry {
 
 /**
  * Turn parsed features into field candidates.
- * Polygons → boundaries; MultiPolygons → one field, or one per part when splitting; Points → 40-acre square pins;
+ * Polygons → boundaries; MultiPolygons → one field, or one per part when splitting; Points are skipped (a point has no boundary; the farmer draws it instead);
  * lines and empty geometries are skipped with a reason. Crop attributes are deliberately ignored.
  */
 export function normalizeFeatures(features: AnyFeature[], opts: NormalizeOptions): { candidates: BoundaryCandidate[]; skipped: SkippedFeature[] } {
   const candidates: BoundaryCandidate[] = [];
   const skipped: SkippedFeature[] = [];
-  const push = (sourceIndex: number, properties: Record<string, unknown>, raw: FieldGeometry, kind: 'boundary' | 'pin', partIndex?: number, pinCenter?: LonLat) => {
-    const geometry = kind === 'boundary' ? tidy(raw) : raw;
+  const push = (sourceIndex: number, properties: Record<string, unknown>, raw: FieldGeometry, kind: 'boundary', partIndex?: number) => {
+    const geometry = tidy(raw);
     candidates.push({
       key: `${sourceIndex}${partIndex !== undefined ? `.${partIndex}` : ''}`,
       sourceIndex,
@@ -81,7 +79,6 @@ export function normalizeFeatures(features: AnyFeature[], opts: NormalizeOptions
       properties,
       geometry,
       kind,
-      pinCenter,
       issues: validateGeometry(geometry),
     });
   };
@@ -104,15 +101,10 @@ export function normalizeFeatures(features: AnyFeature[], opts: NormalizeOptions
           push(i, props, g.coordinates.length === 1 ? { type: 'Polygon', coordinates: g.coordinates[0] } : g, 'boundary');
         }
         break;
-      case 'Point': {
-        const center: LonLat = [g.coordinates[0], g.coordinates[1]];
-        if (!Number.isFinite(center[0]) || !Number.isFinite(center[1]) || Math.abs(center[0]) > 180 || Math.abs(center[1]) > 90) {
-          skipped.push({ sourceIndex: i, reason: 'Point has invalid coordinates' });
-          break;
-        }
-        push(i, props, squareAroundPoint(center, DEFAULT_PIN_ACRES), 'pin', undefined, center);
+      case 'Point':
+      case 'MultiPoint':
+        skipped.push({ sourceIndex: i, reason: 'A point has no boundary. Add this field with Draw on the Fields screen.' });
         break;
-      }
       case 'GeometryCollection': {
         const polys = g.geometries.filter((x) => x.type === 'Polygon' || x.type === 'MultiPolygon') as FieldGeometry[];
         if (!polys.length) skipped.push({ sourceIndex: i, reason: 'Not a boundary (no polygons in this geometry collection)' });
@@ -124,7 +116,7 @@ export function normalizeFeatures(features: AnyFeature[], opts: NormalizeOptions
         skipped.push({ sourceIndex: i, reason: 'Not a boundary (a line, not a closed shape)' });
         break;
       default:
-        skipped.push({ sourceIndex: i, reason: `Not a boundary (${g.type})` });
+        skipped.push({ sourceIndex: i, reason: `Not a boundary (${(g as { type: string }).type})` });
     }
   });
   return { candidates, skipped };

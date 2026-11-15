@@ -91,7 +91,6 @@ export function BoundaryImportCard() {
         name: candidateName(c, column, i + 1),
         geometry: c.geometry,
         definedBy: 'import',
-        pin: c.kind === 'pin' && c.pinCenter ? { center: c.pinCenter, acres: 40 } : undefined,
         importMeta: { fileName: parsed.fileName, sourceFeatureIndex: c.sourceIndex },
       }),
     );
@@ -252,7 +251,6 @@ function CandidateRow({ c, name, checked, onToggle }: { c: BoundaryCandidate; na
             <span className="truncate text-[15px] font-semibold">{name}</span>
             <span className="shrink-0 text-[14px] text-ink-soft">{formatAcres(areaM2(c.geometry))}</span>
           </span>
-          {c.kind === 'pin' && <span className="block text-[13.5px] text-ink-soft">A point in the file. Added as a 40-acre square around it.</span>}
           {c.issues.map((i) => (
             <span key={i.code + i.message} className={`block text-[13.5px] leading-snug ${i.level === 'error' ? 'text-alert' : 'text-wheat-deep'}`}>
               {i.message}

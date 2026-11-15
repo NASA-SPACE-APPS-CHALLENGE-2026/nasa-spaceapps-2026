@@ -6,6 +6,7 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import type { Feature, FeatureCollection } from 'geojson';
+import { acresFromM2, areaM2 } from '@/lib/domain/acreage';
 import type { FieldGeometry, LonLat } from '@/lib/domain/types';
 
 const feat = (geometry: FieldGeometry): Feature => ({ type: 'Feature', properties: {}, geometry });
@@ -15,6 +16,8 @@ export interface MapShape {
   name: string;
   geometry: FieldGeometry;
   tone?: 'default' | 'selected' | 'muted' | 'error';
+  /** Boundary not drawn yet: show only a pin here instead of the (approximate) shape. */
+  pinOnly?: LonLat;
 }
 
 export type MapMode = 'browse' | 'draw' | 'pin' | 'edit';
@@ -50,6 +53,13 @@ const TONES: Record<NonNullable<MapShape['tone']>, L.PathOptions> = {
   error: { color: '#ff8a70', weight: 2.5, fillColor: '#b3402a', fillOpacity: 0.2, dashArray: '6 4' },
 };
 
+const pinIconMuted = L.divIcon({
+  className: 'pin-icon',
+  iconSize: [28, 36],
+  iconAnchor: [14, 34],
+  html: `<svg viewBox="0 0 34 44" width="28" height="36" aria-hidden="true"><path d="M17 43C17 43 3 26 3 16a14 14 0 1 1 28 0c0 10-14 27-14 27Z" fill="#ffffff" stroke="#2b7fd0" stroke-width="3"/><circle cx="17" cy="16" r="5.5" fill="#2b7fd0"/></svg>`,
+});
+
 const pinIcon = L.divIcon({
   className: 'pin-icon',
   iconSize: [34, 44],
@@ -82,6 +92,14 @@ export default function FieldMap(props: FieldMapProps) {
   const [base, setBase] = useState<'imagery' | 'osm'>('imagery');
   const [imageryFailed, setImageryFailed] = useState(false);
   const [drawPoints, setDrawPoints] = useState(0);
+  const [drawAcres, setDrawAcres] = useState<number | null>(null);
+  const working = useRef<L.Polyline | null>(null);
+  /** Re-read the in-progress outline: corner count and live acreage once there are 3+ corners. */
+  const syncDrawing = () => {
+    const pts = ((working.current?.getLatLngs() ?? []) as L.LatLng[]).map((ll) => [ll.lng, ll.lat] as LonLat);
+    setDrawPoints(pts.length);
+    setDrawAcres(pts.length >= 3 ? acresFromM2(areaM2({ type: 'Polygon', coordinates: [[...pts, pts[0]]] })) : null);
+  };
   const baseLayer = useRef<L.TileLayer | null>(null);
   const firstFit = useRef(false);
 
@@ -96,12 +114,16 @@ export default function FieldMap(props: FieldMapProps) {
     m.on('pm:create', (e: { layer: L.Layer }) => {
       const gj = (e.layer as L.Polygon).toGeoJSON();
       m.removeLayer(e.layer);
+      working.current = null;
       setDrawPoints(0);
+      setDrawAcres(null);
       cb.current.onDrawn?.(gj.geometry as FieldGeometry);
     });
     m.on('pm:drawstart', (e: { workingLayer: L.Layer }) => {
+      working.current = e.workingLayer as L.Polyline;
       setDrawPoints(0);
-      e.workingLayer.on('pm:vertexadded', () => setDrawPoints((n) => n + 1));
+      setDrawAcres(null);
+      e.workingLayer.on('pm:vertexadded', () => syncDrawing());
     });
     m.on('click', (e: L.LeafletMouseEvent) => {
       if (cb.current.mode === 'pin') cb.current.onPinPlaced?.([e.latlng.lng, e.latlng.lat]);
@@ -148,8 +170,12 @@ export default function FieldMap(props: FieldMapProps) {
     group.clearLayers();
     for (const s of shapes) {
       if (mode === 'edit' && s.id === editShapeId) continue;
-      const layer = L.geoJSON(feat(s.geometry), { style: TONES[s.tone ?? 'default'], pmIgnore: true } as L.GeoJSONOptions);
-      if (showLabels) layer.bindTooltip(s.name, { permanent: s.tone === 'selected', direction: 'center', className: 'field-label' });
+      const layer: L.Layer = s.pinOnly
+        ? L.marker([s.pinOnly[1], s.pinOnly[0]], { icon: s.tone === 'selected' ? pinIcon : pinIconMuted, keyboard: false, pmIgnore: true } as L.MarkerOptions)
+        : L.geoJSON(feat(s.geometry), { style: TONES[s.tone ?? 'default'], pmIgnore: true } as L.GeoJSONOptions);
+      if (showLabels) {
+        layer.bindTooltip(s.name, { permanent: s.tone === 'selected', direction: s.pinOnly ? 'top' : 'center', offset: s.pinOnly ? [0, -38] : [0, 0], className: 'field-label' });
+      }
       layer.on('click', (e) => {
         if (cb.current.mode === 'browse') {
           L.DomEvent.stopPropagation(e);
@@ -262,10 +288,21 @@ export default function FieldMap(props: FieldMapProps) {
       </div>
       {mode === 'draw' && (
         <div className="absolute inset-x-3 top-3 z-[1000] flex flex-wrap items-center gap-2 rounded-[var(--radius-panel)] border border-line bg-panel/95 p-2 pl-4 shadow-sm lg:right-auto lg:max-w-xl">
-          <p className="min-w-0 flex-1 text-[15px]">
-            {drawPoints === 0 ? 'Tap the map at each corner of your field.' : drawPoints < 3 ? `${drawPoints} corner${drawPoints > 1 ? 's' : ''} placed. Keep going around the field.` : 'Tap the first corner, or Finish, to close the shape.'}
-          </p>
-          <button type="button" disabled={drawPoints === 0} onClick={() => { pm?.Draw?.Polygon?._removeLastVertex?.(); setDrawPoints((n) => Math.max(0, n - 1)); }} className="min-h-11 rounded-[var(--radius-control)] border border-line px-3 font-semibold disabled:opacity-40">
+          <div className="min-w-0 flex-1" role="status" aria-live="polite">
+            <p className="text-[15px]">
+              {drawPoints === 0
+                ? 'Tap the map at each corner of your field.'
+                : drawPoints < 3
+                  ? `${drawPoints} corner${drawPoints > 1 ? 's' : ''} placed. Keep going around the field.`
+                  : 'Tap the first corner, or Finish shape, to close it.'}
+            </p>
+            {drawAcres !== null && (
+              <p className="text-[14px] font-semibold text-sky-deep" data-testid="live-acres">
+                About {drawAcres < 10 ? drawAcres.toFixed(1) : Math.round(drawAcres).toLocaleString('en-US')} acres so far
+              </p>
+            )}
+          </div>
+          <button type="button" disabled={drawPoints === 0} onClick={() => { pm?.Draw?.Polygon?._removeLastVertex?.(); syncDrawing(); }} className="min-h-11 rounded-[var(--radius-control)] border border-line px-3 font-semibold disabled:opacity-40">
             Undo corner
           </button>
           <button type="button" disabled={drawPoints < 3} onClick={() => pm?.Draw?.Polygon?._finishShape?.()} className="min-h-11 rounded-[var(--radius-control)] bg-sky px-4 font-semibold text-white disabled:opacity-40">
@@ -275,7 +312,7 @@ export default function FieldMap(props: FieldMapProps) {
       )}
       {mode === 'pin' && (
         <p className="absolute inset-x-3 top-3 z-[1000] rounded-[var(--radius-panel)] border border-line bg-panel/95 px-4 py-3 text-[15px] shadow-sm lg:right-auto lg:max-w-md">
-          Tap the middle of your field to drop the pin. Tap again to move it.
+          Tap the middle of your field. Then you&rsquo;ll trace its edges.
         </p>
       )}
     </div>

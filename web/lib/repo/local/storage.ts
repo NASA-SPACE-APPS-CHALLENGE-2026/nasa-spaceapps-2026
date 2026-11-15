@@ -18,6 +18,7 @@ export class MemoryStorage implements KeyValueStorage {
   }
 }
 
+/** Default version for collections that have never changed shape. */
 export const SCHEMA_VERSION = 1;
 
 interface Envelope<T> {
@@ -36,6 +37,8 @@ export class VersionedCollection<T> {
     private storage: KeyValueStorage,
     private key: string,
     private migrations: Record<number, Migration> = {},
+    /** Current version of this collection's shape. Older data is upgraded on read and saved at this version on the next write. */
+    readonly version: number = SCHEMA_VERSION,
   ) {}
 
   read(): Record<string, T> {
@@ -44,7 +47,7 @@ export class VersionedCollection<T> {
     try {
       const env = JSON.parse(raw) as Envelope<unknown>;
       let items = env.items ?? {};
-      for (let v = env.schemaVersion ?? 1; v < SCHEMA_VERSION; v++) {
+      for (let v = env.schemaVersion ?? 1; v < this.version; v++) {
         const m = this.migrations[v];
         if (m) items = m(items);
       }
@@ -57,7 +60,7 @@ export class VersionedCollection<T> {
   }
 
   write(items: Record<string, T>): void {
-    const env: Envelope<T> = { schemaVersion: SCHEMA_VERSION, items };
+    const env: Envelope<T> = { schemaVersion: this.version, items };
     this.storage.setItem(this.key, JSON.stringify(env));
   }
 }

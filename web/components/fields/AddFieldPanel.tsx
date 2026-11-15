@@ -2,41 +2,41 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { areaM2, DEFAULT_PIN_ACRES, formatAcres, MAX_PIN_ACRES, MIN_PIN_ACRES } from '@/lib/domain/acreage';
-import type { DefinedBy, FieldGeometry, LonLat } from '@/lib/domain/types';
+import { areaM2, formatAcres } from '@/lib/domain/acreage';
+import type { FieldGeometry, LocatedVia, LonLat } from '@/lib/domain/types';
 import { type GeometryIssue, hasBlockingIssue } from '@/lib/domain/validation';
 import { Button } from '../ui/Button';
 import { TextField } from '../ui/TextField';
 import { IssueList } from './IssueList';
 
-export type AddStep = 'choose' | 'draw' | 'pin' | 'coords' | 'zip';
+/** 'choose' → (optional locating step) → 'draw' → draft form. Every new field ends with a drawn boundary. */
+export type AddStep = 'choose' | 'address' | 'zip' | 'coords' | 'pin' | 'draw';
+
+export interface Located {
+  center: LonLat;
+  via: LocatedVia;
+  label: string;
+}
 
 export interface Draft {
   geometry: FieldGeometry;
-  definedBy: DefinedBy;
-  pin?: { center: LonLat; acres: number };
 }
 
 interface Props {
   step: AddStep;
+  located: Located | null;
   draft: Draft | null;
   issues: GeometryIssue[];
   defaultName: string;
-  zipArea: { zip: string } | null;
+  lookupsOn: boolean;
   onStep: (s: AddStep) => void;
   onCancel: () => void;
-  onLocate: (center: LonLat, via: 'zip' | 'coords', zip?: string) => void;
-  onAcres: (acres: number) => void;
+  onLocate: (where: Located) => void;
   onRedraw: () => void;
   onSave: (name: string) => void;
+  /** Rendered for the 'address' step (address search lives in its own component). */
+  addressStep?: React.ReactNode;
 }
-
-const METHODS: Array<{ step: AddStep; title: string; text: string }> = [
-  { step: 'draw', title: 'Draw the boundary', text: 'Tap each corner of the field on the satellite map. Most accurate.' },
-  { step: 'pin', title: 'Drop a pin', text: 'Mark the middle of the field and give its size. Quickest.' },
-  { step: 'zip', title: 'Start from a ZIP code', text: 'Jump the map to your area, then pin or draw the field.' },
-  { step: 'coords', title: 'Enter coordinates', text: 'Type a latitude and longitude, for example from a GPS.' },
-];
 
 export function AddFieldPanel(p: Props) {
   return (
@@ -47,72 +47,110 @@ export function AddFieldPanel(p: Props) {
           Cancel
         </button>
       </div>
-      {p.step === 'choose' && <ChooseMethod onStep={p.onStep} />}
-      {p.step !== 'choose' && !p.draft && <StepHelp {...p} />}
-      {p.draft && <DraftForm {...p} draft={p.draft} />}
+      {p.draft ? <DraftForm {...p} draft={p.draft} /> : <StepBody {...p} />}
     </div>
   );
 }
 
-function ChooseMethod({ onStep }: { onStep: (s: AddStep) => void }) {
-  return (
-    <>
-      <p className="mt-1 text-[15px] text-ink-soft">How do you want to mark it?</p>
-      <ul className="mt-4 space-y-2">
-        {METHODS.map((m) => (
-          <li key={m.step}>
-            <button type="button" onClick={() => onStep(m.step)} className="w-full rounded-[var(--radius-panel)] border border-line bg-panel p-4 text-left hover:border-sky">
-              <span className="block text-[17px] font-semibold">{m.title}</span>
-              <span className="mt-0.5 block text-[14.5px] text-ink-soft">{m.text}</span>
-            </button>
-          </li>
-        ))}
-        <li>
-          <Link href="/imports" className="block w-full rounded-[var(--radius-panel)] border border-dashed border-line-strong p-4 hover:border-sky">
-            <span className="block text-[17px] font-semibold">Import a boundary file</span>
-            <span className="mt-0.5 block text-[14.5px] text-ink-soft">GeoJSON, KML or a zipped shapefile from another farm platform.</span>
-          </Link>
-        </li>
-      </ul>
-    </>
-  );
-}
-
-function StepHelp(p: Props) {
+function StepBody(p: Props) {
   const back = (
     <button type="button" onClick={() => p.onStep('choose')} className="mt-3 min-h-11 font-semibold text-sky-deep hover:underline">
       Choose another way
     </button>
   );
-  if (p.step === 'draw') {
-    return (
-      <div className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-        <p>Zoom in on your field, then tap each corner on the map. Finish by tapping the first corner again, or press Finish shape.</p>
-        {back}
-      </div>
-    );
+  switch (p.step) {
+    case 'choose':
+      return <ChooseMethod {...p} />;
+    case 'address':
+      return (
+        <>
+          {p.addressStep}
+          {back}
+        </>
+      );
+    case 'zip':
+      return <ZipStep onLocate={p.onLocate} back={back} />;
+    case 'coords':
+      return <CoordsStep onLocate={p.onLocate} back={back} />;
+    case 'pin':
+      // Instructions for tapping are on the map itself.
+      return (
+        <div className="mt-3" role="status">
+          <p className="text-[15px] text-ink-soft">Waiting for you to tap your field on the map.</p>
+          {back}
+        </div>
+      );
+    case 'draw':
+      // Drawing instructions, live acreage, Undo and Finish are in the map toolbar; the panel only shows context.
+      return (
+        <div className="mt-3" role="status">
+          {p.located && <p className="text-[15px] font-semibold">{p.located.label}</p>}
+          <p className="text-[15px] text-ink-soft">Tracing the boundary on the map.</p>
+          {back}
+        </div>
+      );
   }
-  if (p.step === 'pin') {
-    return (
-      <div className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-        <p>
-          {p.zipArea ? `The map shows ZIP ${p.zipArea.zip}. A ZIP code is only a general area, so find your field and ` : 'Find your field on the map and '}
-          tap its middle. FieldShift draws a {DEFAULT_PIN_ACRES}-acre square there; you can change the acreage next.
-        </p>
-        {p.zipArea && (
-          <button type="button" onClick={() => p.onStep('draw')} className="mt-3 min-h-11 font-semibold text-sky-deep hover:underline">
-            Draw the exact boundary instead
-          </button>
-        )}
-        <div>{back}</div>
-      </div>
-    );
-  }
-  if (p.step === 'zip') return <ZipStep onLocate={(c, zip) => p.onLocate(c, 'zip', zip)} back={back} />;
-  return <CoordsStep onLocate={(c) => p.onLocate(c, 'coords')} back={back} />;
 }
 
-function ZipStep({ onLocate, back }: { onLocate: (c: LonLat, zip: string) => void; back: React.ReactNode }) {
+function ChooseMethod({ onStep, lookupsOn, addressStep }: Props) {
+  const primary: Array<{ step: AddStep; title: string; text: string; badge?: string; disabled?: boolean }> = [
+    ...(addressStep
+      ? [
+          {
+            step: 'address' as const,
+            title: 'Enter an address',
+            text: lookupsOn ? 'Jump to your farm, then trace the field on the satellite map.' : 'Needs public data lookups, which are turned off. Use a ZIP code or coordinates instead.',
+            badge: 'Recommended',
+            disabled: !lookupsOn,
+          },
+        ]
+      : []),
+    { step: 'draw', title: 'Draw the boundary', text: 'Trace your field’s corners on the satellite map. Zoom to your field first, or use one of the options below.', badge: addressStep ? undefined : 'Recommended' },
+  ];
+  const secondary: Array<{ step: AddStep; title: string }> = [
+    { step: 'zip', title: 'Find by ZIP code' },
+    { step: 'pin', title: 'Drop a pin, then draw' },
+    { step: 'coords', title: 'Enter coordinates' },
+  ];
+  return (
+    <>
+      <p className="mt-1 text-[15px] text-ink-soft">Find your field, then trace its edges on the satellite map.</p>
+      <ul className="mt-4 space-y-2">
+        {primary.map((m) => (
+          <li key={m.step}>
+            <button
+              type="button"
+              disabled={m.disabled}
+              onClick={() => onStep(m.step)}
+              className="w-full rounded-[var(--radius-panel)] border border-line bg-panel p-4 text-left hover:border-sky disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-[17px] font-semibold">{m.title}</span>
+                {m.badge && !m.disabled && <span className="rounded-full bg-sky-tint px-2 py-0.5 text-[12.5px] font-semibold text-sky-deep">{m.badge}</span>}
+              </span>
+              <span className="mt-0.5 block text-[14.5px] text-ink-soft">{m.text}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-5 text-[14px] font-semibold text-ink-soft">Other ways to find your field</p>
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {secondary.map((m) => (
+          <li key={m.step}>
+            <button type="button" onClick={() => onStep(m.step)} className="min-h-11 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[15px] font-semibold text-sky-deep hover:border-sky">
+              {m.title}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Link href="/imports" className="mt-4 inline-flex min-h-11 items-center text-[15px] font-semibold text-sky-deep hover:underline">
+        Or import a boundary file
+      </Link>
+    </>
+  );
+}
+
+function ZipStep({ onLocate, back }: { onLocate: (l: Located) => void; back: React.ReactNode }) {
   const [zip, setZip] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +166,7 @@ function ZipStep({ onLocate, back }: { onLocate: (c: LonLat, zip: string) => voi
       const res = await fetch(`/api/zip/${zip.trim()}`);
       const body = await res.json();
       if (!res.ok) setError(body.error ?? 'That ZIP code could not be found.');
-      else onLocate([body.lon, body.lat], zip.trim());
+      else onLocate({ center: [body.lon, body.lat], via: 'zip', label: `Near ZIP ${zip.trim()}` });
     } catch {
       setError('FieldShift could not reach its server. Check that it is running and try again.');
     } finally {
@@ -153,14 +191,18 @@ function ZipStep({ onLocate, back }: { onLocate: (c: LonLat, zip: string) => voi
           {busy ? 'Finding…' : 'Find on map'}
         </Button>
       </div>
-      {error && <p className="mt-2 text-[14.5px] text-alert" role="alert">{error}</p>}
-      <p className="mt-3 text-[14px] text-ink-faint">A ZIP code only gives the general area. Next you&rsquo;ll pin or draw the field itself.</p>
+      {error && (
+        <p className="mt-2 text-[14.5px] text-alert" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="mt-3 text-[14px] text-ink-faint">A ZIP code only gives the general area. The map zooms in and you trace the field itself.</p>
       {back}
     </form>
   );
 }
 
-function CoordsStep({ onLocate, back }: { onLocate: (c: LonLat) => void; back: React.ReactNode }) {
+function CoordsStep({ onLocate, back }: { onLocate: (l: Located) => void; back: React.ReactNode }) {
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -181,11 +223,11 @@ function CoordsStep({ onLocate, back }: { onLocate: (c: LonLat) => void; back: R
       return;
     }
     if (lo > 0 && la > 20 && la < 50) {
-      setError('Longitude for US fields is negative (west). Did you mean ' + -lo + '?');
+      setError(`Longitude for US fields is negative (west). Did you mean ${-lo}?`);
       return;
     }
     setError(null);
-    onLocate([lo, la]);
+    onLocate({ center: [lo, la], via: 'coordinates', label: `At ${la.toFixed(4)}, ${lo.toFixed(4)}` });
   };
   return (
     <form onSubmit={submit} className="mt-3 space-y-3">
@@ -194,7 +236,11 @@ function CoordsStep({ onLocate, back }: { onLocate: (c: LonLat) => void; back: R
         <TextField label="Longitude" inputMode="decimal" value={lon} onPaste={onPaste} onChange={(e) => setLon(e.target.value)} placeholder="e.g. -93.5883" />
       </div>
       <p className="text-[14px] text-ink-faint">Tip: paste &ldquo;42.0308, -93.5883&rdquo; into either box.</p>
-      {error && <p className="text-[14.5px] text-alert" role="alert">{error}</p>}
+      {error && (
+        <p className="text-[14.5px] text-alert" role="alert">
+          {error}
+        </p>
+      )}
       <Button type="submit">Show on map</Button>
       {back}
     </form>
@@ -203,42 +249,22 @@ function CoordsStep({ onLocate, back }: { onLocate: (c: LonLat) => void; back: R
 
 function DraftForm(p: Props & { draft: Draft }) {
   const [name, setName] = useState(p.defaultName);
-  const [acresText, setAcresText] = useState(String(p.draft.pin?.acres ?? DEFAULT_PIN_ACRES));
   const blocking = hasBlockingIssue(p.issues);
-  const acresNum = Number(acresText);
-  const acresValid = Number.isFinite(acresNum) && acresNum >= MIN_PIN_ACRES && acresNum <= MAX_PIN_ACRES;
   return (
     <form
       className="mt-4 space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!blocking) p.onSave(name);
+        if (!blocking && name.trim()) p.onSave(name);
       }}
     >
       <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
-        <p className="text-[14px] text-ink-soft">{p.draft.pin ? 'Pin with a square boundary' : 'Drawn boundary'}</p>
+        <p className="text-[14px] text-ink-soft">Your boundary{p.located ? ` (${p.located.label.toLowerCase()})` : ''}</p>
         <p className="font-plate text-3xl" data-testid="draft-acres">
           {formatAcres(areaM2(p.draft.geometry))}
         </p>
-        {p.draft.pin && (
-          <div className="mt-3">
-            <TextField
-              label="Field size in acres"
-              inputMode="decimal"
-              value={acresText}
-              className="w-40"
-              onChange={(e) => {
-                setAcresText(e.target.value);
-                const n = Number(e.target.value);
-                if (Number.isFinite(n) && n >= MIN_PIN_ACRES && n <= MAX_PIN_ACRES) p.onAcres(n);
-              }}
-              error={!acresValid ? `Enter a size between ${MIN_PIN_ACRES} and ${MAX_PIN_ACRES.toLocaleString('en-US')} acres.` : undefined}
-            />
-            <p className="mt-2 text-[14px] text-ink-faint">Tap the map to move the pin. The square is an approximation; you can draw the exact boundary later.</p>
-          </div>
-        )}
         <button type="button" onClick={p.onRedraw} className="mt-2 min-h-11 font-semibold text-sky-deep hover:underline">
-          {p.draft.pin ? 'Draw the exact boundary instead' : 'Redraw'}
+          Redraw
         </button>
       </div>
 
@@ -251,4 +277,3 @@ function DraftForm(p: Props & { draft: Draft }) {
     </form>
   );
 }
-

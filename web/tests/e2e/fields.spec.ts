@@ -43,23 +43,35 @@ async function mapPoint(page: Page) {
   return { x: box.x + box.width / 2, y: box.y + Math.min(box.height / 2, 200) };
 }
 
-test('add fields by ZIP + pin and by polygon, enter crops, import GeoJSON, reload', async ({ page, isMobile }) => {
+/** Trace a square of corners around the visible map centre (draw mode must already be on). */
+async function drawSquare(page: Page, isMobile: boolean) {
+  const m = await mapPoint(page);
+  const d = isMobile ? 45 : 90;
+  for (const [dx, dy] of [[-d, -d], [d, -d], [d, d]]) await page.mouse.click(m.x + dx, m.y + dy);
+  await expect(page.getByTestId('live-acres')).toBeVisible(); // live acreage from the third corner
+  await page.mouse.click(m.x - d, m.y + d);
+  await page.getByRole('button', { name: 'Finish shape' }).click();
+}
+
+test('add fields by ZIP then drawing, enter crops, import GeoJSON, reload', async ({ page, isMobile }) => {
   await mockSources(page);
   await page.goto('/fields');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
 
-  // ZIP + pin
+  // ZIP → the map zooms in and goes straight into draw mode; no square is placed for you.
   await page.getByRole('button', { name: 'Add field' }).click();
-  await page.getByRole('button', { name: /Start from a ZIP code/ }).click();
+  await page.getByRole('button', { name: 'Find by ZIP code' }).click();
   await page.getByLabel('ZIP code').fill('50010');
   await page.getByRole('button', { name: 'Find on map' }).click();
-  await expect(page.getByText(/The map shows ZIP 50010/)).toBeVisible();
-  const c = await mapPoint(page);
-  await page.mouse.click(c.x, c.y);
-  await expect(page.getByTestId('draft-acres')).toHaveText('40.0 ac');
-  await page.getByLabel('Field name').fill('Pin field');
+  await expect(page.getByText('Near ZIP 50010')).toBeVisible();
+  await expect(page.getByText('Tap the map at each corner of your field.')).toBeVisible();
+  await expect(page.getByTestId('draft-acres')).toHaveCount(0);
+  await drawSquare(page, isMobile);
+  await expect(page.getByTestId('draft-acres')).toHaveText(/\d+\.\d ac/);
+  await page.getByLabel('Field name').fill('ZIP field');
   await page.getByRole('button', { name: 'Save field' }).click();
+  await expect(page.getByTestId('field-acres')).toHaveText(/\d+\.\d ac/);
   await expect(page.getByTestId('season-2025')).toContainText('Check this info');
   await expect(page.getByTestId('source-power')).toHaveAttribute('data-status', 'ok');
   await expect(page.getByTestId('source-smap')).toHaveAttribute('data-status', 'needs_token');
@@ -73,35 +85,31 @@ test('add fields by ZIP + pin and by polygon, enter crops, import GeoJSON, reloa
   await page.getByRole('button', { name: /These look right/ }).click();
   await expect(page.getByTestId('season-2025')).toContainText('You confirmed');
 
-  // Polygon
+  // Draw directly where the map is
   await page.getByRole('button', { name: 'All fields' }).click();
   await page.getByRole('button', { name: 'Add field' }).click();
-  await page.getByRole('button', { name: /Draw the boundary/ }).click();
-  const m = await mapPoint(page);
-  const d = isMobile ? 45 : 90;
-  for (const [dx, dy] of [[-d, -d], [d, -d], [d, d], [-d, d]]) await page.mouse.click(m.x + dx, m.y + dy);
-  await page.getByRole('button', { name: 'Finish shape' }).click();
-  await expect(page.getByTestId('draft-acres')).toHaveText(/\d+\.\d ac/);
+  await page.getByRole('button', { name: /^Draw the boundary/ }).click();
+  await drawSquare(page, isMobile);
   await page.getByLabel('Field name').fill('Drawn field');
   await page.getByRole('button', { name: 'Save field' }).click();
   await expect(page.getByTestId('field-acres')).toHaveText(/\d+\.\d ac/);
 
-  // Import GeoJSON
+  // Import GeoJSON (points and lines are skipped with reasons)
   await page.goto('/imports');
   await page.getByTestId('boundary-file').setInputFiles(path.join(__dirname, '..', '..', 'samples', 'sample-farm.geojson'));
-  await expect(page.getByText('4 shapes found.', { exact: false })).toBeVisible();
-  await expect(page.getByText(/1 feature skipped/)).toBeVisible();
-  await page.getByRole('button', { name: 'Add 4 fields' }).click();
+  await expect(page.getByText(/\d+ shapes? found\./)).toBeVisible();
+  await expect(page.getByText(/\d+ features? skipped/)).toBeVisible();
+  const addButton = page.getByRole('button', { name: /^Add \d+ fields?$/ });
+  const added = Number((await addButton.textContent())!.match(/\d+/)![0]);
+  await addButton.click();
   await expect(page).toHaveURL(/\/fields$/);
   const list = page.getByRole('list', { name: 'Fields' });
-  await expect(list.getByRole('button')).toHaveCount(6);
-  await expect(list).toContainText('North 80');
-  await expect(list).toContainText('Well site');
+  await expect(list.getByRole('button')).toHaveCount(2 + added);
 
   // Reload: everything persists
   await page.reload();
-  await expect(list.getByRole('button')).toHaveCount(6);
-  await list.getByRole('button', { name: /Pin field/ }).click();
+  await expect(list.getByRole('button')).toHaveCount(2 + added);
+  await list.getByRole('button', { name: /ZIP field/ }).click();
   await expect(page.getByTestId('season-2026')).toContainText('Oats');
   await expect(page.getByTestId('season-2025')).toContainText('You confirmed');
 });

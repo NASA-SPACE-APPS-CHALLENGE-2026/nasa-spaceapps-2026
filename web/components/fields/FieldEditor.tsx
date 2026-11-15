@@ -1,26 +1,22 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import { areaM2, formatAcres, MAX_PIN_ACRES, MIN_PIN_ACRES } from '@/lib/domain/acreage';
+import { areaM2, formatAcres } from '@/lib/domain/acreage';
 import type { Field, FieldCrops, FieldGeometry, FieldProfile, SourceId } from '@/lib/domain/types';
 import { type GeometryIssue, hasBlockingIssue } from '@/lib/domain/validation';
 import { Button } from '../ui/Button';
-import { TextField } from '../ui/TextField';
 import { CropsCard } from './CropsCard';
 import { IssueList } from './IssueList';
 import { ProfileCard } from './ProfileCard';
 
-export type ShapeEdit =
-  | { kind: 'vertices'; geometry: FieldGeometry }
-  | { kind: 'pin'; geometry: FieldGeometry; center: [number, number]; acres: number };
+/** 'vertices' = drag the corners of an existing boundary. 'draw' = trace a new boundary (geometry null until finished). */
+export type ShapeEdit = { kind: 'vertices'; geometry: FieldGeometry } | { kind: 'draw'; geometry: FieldGeometry | null };
 
-const DEFINED_BY: Record<Field['definedBy'], string> = {
-  polygon: 'Drawn boundary',
-  pin: 'Pin with a square boundary',
-  coordinates: 'Coordinates with a square boundary',
-  'zip-pin': 'Pin (placed after ZIP search) with a square boundary',
-  import: 'Imported boundary',
-};
+function boundaryText(field: Field): string {
+  if (field.boundary === 'approximate') return 'boundary not drawn';
+  if (field.definedBy === 'import') return 'imported boundary';
+  return 'drawn boundary';
+}
 
 interface Props {
   field: Field;
@@ -32,14 +28,15 @@ interface Props {
   onBack: () => void;
   onRename: (name: string) => void;
   onCrops: (crops: FieldCrops) => void;
-  onStartEdit: (kind: 'vertices' | 'pin') => void;
-  onPinAcres: (acres: number) => void;
+  onStartEdit: (kind: ShapeEdit['kind']) => void;
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onDelete: () => void;
   onRefreshSource: (id: SourceId) => void;
   onRetryCdl: () => void;
   onTurnOnLookups: () => void;
+  /** Extra actions under the header (e.g. Explore rotation). */
+  actions?: React.ReactNode;
 }
 
 export function FieldEditor(p: Props) {
@@ -47,8 +44,9 @@ export function FieldEditor(p: Props) {
   const [name, setName] = useState(field.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const renameId = useId();
+  const deleteHeadingId = useId();
   useEffect(() => setName(field.name), [field.id, field.name]);
-  const isPin = !!field.pin;
+  const approximate = field.boundary === 'approximate';
 
   const commitName = () => {
     if (name.trim() && name.trim() !== field.name) p.onRename(name);
@@ -81,27 +79,43 @@ export function FieldEditor(p: Props) {
           className="font-plate -mx-2 w-[calc(100%+1rem)] rounded-[var(--radius-control)] border border-transparent bg-transparent px-2 py-1 text-2xl hover:border-line focus:border-sky focus:bg-panel"
         />
         <p className="text-[15px] text-ink-soft">
-          <span className="font-semibold text-ink" data-testid="field-acres">
-            {formatAcres(field.areaM2)}
-          </span>
-          , {DEFINED_BY[field.definedBy].toLowerCase()}
-          {field.importMeta && <span> from {field.importMeta.fileName}</span>}
+          {approximate ? (
+            <span className="font-semibold text-wheat-deep">Boundary not drawn</span>
+          ) : (
+            <>
+              <span className="font-semibold text-ink" data-testid="field-acres">
+                {formatAcres(field.areaM2)}
+              </span>
+              , {boundaryText(field)}
+              {field.importMeta && <span> from {field.importMeta.fileName}</span>}
+            </>
+          )}
         </p>
       </div>
 
-      {!p.edit && <IssueList issues={p.issues.filter((i) => i.level === 'warning')} />}
+      {p.actions}
+
+      {!p.edit && <IssueList issues={p.issues.filter((i) => i.level === 'warning' && !(approximate && i.code === 'overlap'))} />}
 
       {p.edit ? (
         <ShapeEditor {...p} edit={p.edit} />
+      ) : approximate ? (
+        <div className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint p-4" data-testid="boundary-not-drawn">
+          <p className="text-[15px] font-semibold text-wheat-deep">This field only has a pin</p>
+          <p className="mt-1 text-[14.5px] leading-snug text-wheat-deep">
+            Until you draw its edges, the profile and crop history use an approximate area around the pin. Draw the boundary for accurate acreage and data.
+          </p>
+          <Button className="mt-3" onClick={() => p.onStartEdit('draw')}>
+            Draw boundary
+          </Button>
+        </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {isPin && (
-            <Button variant="secondary" onClick={() => p.onStartEdit('pin')}>
-              Move pin or change size
-            </Button>
-          )}
           <Button variant="secondary" onClick={() => p.onStartEdit('vertices')}>
-            {isPin ? 'Adjust the corners' : 'Edit boundary'}
+            Edit boundary
+          </Button>
+          <Button variant="ghost" onClick={() => p.onStartEdit('draw')}>
+            Redraw from scratch
           </Button>
         </div>
       )}
@@ -111,8 +125,8 @@ export function FieldEditor(p: Props) {
 
       <div className="pb-4 pt-2">
         {confirmDelete ? (
-          <div className="rounded-[var(--radius-panel)] border border-alert/30 bg-alert-tint p-4" role="alertdialog" aria-labelledby="del-h">
-            <p id="del-h" className="text-[15px] text-[#7a2c1d]">
+          <div className="rounded-[var(--radius-panel)] border border-alert/30 bg-alert-tint p-4" role="alertdialog" aria-labelledby={deleteHeadingId}>
+            <p id={deleteHeadingId} className="text-[15px] text-[#7a2c1d]">
               Delete <strong>{field.name}</strong>? Its boundary, crops and profile will be removed from this browser.
             </p>
             <div className="mt-3 flex gap-2">
@@ -135,38 +149,33 @@ export function FieldEditor(p: Props) {
 }
 
 function ShapeEditor(p: Props & { edit: ShapeEdit }) {
-  const [acresText, setAcresText] = useState(p.edit.kind === 'pin' ? String(p.edit.acres) : '');
   const blocking = hasBlockingIssue(p.editIssues);
+  const geometry = p.edit.geometry;
   return (
-    <div className="rounded-[var(--radius-panel)] border border-sky/40 bg-sky-tint/60 p-4">
-      <p className="text-[15px] font-semibold">{p.edit.kind === 'pin' ? 'Move the pin or change the size' : 'Editing the boundary'}</p>
-      <p className="mt-1 text-[14.5px] text-ink-soft">
-        {p.edit.kind === 'pin'
-          ? 'Tap the map to move the pin.'
-          : 'Drag the corners on the map. Drag a midpoint to add a corner; right-click or long-press a corner to remove it.'}
-      </p>
-      {p.edit.kind === 'pin' && (
-        <TextField
-          label="Size in acres"
-          inputMode="decimal"
-          value={acresText}
-          className="mt-3 w-40"
-          onChange={(e) => {
-            setAcresText(e.target.value);
-            const n = Number(e.target.value);
-            if (Number.isFinite(n) && n >= MIN_PIN_ACRES && n <= MAX_PIN_ACRES) p.onPinAcres(n);
-          }}
-        />
+    <div className="rounded-[var(--radius-panel)] border border-sky/40 bg-sky-tint/60 p-4" role="status">
+      {p.edit.kind === 'vertices' ? (
+        <>
+          <p className="text-[15px] font-semibold">Editing the boundary</p>
+          <p className="mt-1 text-[14.5px] text-ink-soft">Drag the corners on the map. Drag a midpoint to add a corner; right-click or long-press a corner to remove it.</p>
+        </>
+      ) : (
+        <p className="text-[15px] font-semibold">{geometry ? 'New boundary ready to save' : 'Tracing the boundary on the map'}</p>
       )}
-      <p className="mt-3 font-plate text-2xl">{formatAcres(areaM2(p.edit.geometry))}</p>
-      <div className="mt-2">
-        <IssueList issues={p.editIssues} />
-      </div>
-      <p className="mt-2 text-[13.5px] text-ink-faint">Saving a new shape refreshes the field profile and re-checks crops you have not confirmed yet.</p>
+      {geometry && (
+        <>
+          <p className="mt-3 font-plate text-2xl">{formatAcres(areaM2(geometry))}</p>
+          <div className="mt-2">
+            <IssueList issues={p.editIssues} />
+          </div>
+          <p className="mt-2 text-[13.5px] text-ink-faint">Saving a new shape refreshes the field profile and re-checks crops you have not confirmed yet.</p>
+        </>
+      )}
       <div className="mt-3 flex gap-2">
-        <Button onClick={p.onSaveEdit} disabled={blocking}>
-          Save shape
-        </Button>
+        {geometry && (
+          <Button onClick={p.onSaveEdit} disabled={blocking}>
+            Save shape
+          </Button>
+        )}
         <Button variant="secondary" onClick={p.onCancelEdit}>
           Cancel
         </Button>

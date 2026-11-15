@@ -5,7 +5,7 @@ Crop-rotation planning for farmers, built for NASA Space Apps 2026 ("Field Shift
 Milestone 1 delivers:
 
 - **App shell** with the tabs Overview, Fields, Rotation Explorer, Planner, Scenario Simulator, Finance and Imports. The app opens on Fields. Tabs other than Fields and Imports are routed "coming soon" pages.
-- **Fields**: add fields by drawing a boundary on USGS satellite imagery, dropping a pin (square, 40 acres by default, resizable), typing coordinates, or starting from a ZIP code and then pinning or drawing. Rename, edit the boundary, move a pin, delete. The farmer enters only the shape, this season's crop (2026) and earlier seasons (3 by default, up to 5). Earlier seasons are prefilled from the USDA Cropland Data Layer and marked "Check this info" until confirmed.
+- **Fields**: every field is traced on USGS satellite imagery (click the corners, Undo corner, Finish shape or click the first corner; live acreage while drawing). A ZIP code, a dropped pin or coordinates only move the map to the right place and start drawing; nothing is auto-generated. Rename, edit the boundary, redraw, delete. Fields saved by the first version as a pin with a 40-acre square are migrated to "Boundary not drawn" and shown as a pin until the farmer draws them. The farmer enters only the shape, this season's crop (2026) and earlier seasons (3 by default, up to 5). Earlier seasons are prefilled from the USDA Cropland Data Layer and marked "Check this info" until confirmed.
 - **Automatic field profile**: weather and climate (NASA POWER), soil (USDA SSURGO), elevation and slope (USGS 3DEP), plus SMAP, IMERG and NDVI stubs that need an Earthdata token. Each source shows its own status, provider, fetch date, and an honesty label (Measured, Estimated, or Check this info) on every value.
 - **Imports**: five upload cards. **Land boundaries** works: GeoJSON, KML, or a zipped shapefile, parsed in the browser, previewed on a map, and you pick which shapes become fields. The other four cards (machine data, supplier records, finance CSV, yield records) accept files and say plainly that they were received but not processed.
 
@@ -35,7 +35,7 @@ npm run typecheck
 npm run lint
 ```
 
-The data-source tests run against responses recorded from the real endpoints (`tests/fixtures/`), so they need no network. The end-to-end tests mock FieldShift's own `/api/profile/*` and `/api/cdl` routes and walk through the Milestone 1 checklist: ZIP + pin, polygon, crops, GeoJSON import, reload.
+The data-source tests run against responses recorded from the real endpoints (`tests/fixtures/`), so they need no network. The end-to-end tests mock FieldShift's own `/api/profile/*` and `/api/cdl` routes and walk through: ZIP then draw, draw in place, crops, GeoJSON import, reload.
 
 > Don't run `npm run build` while `npm run dev` is running: both write to `.next/` and the dev server will start returning errors. Stop the dev server first (or delete `.next/` and restart it).
 
@@ -57,7 +57,7 @@ lib/import/             GeoJSON / KML / shapefile parsing and normalisation
 
 ### Data model: three separate layers per field
 
-1. **Field** (`fieldshift.fields`): the GeoJSON shape, how it was defined (polygon, pin, coordinates, ZIP + pin, import), acreage, and crops. Each season records its origin (farmer or CDL) and status (empty, detected, confirmed).
+1. **Field** (`fieldshift.fields`, schema v2): the GeoJSON shape, whether it is a drawn boundary or a legacy approximate pin (`boundary`), how the farmer found it (`locatedVia`), acreage, and crops. Each season records its origin (farmer or CDL) and status (empty, detected, confirmed).
 2. **FieldProfile** (`fieldshift.profiles`): the automatic profile, one result per source, tied to a geometry hash so a changed boundary invalidates it.
 3. **ManagementAnswers** (`fieldshift.management`): reserved for the questionnaire in a later milestone.
 
