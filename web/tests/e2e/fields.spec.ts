@@ -127,8 +127,9 @@ test('stub import cards accept files without claiming to process them', async ({
 test('every tab is routed and the app opens on Fields', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveURL(/\/fields$/);
+  await page.goto('/overview');
+  await expect(page.getByRole('heading', { name: 'Overview', level: 1 })).toBeVisible();
   for (const [href, heading] of [
-    ['/overview', 'Overview'],
     ['/rotation', 'Rotation Explorer'],
     ['/planner', 'Planner'],
     ['/simulator', 'Scenario Simulator'],

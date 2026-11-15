@@ -1,12 +1,14 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildDemoFarm, demoBlocker } from '@/lib/demo/demoFarm';
 import { createField, renamed, withGeometry } from '@/lib/domain/field';
 import type { Field, FieldGeometry, LonLat } from '@/lib/domain/types';
 import { overlapIssues, validateGeometry } from '@/lib/domain/validation';
+import { setLastFieldId } from '@/lib/client/session';
 import { useFarm, useStore } from '@/lib/client/StoreProvider';
 import type { MapFocus, MapMode, MapShape } from '../map/FieldMap';
 import { ResponsivePanel, sheetInset, type Snap, useIsDesktop } from '../ui/ResponsivePanel';
@@ -121,6 +123,7 @@ export function FieldsScreen() {
   const selectField = (id: string) => {
     const f = fields.find((x) => x.id === id);
     setView({ kind: 'field', id, edit: null });
+    setLastFieldId(id);
     setSnap('half');
     if (f) setFocus({ key: `sel-${id}-${Date.now()}`, kind: 'geometry', geometry: f.feature.geometry });
   };
@@ -135,6 +138,7 @@ export function FieldsScreen() {
     if (view.kind !== 'add' || !view.draft) return;
     const field = createField({ name, geometry: view.draft.geometry, definedBy: 'polygon', locatedVia: view.located?.via ?? 'map' });
     await store.addFields([field]);
+    setLastFieldId(field.id);
     setView({ kind: 'field', id: field.id, edit: null });
     setSnap('half');
     setFocus({ key: `saved-${field.id}`, kind: 'geometry', geometry: field.feature.geometry });
@@ -222,6 +226,17 @@ export function FieldsScreen() {
             onRefreshSource={(id) => store.refreshSource(selected.id, id)}
             onRetryCdl={() => store.retryCdl(selected.id)}
             onTurnOnLookups={() => void store.setSettings({ ...settings, externalLookups: true })}
+            actions={
+              !view.edit && (
+                <Link
+                  href={`/rotation?field=${encodeURIComponent(selected.id)}`}
+                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-[var(--radius-panel)] bg-field px-4 text-[16px] font-semibold text-white hover:bg-[#245530]"
+                >
+                  <span>Explore rotation</span>
+                  <span className="text-[14px] font-normal text-white/85">Compare 3 strategies for this field</span>
+                </Link>
+              )
+            }
           />
         )}
       </ResponsivePanel>
