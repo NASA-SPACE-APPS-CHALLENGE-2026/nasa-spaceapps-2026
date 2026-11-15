@@ -83,7 +83,6 @@ test('every tab is routed and the app opens on Fields', async ({ page }) => {
   await expect(page).toHaveURL(/\/fields$/);
   for (const [href, heading] of [
     ['/overview', 'Overview'],
-    ['/simulator', 'Scenario Simulator'],
     ['/finance', 'Finance'],
   ]) {
     await page.goto(href);
@@ -98,4 +97,8 @@ test('every tab is routed and the app opens on Fields', async ({ page }) => {
     await page.goto(href);
     await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
   }
+  await page.goto('/simulator');
+  await expect(page.getByRole('heading', { name: 'Scenario Simulator', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Add a field first' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Go to Fields' })).toBeVisible();
 });

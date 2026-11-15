@@ -66,6 +66,7 @@ export interface RotationResult {
 }
 
 export const MIN_SCORED_BARS = 3;
+export type BarWeights = Partial<Record<BarId, 2>>;
 const LEVELS: Confidence[] = ['low', 'medium', 'high'];
 const lower = (c: Confidence, steps = 1): Confidence => LEVELS[Math.max(0, LEVELS.indexOf(c) - steps)];
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
@@ -318,6 +319,10 @@ function climateBar(st: Strategy, inputs: RotationInputs): BarScore {
   const sum = (months: number[]) => Math.round(months.reduce((a, m) => a + c.monthlyRainIn[m - 1], 0) * 10) / 10;
   bar.note('Based on 30-year normals for a roughly 50 km NASA POWER grid cell, not your field’s own weather.', [climateSrc]);
 
+  if (st.id === 'custom') {
+    return unscored('climate', ['a reviewed climate-fit rule for this custom plan'], 'Not enough info: the existing climate-fit rubric only covers the three Rotation Explorer strategies, so this custom plan is not scored for climate fit.', [{ kind: 'history', text: 'Custom Planner schedule' }, climateSrc]);
+  }
+
   if (st.id === 'keep') {
     bar.start(70, 'Starts at 70: you already grow these crops here, which is good evidence they suit the climate.', [{ kind: 'history', text: 'Your crop history' }]);
     const summerRain = sum([5, 6, 7, 8]);
@@ -438,17 +443,33 @@ function overallOf(bars: BarScore[], weights: Record<BarId, number>): number | n
   return Math.round((10 * scored.reduce((a, b) => a + b.score! * weights[b.id], 0)) / w) / 10;
 }
 
+/** Score supplied rotations with the same four-bar rubric used by Rotation Explorer. */
+export function scoreStrategySet(inputs: RotationInputs, strategies: Strategy[], knownSeasons: number, extraWeights: BarWeights = {}) {
+  const { weights: baseWeights, reasons } = weightsFor(inputs);
+  const weights = { ...baseWeights };
+  const weightReasons = [...reasons];
+  for (const [id, weight] of Object.entries(extraWeights) as Array<[BarId, 2]>) {
+    if (weights[id] < weight) {
+      weights[id] = weight;
+      weightReasons.push({ text: `Your selected priority gives ${label(id).toLowerCase()} extra weight in this comparison.`, sources: [{ kind: 'history', text: 'Scenario priority' }] });
+    }
+  }
+
+  const firstYear = inputs.currentYear + 1;
+  const unconfirmed = inputs.seasons.some((s) => s.status === 'detected');
+  const scored = strategies.map((st) => {
+    const bars = [soilCoverBar(st, inputs, firstYear), diversityBar(st, inputs, knownSeasons, unconfirmed), pestsBar(st, inputs, knownSeasons, unconfirmed), climateBar(st, inputs)];
+    return { strategy: st, bars, overall: overallOf(bars, weights), caveats: caveats(st, inputs) };
+  });
+  return { strategies: scored, weights, weightReasons };
+}
+
 /** Score all three strategies for one field and pick the best fit. */
 export function scoreRotation(inputs: RotationInputs): RotationResult {
   const set = buildStrategies(inputs);
   const { weights, reasons: weightReasons } = weightsFor(inputs);
   if (set.problem) return { strategies: [], bestFit: null, bestFitReason: set.problem, weights, weightReasons, problem: set.problem, knownSeasons: 0 };
-  const firstYear = inputs.currentYear + 1;
-  const unconfirmed = inputs.seasons.some((s) => s.status === 'detected');
-  const strategies: StrategyScore[] = set.strategies.map((st) => {
-    const bars = [soilCoverBar(st, inputs, firstYear), diversityBar(st, inputs, set.knownSeasons, unconfirmed), pestsBar(st, inputs, set.knownSeasons, unconfirmed), climateBar(st, inputs)];
-    return { strategy: st, bars, overall: overallOf(bars, weights), caveats: caveats(st, inputs) };
-  });
+  const { strategies, weightReasons: sharedWeightReasons } = scoreStrategySet(inputs, set.strategies, set.knownSeasons);
   const ranked = strategies.filter((s) => s.overall !== null).sort((a, b) => b.overall! - a.overall! || a.strategy.practiceChanges - b.strategy.practiceChanges);
   if (!ranked.length) {
     return {
@@ -456,7 +477,7 @@ export function scoreRotation(inputs: RotationInputs): RotationResult {
       bestFit: null,
       bestFitReason: `Not enough info to pick a best fit: each strategy needs at least ${MIN_SCORED_BARS} of the 4 bars scored.`,
       weights,
-      weightReasons,
+      weightReasons: sharedWeightReasons,
       knownSeasons: set.knownSeasons,
     };
   }
@@ -469,5 +490,5 @@ export function scoreRotation(inputs: RotationInputs): RotationResult {
     tied.length > 1
       ? `${best.strategy.title} ties within a point (${best.overall}) and changes the least, so it is the best fit.`
       : `${best.strategy.title} has the highest average across the bars (${best.overall}${others.length ? `, vs ${others.join(' and ')}` : ''}).`;
-  return { strategies, bestFit: best.strategy.id, bestFitReason: reason, weights, weightReasons, knownSeasons: set.knownSeasons };
+  return { strategies, bestFit: best.strategy.id === 'custom' ? null : best.strategy.id, bestFitReason: reason, weights, weightReasons: sharedWeightReasons, knownSeasons: set.knownSeasons };
 }

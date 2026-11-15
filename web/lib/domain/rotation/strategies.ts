@@ -39,7 +39,7 @@ export interface PlannedSeason {
 }
 
 export interface Strategy {
-  id: StrategyId;
+  id: StrategyId | 'custom';
   title: string;
   summary: string;
   /** New practices the farmer takes on (used only to break ties). */

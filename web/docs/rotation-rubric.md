@@ -112,6 +112,16 @@ How well the crops and covers fit this field's weather. **Required:** NASA POWER
 - **Best fit:** the highest overall. Strategies within 1 point of the top count as tied, and the tie goes to the one with fewer practice changes. If no strategy has an overall, there is no best fit, and the page says "No best fit yet" with the reason.
 - **Practical points:** equipment, market, cover-crop experience and livestock are shown as caveats and are **not scored**.
 
+## Scenario Simulator
+
+The Simulator compares the current `keep` strategy with either a Rotation Explorer strategy or a saved Planner schedule, using `scoreStrategySet()` and the same four bars above. It needs at least three scored bars before showing a numeric comparison. A custom Planner schedule has no reviewed climate-fit rule, so its climate bar is unscored rather than inferred from the catalog strategies.
+
+- **Priority:** balanced keeps the field's normal weights; water doubles climate fit; soil doubles soil cover; resilience doubles crop diversity and climate fit; pests doubles the pest bar. Existing erosion/slope weights are retained. Operational feasibility does not change numeric weights or produce a winner because the rubric has no machinery, labour, market or timing model.
+- **Weather sensitivity:** rainfall percentage scales every 1991–2020 NASA POWER monthly normal by the same factor; temperature adjustment shifts every monthly mean by the same °C-to-°F conversion. Neither adjustment changes observed recent weather, produces a forecast, nor estimates water use, yield, crop damage, runoff or pest pressure.
+- **Schedule:** the cover timeline uses Planner task months when the saved task label can be matched; otherwise it falls back to the usual-month crop calendar. It describes the schedule only and is not satellite confirmation of vegetation or bare soil.
+- **Context:** growth stage is saved as a note and does not affect scores. Irrigation can use the field questionnaire answer or a comparison-only override; the rubric does not estimate irrigation demand or savings.
+- **Saved comparisons:** only the field/plan references, scenario controls and timestamps are stored in the browser's `fieldshift.scenarios` collection. Climate or satellite source values are not copied. The UI warns when the referenced field answers/history or Planner plan changed.
+
 ## Cover-crop table (`coverCrops.ts`)
 
 | Species | Winter | Coldest-month normal it survives | Fall GDD (base 40 °F) needed | Goals |

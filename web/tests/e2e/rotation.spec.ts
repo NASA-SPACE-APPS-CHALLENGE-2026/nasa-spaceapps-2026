@@ -94,6 +94,35 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await expect(page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first()).toHaveAttribute('data-month', '6');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
+  // Simulator compares the saved, editable Planner plan against the current rotation.
+  const planUrl = new URL(page.url());
+  const fieldId = planUrl.searchParams.get('field')!;
+  const planId = planUrl.searchParams.get('plan')!;
+  await page.goto(`/simulator?field=${fieldId}&plan=${planId}`);
+  await expect(page.getByRole('heading', { name: 'Scenario Simulator', level: 1 })).toBeVisible();
+  await expect(page.getByText('Monthly rainfall')).toBeVisible();
+  await expect(page.getByText('Monthly average temperature')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Seasonal crop-cover timeline' })).toBeVisible();
+  await page.getByRole('button', { name: 'Drier season' }).click();
+  await expect(page.getByLabel('Rainfall adjustment')).toHaveValue('-20');
+  await expect(page.getByText(/Scaling every month by -20%/)).toBeVisible();
+  await page.getByLabel('What matters most for this comparison?').selectOption('operational');
+  await expect(page.getByRole('heading', { name: 'Practical fit needs your judgment' })).toBeVisible();
+  await page.getByLabel('Name this comparison').fill('Dry spring scenario');
+  await page.getByRole('button', { name: 'Save new' }).click();
+  await expect(page.getByText('Saved “Dry spring scenario” on this device.')).toBeVisible();
+  await page.getByLabel('Saved comparison name').fill('Dry spring - renamed');
+  await page.getByRole('button', { name: 'Rename' }).click();
+  await expect(page.getByText('Renamed to “Dry spring - renamed”.')).toBeVisible();
+  await page.getByRole('button', { name: 'Duplicate' }).click();
+  await expect(page.getByText('Saved a copy as “Copy of Dry spring - renamed”.')).toBeVisible();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete comparison' }).click();
+  await expect(page.getByLabel('Load a saved comparison')).toContainText('Dry spring - renamed');
+  await page.getByLabel('Load a saved comparison').selectOption({ label: 'Dry spring - renamed' });
+  await expect(page.getByLabel('Saved comparison name')).toHaveValue('Dry spring - renamed');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
   // Logo goes to Overview; Rotation Explorer reopens the last field with its answers.
   await page.getByRole('link', { name: /FieldShift home/ }).click();
   await expect(page).toHaveURL(/\/overview$/);

@@ -1,7 +1,7 @@
 import { cdlYearsFor, applyDetections } from '../domain/cropHistory';
 import { SOURCE_META, SOURCE_ORDER } from '../domain/sourceMeta';
 import { toManagementRecord, type RotationAnswers } from '../domain/management';
-import type { CdlDetection, FarmSettings, Field, FieldProfile, ManagementAnswers, Plan, SourceId, SourceResult } from '../domain/types';
+import type { CdlDetection, FarmSettings, Field, FieldProfile, ManagementAnswers, Plan, SavedScenario, SourceId, SourceResult } from '../domain/types';
 import type { Repositories } from '../repo/interfaces';
 import { DEFAULT_SETTINGS } from '../repo/local';
 import type { CdlResponse } from '../sources/cdl';
@@ -14,6 +14,8 @@ export interface FarmState {
   management: Record<string, ManagementAnswers>;
   /** Layer 4, oldest first. */
   plans: Plan[];
+  /** Scenario configurations are lightweight and local to the farmer's browser. */
+  scenarios: SavedScenario[];
   settings: FarmSettings;
 }
 
@@ -60,7 +62,7 @@ const FIELD_CONCURRENCY = 2;
  * Background work is queued (2 fields at a time); each field's sources run in parallel and land independently.
  */
 export class FarmStore {
-  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], settings: DEFAULT_SETTINGS };
+  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], scenarios: [], settings: DEFAULT_SETTINGS };
   private listeners = new Set<() => void>();
   private queue: Array<() => Promise<void>> = [];
   private running = 0;
@@ -84,11 +86,12 @@ export class FarmStore {
   }
 
   async load(): Promise<void> {
-    const [fields, profiles, management, plans, settings] = await Promise.all([
+    const [fields, profiles, management, plans, scenarios, settings] = await Promise.all([
       this.repos.fields.list(),
       this.repos.profiles.list(),
       this.repos.management.list(),
       this.repos.plans.list(),
+      this.repos.scenarios.list(),
       this.repos.settings.get(),
     ]);
     this.set({
@@ -97,6 +100,7 @@ export class FarmStore {
       profiles: Object.fromEntries(profiles.map((p) => [p.fieldId, p])),
       management: Object.fromEntries(management.map((m) => [m.fieldId, m])),
       plans,
+      scenarios,
       settings,
     });
     for (const f of fields) this.ensureLookups(f.id);
@@ -118,14 +122,14 @@ export class FarmStore {
   }
 
   async deleteField(id: string): Promise<void> {
-    await Promise.all([this.repos.fields.remove(id), this.repos.profiles.remove(id), this.repos.management.remove(id), this.repos.plans.removeForField(id)]);
+    await Promise.all([this.repos.fields.remove(id), this.repos.profiles.remove(id), this.repos.management.remove(id), this.repos.plans.removeForField(id), this.repos.scenarios.removeForField(id)]);
     const profiles = { ...this.state.profiles };
     delete profiles[id];
     const management = { ...this.state.management };
     delete management[id];
     const settings = this.state.settings.lastFieldId === id ? { ...this.state.settings, lastFieldId: undefined } : this.state.settings;
     if (settings !== this.state.settings) await this.repos.settings.save(settings);
-    this.set({ fields: this.state.fields.filter((f) => f.id !== id), profiles, management, plans: this.state.plans.filter((p) => p.fieldId !== id), settings });
+    this.set({ fields: this.state.fields.filter((f) => f.id !== id), profiles, management, plans: this.state.plans.filter((p) => p.fieldId !== id), scenarios: this.state.scenarios.filter((s) => s.fieldId !== id), settings });
   }
 
   async setSettings(settings: FarmSettings): Promise<void> {
@@ -166,6 +170,17 @@ export class FarmStore {
   async deletePlan(id: string): Promise<void> {
     this.set({ plans: this.state.plans.filter((p) => p.id !== id) });
     await this.repos.plans.remove(id);
+  }
+
+  async saveScenario(scenario: SavedScenario): Promise<void> {
+    await this.repos.scenarios.save(scenario);
+    const exists = this.state.scenarios.some((s) => s.id === scenario.id);
+    this.set({ scenarios: exists ? this.state.scenarios.map((s) => (s.id === scenario.id ? scenario : s)) : [...this.state.scenarios, scenario] });
+  }
+
+  async deleteScenario(id: string): Promise<void> {
+    await this.repos.scenarios.remove(id);
+    this.set({ scenarios: this.state.scenarios.filter((s) => s.id !== id) });
   }
 
   // ---------- background lookups ----------

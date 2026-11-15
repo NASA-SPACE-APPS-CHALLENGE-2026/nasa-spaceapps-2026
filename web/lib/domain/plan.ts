@@ -29,7 +29,7 @@ function seasonCrop(ids: string[]): CropRef {
   return ids.length === 2 ? { kind: 'double', first: ids[0], second: ids[1] } : catalog(ids[0]);
 }
 
-const STRATEGY_PLAN_NAMES: Record<StrategyId, string> = { keep: 'Keep the rotation', cover: 'Cover crop plan', 'small-grains': 'Small grains plan' };
+const STRATEGY_PLAN_NAMES: Record<StrategyId | 'custom', string> = { keep: 'Keep the rotation', cover: 'Cover crop plan', 'small-grains': 'Small grains plan', custom: 'Custom plan' };
 
 /** Turn a scored strategy into a plan: one row per year, with plant / harvest / cover tasks at the usual months. */
 export function planFromStrategy(strategy: Strategy, field: Field, answers: RotationAnswers, opts: { now?: Date; id?: () => string } = {}): Plan {

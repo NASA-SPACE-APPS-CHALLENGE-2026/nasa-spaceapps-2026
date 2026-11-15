@@ -177,6 +177,42 @@ export interface Plan {
   seasons: PlanSeason[];
 }
 
+export type ScenarioPreset = 'historical' | 'drier' | 'wetter' | 'hotter' | 'custom';
+export type ScenarioPriority = 'balanced' | 'water' | 'soil' | 'resilience' | 'pests' | 'operational';
+export type ScenarioGrowthStage = 'unspecified' | 'pre-planting' | 'establishment' | 'vegetative' | 'reproductive' | 'grain-fill' | 'harvest';
+export type ScenarioIrrigation = 'field' | 'none' | 'supplemental' | 'full' | 'unsure';
+
+export interface ScenarioConfig {
+  preset: ScenarioPreset;
+  rainfallPct: number;
+  temperatureDeltaC: number;
+  priority: ScenarioPriority;
+  growthStage: ScenarioGrowthStage;
+  irrigation: ScenarioIrrigation;
+}
+
+export interface ScenarioProposal {
+  kind: 'plan' | 'strategy';
+  id: string;
+}
+
+/** Lightweight, local-only scenario setup. Environmental source records are never copied here. */
+export interface SavedScenario {
+  id: string;
+  fieldId: string;
+  name: string;
+  currentStrategyId: 'keep';
+  /** Helps identify when field crops or answers have changed since this comparison was saved. */
+  fieldUpdatedAt: string;
+  answersUpdatedAt?: string;
+  proposal: ScenarioProposal;
+  /** Lets the farmer see when the Planner source changed after this scenario was saved. */
+  planUpdatedAt?: string;
+  config: ScenarioConfig;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ---------- Settings ----------
 
 export interface FarmSettings {
