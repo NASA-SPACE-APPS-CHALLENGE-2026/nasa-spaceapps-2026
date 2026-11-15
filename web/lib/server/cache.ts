@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 export interface Cached<T> {
@@ -76,6 +77,7 @@ export class DiskCache implements ResponseCache {
 
 let shared: ResponseCache | undefined;
 export function serverCache(): ResponseCache {
-  shared ??= new DiskCache(path.join(process.cwd(), '.cache'));
+  // On Vercel only /tmp is writable; elsewhere keep the cache next to the app.
+  shared ??= new DiskCache(path.join(process.env.VERCEL ? tmpdir() : process.cwd(), '.cache'));
   return shared;
 }
