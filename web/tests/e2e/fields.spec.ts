@@ -73,14 +73,18 @@ test('add fields by ZIP then drawing, enter crops, import GeoJSON, reload', asyn
   await expect(page.getByTestId('season-2025')).toContainText('You confirmed');
 });
 
-test('stub import cards accept files without claiming to process them', async ({ page }) => {
+test('Imports shows only working boundary imports and rejects unsupported files', async ({ page }) => {
   await page.goto('/imports');
-  const card = page.getByRole('region', { name: 'Finance and payments' });
-  await card.locator('input[type=file]').setInputFiles({ name: 'stripe-payments.csv', mimeType: 'text/csv', buffer: Buffer.from('id,amount\n1,10\n') });
-  await expect(card).toContainText('Received, not yet processed.');
-  await expect(card.getByRole('button', { name: /Processing comes in a later milestone/ })).toBeDisabled();
-  await card.locator('input[type=file]').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('x') });
-  await expect(card.getByRole('alert')).toContainText('not an accepted file type');
+  await expect(page.getByRole('region', { name: 'Land boundaries' })).toBeVisible();
+  await expect(page.locator('input[type=file]')).toHaveCount(1);
+  for (const name of ['Machine and equipment data', 'Supplier and purchase records', 'Finance and payments', 'Yield and harvest records']) {
+    await expect(page.getByRole('heading', { name, exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByText('Processing comes in a later milestone', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Coming soon', { exact: true })).toHaveCount(0);
+  await page.getByTestId('boundary-file').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('x') });
+  await expect(page.getByRole('region', { name: 'Land boundaries' }).getByRole('alert')).toContainText('not an accepted file type');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('every tab is routed and the app opens on Fields', async ({ page }) => {
