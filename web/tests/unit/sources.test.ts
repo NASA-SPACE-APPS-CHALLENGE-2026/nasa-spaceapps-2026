@@ -28,6 +28,13 @@ describe('NASA POWER', () => {
     expect(r.values.every((x) => x.honesty === 'Estimated')).toBe(true);
     expect(r.message).toMatch(/Oct 13, 2026 – Nov 11, 2026/);
     expect(r.fetchedAt).toBe(NOW.toISOString());
+    // Monthly normals for Rotation Explorer: 12 months, Ames-like seasonality (cold Jan, warm Jul).
+    expect(r.climate?.monthlyMeanTempF).toHaveLength(12);
+    expect(r.climate?.monthlyRainIn).toHaveLength(12);
+    const t = r.climate!.monthlyMeanTempF;
+    expect(t[0]).toBeLessThan(30);
+    expect(t[6]).toBeGreaterThan(65);
+    expect(r.climate!.monthlyRainIn.reduce((a, b) => a + b, 0)).toBeGreaterThan(25);
   });
 
   it('drops -999 fill values and implausible values', () => {

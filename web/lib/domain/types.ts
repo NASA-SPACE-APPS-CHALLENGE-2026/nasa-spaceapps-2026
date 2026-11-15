@@ -113,6 +113,14 @@ export interface SourceResult {
   values: ProfileValue[];
   /** Set by the browser when our own server could not be reached; retried automatically next time. */
   transient?: boolean;
+  /** NASA POWER only: 1991–2020 monthly normals, used by Rotation Explorer (not shown as profile rows). */
+  climate?: ClimateNormals;
+}
+
+/** Monthly 1991–2020 normals for the field's POWER grid cell, January first (12 entries each). */
+export interface ClimateNormals {
+  monthlyMeanTempF: number[];
+  monthlyRainIn: number[];
 }
 
 export interface FieldProfile {
@@ -130,9 +138,50 @@ export interface ManagementAnswers {
   updatedAt: string;
 }
 
+// ---------- Layer 4: plans (Planner) ----------
+
+export type PlanTaskKind = 'plant' | 'harvest' | 'cover-plant' | 'cover-terminate' | 'soil-test' | 'scout' | 'note';
+
+export interface PlanTask {
+  id: string;
+  /** 1 = January … 12 = December. */
+  month: number;
+  kind: PlanTaskKind;
+  label: string;
+}
+
+export interface PlanCover {
+  /** Cover crop id from the cover-crop table (lib/domain/rotation/coverCrops.ts) or free text. */
+  species: string;
+  name: string;
+}
+
+export interface PlanSeason {
+  year: number;
+  crop: CropRef | null;
+  /** A cover crop planted after this season's cash crop. */
+  cover?: PlanCover;
+  tasks: PlanTask[];
+}
+
+export type StrategyId = 'keep' | 'cover' | 'small-grains';
+
+export interface Plan {
+  id: string;
+  fieldId: string;
+  strategyId: StrategyId | 'custom';
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Oldest first. */
+  seasons: PlanSeason[];
+}
+
 // ---------- Settings ----------
 
 export interface FarmSettings {
   /** When false, nothing about the field location is sent to public services. */
   externalLookups: boolean;
+  /** The field the farmer last worked on; Rotation Explorer and Planner open it by default. */
+  lastFieldId?: string;
 }

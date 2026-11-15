@@ -1,6 +1,7 @@
 import { cdlYearsFor, applyDetections } from '../domain/cropHistory';
 import { SOURCE_META, SOURCE_ORDER } from '../domain/sourceMeta';
-import type { CdlDetection, FarmSettings, Field, FieldProfile, SourceId, SourceResult } from '../domain/types';
+import { toManagementRecord, type RotationAnswers } from '../domain/management';
+import type { CdlDetection, FarmSettings, Field, FieldProfile, ManagementAnswers, Plan, SourceId, SourceResult } from '../domain/types';
 import type { Repositories } from '../repo/interfaces';
 import { DEFAULT_SETTINGS } from '../repo/local';
 import type { CdlResponse } from '../sources/cdl';
@@ -9,6 +10,10 @@ export interface FarmState {
   loaded: boolean;
   fields: Field[];
   profiles: Record<string, FieldProfile>;
+  /** Layer 3, keyed by field id. */
+  management: Record<string, ManagementAnswers>;
+  /** Layer 4, oldest first. */
+  plans: Plan[];
   settings: FarmSettings;
 }
 
@@ -55,7 +60,7 @@ const FIELD_CONCURRENCY = 2;
  * Background work is queued (2 fields at a time); each field's sources run in parallel and land independently.
  */
 export class FarmStore {
-  private state: FarmState = { loaded: false, fields: [], profiles: {}, settings: DEFAULT_SETTINGS };
+  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], settings: DEFAULT_SETTINGS };
   private listeners = new Set<() => void>();
   private queue: Array<() => Promise<void>> = [];
   private running = 0;
@@ -79,8 +84,21 @@ export class FarmStore {
   }
 
   async load(): Promise<void> {
-    const [fields, profiles, settings] = await Promise.all([this.repos.fields.list(), this.repos.profiles.list(), this.repos.settings.get()]);
-    this.set({ loaded: true, fields, profiles: Object.fromEntries(profiles.map((p) => [p.fieldId, p])), settings });
+    const [fields, profiles, management, plans, settings] = await Promise.all([
+      this.repos.fields.list(),
+      this.repos.profiles.list(),
+      this.repos.management.list(),
+      this.repos.plans.list(),
+      this.repos.settings.get(),
+    ]);
+    this.set({
+      loaded: true,
+      fields,
+      profiles: Object.fromEntries(profiles.map((p) => [p.fieldId, p])),
+      management: Object.fromEntries(management.map((m) => [m.fieldId, m])),
+      plans,
+      settings,
+    });
     for (const f of fields) this.ensureLookups(f.id);
   }
 
@@ -100,16 +118,54 @@ export class FarmStore {
   }
 
   async deleteField(id: string): Promise<void> {
-    await Promise.all([this.repos.fields.remove(id), this.repos.profiles.remove(id), this.repos.management.remove(id)]);
+    await Promise.all([this.repos.fields.remove(id), this.repos.profiles.remove(id), this.repos.management.remove(id), this.repos.plans.removeForField(id)]);
     const profiles = { ...this.state.profiles };
     delete profiles[id];
-    this.set({ fields: this.state.fields.filter((f) => f.id !== id), profiles });
+    const management = { ...this.state.management };
+    delete management[id];
+    const settings = this.state.settings.lastFieldId === id ? { ...this.state.settings, lastFieldId: undefined } : this.state.settings;
+    if (settings !== this.state.settings) await this.repos.settings.save(settings);
+    this.set({ fields: this.state.fields.filter((f) => f.id !== id), profiles, management, plans: this.state.plans.filter((p) => p.fieldId !== id), settings });
   }
 
   async setSettings(settings: FarmSettings): Promise<void> {
     await this.repos.settings.save(settings);
     this.set({ settings });
     if (settings.externalLookups) for (const f of this.state.fields) this.ensureLookups(f.id);
+  }
+
+  /** Remember the field the farmer is working on, so Rotation Explorer and Planner reopen it. */
+  async rememberField(id: string): Promise<void> {
+    if (this.state.settings.lastFieldId === id || !this.field(id)) return;
+    const settings = { ...this.state.settings, lastFieldId: id };
+    this.set({ settings });
+    await this.repos.settings.save(settings);
+  }
+
+  // ---------- Layer 3: questionnaire answers ----------
+
+  async saveAnswers(fieldId: string, answers: RotationAnswers): Promise<void> {
+    if (!this.field(fieldId)) return;
+    const record = toManagementRecord(fieldId, answers, this.now());
+    this.set({ management: { ...this.state.management, [fieldId]: record } });
+    await this.repos.management.save(record);
+  }
+
+  // ---------- Layer 4: plans ----------
+
+  plan(id: string): Plan | undefined {
+    return this.state.plans.find((p) => p.id === id);
+  }
+
+  async savePlan(plan: Plan): Promise<void> {
+    const exists = this.state.plans.some((p) => p.id === plan.id);
+    this.set({ plans: exists ? this.state.plans.map((p) => (p.id === plan.id ? plan : p)) : [...this.state.plans, plan] });
+    await this.repos.plans.save(plan);
+  }
+
+  async deletePlan(id: string): Promise<void> {
+    this.set({ plans: this.state.plans.filter((p) => p.id !== id) });
+    await this.repos.plans.remove(id);
   }
 
   // ---------- background lookups ----------
