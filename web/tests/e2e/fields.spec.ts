@@ -73,14 +73,43 @@ test('add fields by ZIP then drawing, enter crops, import GeoJSON, reload', asyn
   await expect(page.getByTestId('season-2025')).toContainText('You confirmed');
 });
 
-test('stub import cards accept files without claiming to process them', async ({ page }) => {
+test('imported records drive Finance, corrections and reloads', async ({ page }) => {
   await page.goto('/imports');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
   const card = page.getByRole('region', { name: 'Finance and payments' });
-  await card.locator('input[type=file]').setInputFiles({ name: 'stripe-payments.csv', mimeType: 'text/csv', buffer: Buffer.from('id,amount\n1,10\n') });
-  await expect(card).toContainText('Received, not yet processed.');
-  await expect(card.getByRole('button', { name: /Processing comes in a later milestone/ })).toBeDisabled();
   await card.locator('input[type=file]').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('x') });
   await expect(card.getByRole('alert')).toContainText('not an accepted file type');
+  const files = {
+    land: 'id,name,acres,plantedAcres,harvestedAcres,currentRotation,proposedRotation\nf1,East,10,9,8,corn,soybeans',
+    harvests: 'id,fieldId,season,crop,harvestedAcres,plantedAcres,quantity,unit\nh1,f1,2024,corn,8,9,960,bu\nh2,f1,2025,soybeans,8,9,320,bu',
+    payments: 'id,kind,crop,season,amount,quantity,unit,status\ns1,sale,corn,2024,800,200,bu,paid\ns2,sale,corn,2024,2200,400,bu,paid\ns3,sale,soybeans,2025,3200,320,bu,paid',
+    equipment: 'id,operation,supportedCrops,dailyCapacityAcres,availableDays\nm1,harvest,*,20,5',
+    purchases: 'id,kind,product,category,quantity,unit,totalPrice\nlot-1,purchase,Urea,fertilizer,200,lb,90',
+  };
+  for (const [name, csv] of Object.entries(files)) {
+    await page.getByTestId(`${name}-file`).setInputFiles({ name: `${name}.csv`, mimeType: 'text/csv', buffer: Buffer.from(csv) });
+    await expect(page.getByRole('status').filter({ hasText: `from ${name}.csv` })).toBeVisible();
+  }
+  await page.goto('/finance?start=2027');
+  await page.getByRole('radio', { name: '3 years' }).click();
+  const headline = page.getByTestId('finance-headline');
+  await expect(headline).toContainText('$14,400.00');
+  await expect(headline).toContainText('$9,600.00');
+  await page.getByRole('radio', { name: 'Your numbers' }).click();
+  await page.getByTestId('markets-file').setInputFiles({
+    name: 'bid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify([{ id: 'quote', kind: 'farmer-price', crop: 'soybeans', value: 12, unit: 'bu', source: 'Farmer bid' }])),
+  });
+  await page.getByText('Review and correct records (1)').click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Value', { exact: true }).fill('11');
+  await page.getByRole('button', { name: 'Save record' }).click();
+  await expect(page.getByText('Saved quote.')).toBeVisible();
+  await page.getByRole('radio', { name: 'Results' }).click();
+  await expect(headline).toContainText('$10,560.00');
+  await page.reload();
+  await expect(headline).toContainText('$10,560.00');
+  await expect(page.getByTestId('section-ledger')).toContainText('lot-1');
 });
 
 test('every tab is routed', async ({ page }) => {

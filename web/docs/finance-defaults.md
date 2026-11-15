@@ -1,6 +1,6 @@
 # Finance defaults and rules
 
-The Finance tab and the Scenario Simulator start from the numbers below. A farmer can change any of them under **Finance → Your numbers**. A changed number is shown as "You entered" and always wins over the default. All values live in `lib/domain/finance/assumptions.ts`, and each one carries its source, date and confidence. The Transparency section of the Finance tab lists the ones used in a result.
+The Scenario Simulator uses the budget assumptions below from `lib/domain/finance/assumptions.ts`. The Finance dashboard calculates farm projections from records and sourced assumptions. It can use the rotation-specific Iowa yield benchmarks below when the field's recorded location identifies Iowa. See the [forecast data and calculation guide](revenue-forecast.md).
 
 Values were read on 2026-11-15.
 

@@ -9,7 +9,7 @@ import { activePlan, fieldAcres, upcomingTasks } from '@/lib/domain/finance/farm
 import { MONTH_NAMES } from '@/lib/domain/management';
 import type { CropRef, Field, FieldProfile, Plan, SourceId } from '@/lib/domain/types';
 import { useFarm } from '@/lib/client/StoreProvider';
-import { useFarmAnalysis } from '@/lib/client/useFarmAnalysis';
+import { useRevenueForecast } from '@/lib/client/useRevenueForecast';
 import { Headline } from '../finance/FinanceResults';
 import { SECTION } from '../finance/ui';
 import { NoFieldsYet } from '../ui/FieldPicker';
@@ -44,7 +44,7 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 
 export function OverviewScreen() {
   const { fields, profiles, plans, finance, loaded } = useFarm();
-  const { analysis, planned } = useFarmAnalysis();
+  const { forecast } = useRevenueForecast(finance.horizon);
   const live = (f: Field) => (profiles[f.id]?.geometryHash === f.geometryHash ? profiles[f.id] : undefined);
 
   const metrics = useMemo(() => {
@@ -183,12 +183,12 @@ export function OverviewScreen() {
                     Open Finance
                   </Link>
                 </div>
-                {analysis && planned > 0 ? (
+                {forecast ? (
                   <div className="mt-3">
-                    <Headline a={analysis} compact />
+                    <Headline forecast={forecast} compact />
                   </div>
                 ) : (
-                  <p className="mt-2 text-[15px] text-ink-soft">Make a plan for a field to see how it changes your net return.</p>
+                  <p className="mt-2 text-[15px] text-ink-soft">Import acreage, harvests and crop sales to project your operating return.</p>
                 )}
               </section>
             </div>

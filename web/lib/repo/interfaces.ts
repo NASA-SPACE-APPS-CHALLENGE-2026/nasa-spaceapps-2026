@@ -1,4 +1,5 @@
 import type { FinanceInputs } from '../domain/finance/inputs';
+import type { Dataset, ForecastRecords, RawRow } from '../domain/finance/forecastRecords';
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan } from '../domain/types';
 
 /**
@@ -55,5 +56,9 @@ export interface Repositories {
   management: ManagementRepository;
   plans: PlanRepository;
   finance: FinanceRepository;
+  forecastRecords: {
+    list(): Promise<ForecastRecords>;
+    replace(dataset: Dataset, rows: RawRow[]): Promise<void>;
+  };
   settings: SettingsRepository;
 }

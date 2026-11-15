@@ -1,4 +1,5 @@
 import { parseFinance } from '../../domain/finance/inputs';
+import { DATASETS, emptyForecastRecords, type RawRow } from '../../domain/finance/forecastRecords';
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan } from '../../domain/types';
 import type { Repositories } from '../interfaces';
 import { FIELDS_MIGRATIONS, FIELDS_VERSION } from './migrations';
@@ -11,6 +12,7 @@ export const STORAGE_KEYS = {
   plans: 'fieldshift.plans',
   settings: 'fieldshift.settings',
   finance: 'fieldshift.finance',
+  forecastRecords: 'plottwist.forecast-records',
 } as const;
 
 export const DEFAULT_SETTINGS: FarmSettings = { externalLookups: true };
@@ -27,8 +29,20 @@ export function createLocalRepositories(storage: KeyValueStorage): Repositories 
   const plans = new VersionedCollection<Plan>(storage, STORAGE_KEYS.plans);
   const settings = new VersionedCollection<FarmSettings>(storage, STORAGE_KEYS.settings);
   const finance = new VersionedCollection<unknown>(storage, STORAGE_KEYS.finance);
+  const records = new VersionedCollection<RawRow[]>(storage, STORAGE_KEYS.forecastRecords);
 
   return {
+    forecastRecords: {
+      async list() {
+        const stored = records.read();
+        const out = emptyForecastRecords();
+        for (const key of DATASETS) if (Array.isArray(stored[key])) out[key] = stored[key];
+        return out;
+      },
+      async replace(dataset, rows) {
+        records.write({ ...records.read(), [dataset]: rows });
+      },
+    },
     fields: {
       async list() {
         return Object.values(fields.read()).sort(byCreated);

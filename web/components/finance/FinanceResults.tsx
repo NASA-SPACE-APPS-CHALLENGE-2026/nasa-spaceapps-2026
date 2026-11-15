@@ -1,386 +1,176 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import type { FarmAnalysis, PartialLine, PlanYear } from '@/lib/domain/finance/analysis';
-import type { WeatherState } from '@/lib/client/store';
-import { Legend, money, PairColumns, PairLines, RangeRows, SERIES } from './charts';
-import { ConfidenceBadge, OriginBadge, Section, Segmented } from './ui';
+import { useState, type ReactNode } from 'react';
+import type { RevenueForecast } from '@/lib/domain/finance/forecast';
+import { Legend, money, PairColumns } from './charts';
+import { Section, Segmented } from './ui';
 
-const perAcre = (y: PlanYear, v: number) => (y.acres ? v / y.acres : 0);
-const sum = (l: PartialLine[]) => l.reduce((s, x) => s + x.amount, 0);
+const outlooks = ['conservative', 'expected', 'optimistic'] as const;
+type Outlook = typeof outlooks[number];
+type Scenario = RevenueForecast['scenarios'][Outlook];
+const outlookName = { conservative: 'Conservative', expected: 'Expected', optimistic: 'Optimistic' };
+const planNames = { current: 'Current', proposed: 'Proposed' } as const;
+const usd = (n: number | null, signed = false) => n === null ? '—' : money(n, { sign: signed, cents: true });
+const number = (n: number | null) => n === null ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const headers = ['Current gross', 'Proposed gross', 'Change in gross', 'Change in expenses', 'Change in net return'];
+const scenarioCells = (s: Pick<Scenario, 'current' | 'proposed' | 'delta'>) =>
+  [usd(s.current.grossRevenue), usd(s.proposed.grossRevenue), usd(s.delta.grossRevenue, true), usd(s.delta.expenses, true), usd(s.delta.netReturn, true)];
 
-export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: boolean }) {
-  const { low, high, mid, wholeFarm, horizon } = a.headline;
-  const tone = mid > 0.5 ? 'text-field' : mid < -0.5 ? 'text-alert' : 'text-ink';
-  return (
-    <div className={`grid gap-3 ${compact ? '' : 'sm:grid-cols-2'}`} data-testid="finance-headline">
-      <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
-        <p className="text-[14.5px] font-semibold text-ink-soft">Change in net return per acre, per year</p>
-        <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>
-          {money(low, { sign: true })} to {money(high, { sign: true })}
-        </p>
-        <p className="mt-1 text-[14px] text-ink-soft">Most likely {money(mid, { sign: true })} per acre per year with the PlotTwist plan.</p>
-      </div>
-      <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
-        <p className="text-[14.5px] font-semibold text-ink-soft">Whole farm over {horizon} years</p>
-        <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>{money(wholeFarm, { sign: true })}</p>
-        <p className="mt-1 text-[14px] text-ink-soft">
-          {a.acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres, {a.years[0]}–{a.years[a.years.length - 1]}. <ConfidenceBadge c={a.confidence.headline} />
-        </p>
-      </div>
-    </div>
-  );
+function Table({ title, columns, rows }: { title: string; columns: string[]; rows: ReactNode[][] }) {
+  return <div className="min-w-0 overflow-x-auto">
+    <table className="w-full border-collapse text-sm tabular-nums">
+      <caption className="sr-only">{title}</caption>
+      <thead><tr>{columns.map((col, i) => <th key={col} scope="col" className={`whitespace-nowrap border-b border-line px-2 py-2 font-semibold text-ink-soft ${i ? 'text-right' : 'text-left'}`}>{col}</th>)}</tr></thead>
+      <tbody className="divide-y divide-line">{rows.map((cells, index) => <tr key={index} className="even:bg-paper/50">
+        <th scope="row" className="whitespace-nowrap px-2 py-2 text-left font-medium">{cells[0]}</th>
+        {cells.slice(1).map((cell, i) => <td key={i} className="whitespace-nowrap px-2 py-2 text-right">{cell}</td>)}
+      </tr>)}</tbody>
+    </table>
+  </div>;
 }
 
-export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { a: FarmAnalysis; weather: WeatherState | undefined; planned: number; fieldCount: number; lastYear?: { totalRevenue?: number; totalCosts?: number } }) {
-  const [metric, setMetric] = useState<'net' | 'revenue'>('net');
-  const cols = a.years.map((year, i) => ({
-    label: String(year),
-    current: metric === 'net' ? perAcre(a.current[i], a.current[i].net) : perAcre(a.current[i], a.current[i].revenue + a.current[i].programs),
-    proposed: metric === 'net' ? perAcre(a.proposed[i], a.proposed[i].net) : perAcre(a.proposed[i], a.proposed[i].revenue + a.proposed[i].programs),
-  }));
-  const cum = a.cash.points.map((p) => ({ label: p.label, current: p.current.cumulative, proposed: p.proposed.cumulative }));
-  const be = a.cash.breakEven;
-
-  return (
-    <div className="space-y-5">
-      {planned === 0 && (
-        <p className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint px-4 py-3 text-[15px] text-wheat-deep">
-          None of your fields has a plan yet, so both columns show your current rotation. <Link href="/rotation" className="font-semibold underline underline-offset-2">Make a plan in Rotation Explorer</Link>.
-        </p>
-      )}
-      {planned > 0 && planned < fieldCount && <p className="text-[14.5px] text-ink-soft">{fieldCount - planned} of {fieldCount} fields have no plan yet; they stay on their current rotation in both columns.</p>}
-      {a.unmodeled.length > 0 && <p className="text-[14.5px] text-ink-soft">No budget yet for {a.unmodeled.join(', ')}; those seasons count rent only, in both plans.</p>}
-
-      <Headline a={a} />
-
-      <Section id="projection" title="Projection" confidence={a.confidence.comparison} aside={<Segmented label="Show" value={metric} onChange={setMetric} options={[{ value: 'net', label: 'Net return' }, { value: 'revenue', label: 'Revenue' }]} />}>
-        <p className="text-[14px] text-ink-soft">{metric === 'net' ? 'Net return' : 'Revenue (including cost share)'} per acre for each season of the plan.</p>
-        <div className="mt-2">
-          <Legend />
-        </div>
-        <PairColumns data={cols} title={`${metric === 'net' ? 'Net return' : 'Revenue'} per acre by year`} />
-      </Section>
-
-      <Section id="compare" title="Side by side" confidence={a.confidence.comparison}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-[14px] tabular-nums">
-            <thead>
-              <tr className="text-left text-ink-soft">
-                <th scope="col" className="py-2 pr-2 font-semibold">Year</th>
-                <th scope="col" className="px-2 font-semibold">Plan</th>
-                <th scope="col" className="px-2 text-right font-semibold">Revenue / ac</th>
-                <th scope="col" className="px-2 text-right font-semibold">Operating costs / ac</th>
-                <th scope="col" className="px-2 text-right font-semibold">Net / ac</th>
-                <th scope="col" className="pl-2 text-right font-semibold">Whole farm net</th>
-              </tr>
-            </thead>
-            <tbody>
-              {a.years.map((year, i) => (
-                <YearRows key={year} year={year} c={a.current[i]} p={a.proposed[i]} />
-              ))}
-              <tr className="border-t-2 border-line-strong font-semibold">
-                <td className="py-2 pr-2" colSpan={5}>
-                  Total difference over {a.years.length} years
-                </td>
-                <td className="pl-2 text-right">{money(a.headline.wholeFarm, { sign: true })}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        {lastYear?.totalRevenue !== undefined && lastYear.totalCosts !== undefined && a.current[0] && (
-          <p className="mt-3 text-[14.5px] text-ink-soft" data-testid="last-year-check">
-            Check: last year you reported {money(lastYear.totalRevenue)} revenue and {money(lastYear.totalCosts)} costs (net {money(lastYear.totalRevenue - lastYear.totalCosts)}). PlotTwist models your current rotation in {a.current[0].year} at {money(a.current[0].revenue + a.current[0].programs)} revenue and {money(a.current[0].operating + a.current[0].land)} costs (net {money(a.current[0].net)}). If these are far apart, adjust your yields, prices or costs under Your numbers.
-          </p>
-        )}
-      </Section>
-
-      <Section id="partial" title="Partial budget" confidence={a.confidence.partial}>
-        <p className="text-[14px] text-ink-soft">What changes for the whole farm over {a.years.length} years if you switch to the PlotTwist plan.</p>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <PartialBox title="Added revenue" lines={a.partial.addedRevenue} sign={1} />
-          <PartialBox title="Added costs" lines={a.partial.addedCosts} sign={-1} />
-          <PartialBox title="Reduced costs" lines={a.partial.reducedCosts} sign={1} />
-          <PartialBox title="Reduced revenue" lines={a.partial.reducedRevenue} sign={-1} />
-        </div>
-        <p className="mt-4 border-t border-line pt-3 text-[16px] font-semibold">
-          Net change: <span className="tabular-nums">{money(a.partial.net, { sign: true })}</span>
-        </p>
-      </Section>
-
-      <Section id="cash" title="Cash flow" confidence={a.confidence.cash}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-[var(--radius-control)] bg-paper p-3">
-            <p className="text-[13.5px] font-semibold text-ink-soft">Break-even</p>
-            <p className="text-[17px] font-semibold">{be === 'start' ? 'Never behind your current rotation' : be ? `${be.label}` : `Not within ${a.years.length} years`}</p>
-          </div>
-          <div className="rounded-[var(--radius-control)] bg-paper p-3">
-            <p className="text-[13.5px] font-semibold text-ink-soft">Deepest dip</p>
-            <p className="text-[17px] font-semibold tabular-nums">{a.cash.deepestDip < -0.5 ? `${money(a.cash.deepestDip)} (${a.cash.deepestDipLabel})` : 'No dip'}</p>
-          </div>
-        </div>
-        <p className="mt-4 text-[14px] text-ink-soft">Cumulative profit, whole farm, season by season.</p>
-        <div className="mt-2">
-          <Legend />
-        </div>
-        <PairLines data={cum} title="Cumulative profit by season" marker={be && be !== 'start' ? be.label : undefined} />
-        <details className="mt-3">
-          <summary className="min-h-11 cursor-pointer py-2 text-[14.5px] font-semibold text-sky-deep">Money in and out by season</summary>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-[13.5px] tabular-nums">
-              <thead>
-                <tr className="text-left text-ink-soft">
-                  <th scope="col" className="py-1.5 pr-2 font-semibold">Season</th>
-                  <th scope="col" className="px-2 text-right font-semibold">Current: in</th>
-                  <th scope="col" className="px-2 text-right font-semibold">Current: out</th>
-                  <th scope="col" className="px-2 text-right font-semibold">Plan: in</th>
-                  <th scope="col" className="px-2 text-right font-semibold">Plan: out</th>
-                  <th scope="col" className="pl-2 text-right font-semibold">Plan ahead by</th>
-                </tr>
-              </thead>
-              <tbody>
-                {a.cash.points.map((p) => (
-                  <tr key={p.label} className="border-t border-line">
-                    <th scope="row" className="py-1.5 pr-2 text-left font-normal">{p.label}</th>
-                    <td className="px-2 text-right">{money(p.current.in)}</td>
-                    <td className="px-2 text-right">{money(p.current.out)}</td>
-                    <td className="px-2 text-right">{money(p.proposed.in)}</td>
-                    <td className="px-2 text-right">{money(p.proposed.out)}</td>
-                    <td className="pl-2 text-right font-semibold">{money(p.difference, { sign: true })}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </Section>
-
-      <Section id="risk" title="Weather risk (40 years of NASA weather)" confidence={a.risk ? a.confidence.risk : undefined}>
-        {!a.risk ? (
-          <p className="text-[15px] text-ink-soft">{weather?.status === 'loading' ? 'Loading 40 years of NASA POWER weather for your farm…' : weather?.status === 'unavailable' ? 'NASA weather history is not available right now.' : 'Turn on public data lookups to see weather risk.'}</p>
-        ) : (
-          <>
-            <p className="text-[14px] text-ink-soft">Average net return per acre per year if each of the last {a.risk.years} years’ weather (1985–2024) happened again. Bad and good are the 20th and 80th percentiles.</p>
-            <div className="mt-4">
-              <RangeRows rows={[{ key: 'proposed', ...a.risk.proposed }, { key: 'current', ...a.risk.current }]} />
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {(['proposed', 'current'] as const).map((k) => (
-                <div key={k} className="rounded-[var(--radius-control)] bg-paper p-3 text-[14.5px]">
-                  <p className="flex items-center gap-2 font-semibold">
-                    <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: SERIES[k].color }} aria-hidden />
-                    {SERIES[k].label}
-                  </p>
-                  <p className="mt-1">
-                    Losing years: <strong>{a.risk![k].losingYears}</strong> of {a.risk!.years}
-                  </p>
-                  <p>
-                    Worst year: <strong className="tabular-nums">{money(a.risk![k].worst)}</strong> per acre (weather like {a.risk![k].worstYear})
-                  </p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-[14px] text-ink-soft">
-              Stress years at this farm: corn {a.risk.stressYears.corn.length}, soybeans {a.risk.stressYears.soybeans.length}, small grains {a.risk.stressYears.oats.length} of {a.risk.years}.
-            </p>
-          </>
-        )}
-      </Section>
-
-      <Section id="savings" title="Savings and support" confidence={a.confidence.savings}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-[var(--radius-control)] bg-paper p-3">
-            <p className="text-[13.5px] font-semibold text-ink-soft">Nitrogen fertilizer saved</p>
-            <p className="text-[17px] font-semibold tabular-nums">
-              {Math.round(a.savings.nLbs).toLocaleString('en-US')} lb N ({money(a.savings.nDollars, { sign: true })})
-            </p>
-          </div>
-          <div className="rounded-[var(--radius-control)] bg-paper p-3">
-            <p className="text-[13.5px] font-semibold text-ink-soft">Cost share available</p>
-            <p className="text-[17px] font-semibold tabular-nums">{money(a.savings.costShare)}</p>
-            <p className="text-[13.5px] text-ink-soft">{a.savings.costShareTiming}</p>
-          </div>
-        </div>
-        <h3 className="mt-4 text-[15px] font-semibold">Programs worth asking about</h3>
-        <ul className="mt-2 space-y-2">
-          {a.savings.programs.map((p) => (
-            <li key={p.name} className="text-[14.5px]">
-              <strong>{p.name}.</strong> {p.text}
-            </li>
-          ))}
-        </ul>
-      </Section>
-
-      <Section id="sensitivity" title="What if prices or yields change?" confidence={a.confidence.sensitivity}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-[14px] tabular-nums">
-            <thead>
-              <tr className="text-left text-ink-soft">
-                <th scope="col" className="py-2 pr-2 font-semibold">If…</th>
-                <th scope="col" className="px-2 text-right font-semibold">Current net / ac / yr</th>
-                <th scope="col" className="px-2 text-right font-semibold">Plan net / ac / yr</th>
-                <th scope="col" className="pl-2 text-right font-semibold">Plan ahead by</th>
-              </tr>
-            </thead>
-            <tbody>
-              {a.sensitivity.rows.map((r) => (
-                <tr key={r.label} className={`border-t border-line ${r.group === 'base' ? 'font-semibold' : ''}`}>
-                  <th scope="row" className="py-1.5 pr-2 text-left font-normal">{r.label}</th>
-                  <td className="px-2 text-right">{money(r.current)}</td>
-                  <td className="px-2 text-right">{money(r.proposed)}</td>
-                  <td className={`pl-2 text-right ${r.difference < 0 ? 'text-alert' : ''}`}>{money(r.difference, { sign: true })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <h3 className="mt-5 text-[15px] font-semibold">Break-even price and yield</h3>
-        <div className="overflow-x-auto">
-          <table className="mt-2 w-full min-w-[520px] text-[14px] tabular-nums">
-            <thead>
-              <tr className="text-left text-ink-soft">
-                <th scope="col" className="py-2 pr-2 font-semibold">Crop</th>
-                <th scope="col" className="px-2 text-right font-semibold">Cost / ac</th>
-                <th scope="col" className="px-2 text-right font-semibold">Break-even price</th>
-                <th scope="col" className="pl-2 text-right font-semibold">Break-even yield</th>
-              </tr>
-            </thead>
-            <tbody>
-              {a.sensitivity.breakEven.map((b) => (
-                <tr key={b.crop} className="border-t border-line">
-                  <th scope="row" className="py-1.5 pr-2 text-left font-normal">{b.crop}</th>
-                  <td className="px-2 text-right">{money(b.costPerAcre)}</td>
-                  <td className="px-2 text-right">
-                    {money(b.breakEvenPrice, { cents: true })}/bu <span className="text-ink-faint">(expecting {money(b.price, { cents: true })})</span>
-                  </td>
-                  <td className="pl-2 text-right">
-                    {Math.round(b.breakEvenYield)} bu <span className="text-ink-faint">(expecting {Math.round(b.yieldBu)})</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
-
-      <Section id="transparency" title="Every assumption">
-        <ul className="flex flex-wrap gap-2 text-[13.5px]" aria-label="Data confidence per result">
-          {(
-            [
-              ['Headline', a.confidence.headline],
-              ['Side by side', a.confidence.comparison],
-              ['Cash flow', a.confidence.cash],
-              ['Weather risk', a.confidence.risk],
-              ['Savings', a.confidence.savings],
-            ] as const
-          ).map(([k, c]) => (
-            <li key={k} className="inline-flex items-center gap-1.5">
-              {k}: <ConfidenceBadge c={c} />
-            </li>
-          ))}
-        </ul>
-        <details className="mt-3">
-          <summary className="min-h-11 cursor-pointer py-2 text-[14.5px] font-semibold text-sky-deep">Show all {a.transparency.length} values, their sources and dates</summary>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-[13.5px]">
-              <thead>
-                <tr className="text-left text-ink-soft">
-                  <th scope="col" className="py-1.5 pr-2 font-semibold">Value</th>
-                  <th scope="col" className="px-2 text-right font-semibold">Used</th>
-                  <th scope="col" className="px-2 font-semibold">From</th>
-                  <th scope="col" className="px-2 font-semibold">Source and date</th>
-                  <th scope="col" className="pl-2 font-semibold">Confidence</th>
-                </tr>
-              </thead>
-              <tbody>
-                {a.transparency.map((t) => (
-                  <tr key={t.id} className="border-t border-line align-top">
-                    <th scope="row" className="py-1.5 pr-2 text-left font-normal">{t.label}</th>
-                    <td className="whitespace-nowrap px-2 text-right tabular-nums">
-                      {t.value.toLocaleString('en-US', { maximumFractionDigits: 2 })} <span className="text-ink-faint">{t.unit}</span>
-                    </td>
-                    <td className="px-2">
-                      <OriginBadge origin={t.origin} />
-                    </td>
-                    <td className="px-2 text-ink-soft">
-                      {t.source.url ? (
-                        <a href={t.source.url} target="_blank" rel="noopener noreferrer" className="text-sky-deep underline underline-offset-2">
-                          {t.source.name}
-                        </a>
-                      ) : (
-                        t.source.name
-                      )}
-                      , {t.source.date}
-                    </td>
-                    <td className="pl-2">
-                      <ConfidenceBadge c={t.confidence} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </Section>
+export function Headline({ forecast, outlook = 'expected', compact = false }: { forecast: RevenueForecast; outlook?: Outlook; compact?: boolean }) {
+  const scenario = forecast.scenarios[outlook];
+  const metrics = [{ label: 'Gross crop revenue', key: 'grossRevenue' }, { label: 'Operating expenses', key: 'expenses' }, { label: 'Net operating return', key: 'netReturn' }] as const;
+  return <div data-testid="finance-headline">
+    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+      <h2 className="font-plate text-xl">Whole farm over {forecast.horizon} years</h2>
+      <span className="text-sm text-ink-soft">{outlookName[outlook]} · {forecast.startYear}–{forecast.startYear + forecast.horizon - 1}</span>
     </div>
-  );
+    <div className={`grid min-w-0 gap-3 ${compact ? '' : 'md:grid-cols-3'}`}>
+      {metrics.map(({ key, label }) => <div key={key} className="min-w-0 rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+        <p className="text-sm font-semibold text-ink-soft">{label}</p>
+        <p className="mt-1 break-words font-plate text-2xl tabular-nums">{usd(scenario.proposed[key])}</p>
+        <p className="text-xs text-ink-soft">Proposed rotation</p>
+        <dl className="mt-3 space-y-1 border-t border-line pt-2 text-sm tabular-nums">
+          <div className="flex flex-wrap justify-between gap-x-2"><dt>Current</dt><dd>{usd(scenario.current[key])}</dd></div>
+          <div className="flex flex-wrap justify-between gap-x-2"><dt>Change</dt><dd className="font-semibold">{usd(scenario.delta[key], true)}{key === 'grossRevenue' && scenario.delta.revenueChangePct !== null && ` (${number(scenario.delta.revenueChangePct)}%)`}</dd></div>
+        </dl>
+      </div>)}
+    </div>
+  </div>;
 }
 
-function YearRows({ year, c, p }: { year: number; c: PlanYear; p: PlanYear }) {
-  const row = (y: PlanYear, key: 'current' | 'proposed', first: boolean) => (
-    <tr className={first ? 'border-t border-line' : ''}>
-      {first && (
-        <th scope="rowgroup" rowSpan={3} className="py-1.5 pr-2 text-left align-top font-semibold">
-          {year}
-        </th>
-      )}
-      <td className="px-2 py-1.5">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-[2px]" style={{ background: SERIES[key].color }} aria-hidden />
-          {SERIES[key].label}
-        </span>
-      </td>
-      <td className="px-2 text-right">{money(perAcre(y, y.revenue + y.programs))}</td>
-      <td className="px-2 text-right">{money(perAcre(y, y.operating))}</td>
-      <td className="px-2 text-right">{money(perAcre(y, y.net))}</td>
-      <td className="pl-2 text-right">{money(y.net)}</td>
-    </tr>
-  );
-  return (
-    <>
-      {row(p, 'proposed', true)}
-      {row(c, 'current', false)}
-      <tr className="text-ink-soft">
-        <td className="px-2 pb-2 text-[13px]">Difference</td>
-        <td />
-        <td />
-        <td className="px-2 pb-2 text-right text-[13px] font-semibold">{money(perAcre(p, p.net) - perAcre(c, c.net), { sign: true })}</td>
-        <td className="pl-2 pb-2 text-right text-[13px] font-semibold">{money(p.net - c.net, { sign: true })}</td>
-      </tr>
-    </>
-  );
+const financialNames: Record<keyof RevenueForecast['financials'], string> = {
+  cropSales: 'Crop sales', cashReceived: 'Cash received on crop sales', receivable: 'Crop accounts receivable', unsettled: 'Unsettled crop sales',
+  government: 'Government payments', insurance: 'Insurance proceeds', financing: 'Financing proceeds', transfers: 'Account transfers',
+  operating: 'Operating expenses', supplierPayments: 'Supplier payments', interest: 'Interest', depreciation: 'Depreciation', tax: 'Taxes', rent: 'Land rent', capital: 'Capital expenditures',
+};
+
+function LedgerDetails({ forecast }: { forecast: RevenueForecast }) {
+  const [season, setSeason] = useState('all');
+  const periods = Object.keys(forecast.bySeason).sort().reverse();
+  const selection = periods.includes(season) ? season : 'all';
+  const ledger = selection === 'all' ? forecast.financials : forecast.bySeason[selection];
+  return <Section id="ledger" title="Imported payments and inventory">
+    <label className="flex flex-wrap items-center gap-2 text-sm font-semibold">Payment records
+      <select className="min-h-10 rounded border border-line-strong bg-panel px-2" value={selection} onChange={e => setSeason(e.target.value)}>
+        <option value="all">All imported seasons</option>{periods.map(year => <option key={year}>{year}</option>)}
+      </select></label>
+    <p className="my-2 text-sm text-ink-soft">These amounts summarize the imported ledger. Government payments, insurance, financing and transfers are reported separately from forecast crop sales.</p>
+    <Table title="Historical financial categories" columns={['Category', 'Amount']} rows={(Object.keys(financialNames) as Array<keyof typeof ledger>).map(key => [financialNames[key], usd(ledger[key])])} />
+    <h3 className="mt-4 font-plate text-lg">Input inventory</h3>
+    {forecast.inventory.length ? <Table title="Input inventory by lot" columns={['Product / lot', 'Unit', 'Opening', 'Purchased', 'Used', 'Ending', 'Unit cost', 'Ending value', 'Source']}
+      rows={forecast.inventory.map(lot => [`${lot.product} · ${lot.id}`, lot.unit, number(lot.beginning), number(lot.purchased), number(lot.used), number(lot.ending), usd(lot.unitCost), usd(lot.endingValue), lot.source])} />
+      : <p className="mt-1 text-sm text-ink-soft">No inventory lots available.</p>}
+  </Section>;
 }
 
-function PartialBox({ title, lines, sign }: { title: string; lines: PartialLine[]; sign: 1 | -1 }) {
-  return (
-    <div className="rounded-[var(--radius-control)] border border-line p-3">
-      <h3 className="flex justify-between text-[15px] font-semibold">
-        {title}
-        <span className="tabular-nums">{money(sign * sum(lines), { sign: true })}</span>
-      </h3>
-      {lines.length ? (
-        <ul className="mt-2 space-y-1 text-[14px] text-ink-soft">
-          {lines.map((l) => (
-            <li key={l.label} className="flex justify-between gap-3">
-              <span>{l.label}</span>
-              <span className="tabular-nums">{money(l.amount)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-[14px] text-ink-faint">None</p>
-      )}
+const metricLabels = { grossRevenue: 'Gross crop revenue', expenses: 'Operating expenses', netReturn: 'Net operating return' };
+type MetricKey = keyof typeof metricLabels;
+function MetricSelect({ value, onChange, label }: { value: MetricKey; onChange: (value: MetricKey) => void; label: string }) {
+  return <label className="mb-3 flex flex-wrap items-center gap-2 text-sm font-semibold">{label}
+    <select className="min-h-10 rounded border border-line-strong bg-panel px-2" value={value} onChange={e => onChange(e.target.value as MetricKey)}>
+      {Object.entries(metricLabels).map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+    </select></label>;
+}
+function Contributions({ scenario, year }: { scenario: Scenario; year: Scenario['years'][number] }) {
+  const [scope, setScope] = useState<'year' | 'all'>('year');
+  const [metric, setMetric] = useState<MetricKey>('grossRevenue');
+  const data = scope === 'year' ? year : scenario;
+  const rows = (items: typeof data.fieldChanges) => items.map(item => [item.name, usd(item.current[metric]), usd(item.proposed[metric]), usd(item[metric], true)]);
+  return <Section id="contributions" title="Contributions to the change" aside={<Segmented label="Contribution period" value={scope} onChange={setScope} options={[{ value: 'year', label: String(year.year) }, { value: 'all', label: 'All years' }]} />}>
+    <MetricSelect label="Contribution metric" value={metric} onChange={setMetric} />
+    <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+      <Table title="Field contributions" columns={['Field', 'Current', 'Proposed', 'Change']} rows={rows(data.fieldChanges)} />
+      <Table title="Crop contributions" columns={['Crop', 'Current', 'Proposed', 'Change']} rows={rows(data.cropChanges)} />
     </div>
-  );
+  </Section>;
+}
+
+export function FinanceResults({ forecast }: { forecast: RevenueForecast }) {
+  const [outlook, setOutlook] = useState<Outlook>('expected');
+  const [selectedYear, setSelectedYear] = useState(forecast.startYear);
+  const [plan, setPlan] = useState<keyof typeof planNames>('proposed');
+  const [period, setPeriod] = useState<'annual' | 'cumulative'>('annual');
+  const [metric, setMetric] = useState<MetricKey>('grossRevenue');
+  const s = forecast.scenarios[outlook];
+  const year = s.years.find(y => y.year === selectedYear) ?? s.years[0];
+  const projection = year[plan];
+  const series = s.years.map(y => ({ label: String(y.year), current: (period === 'annual' ? y.current.totals : y.cumulative.current)[metric],
+    proposed: (period === 'annual' ? y.proposed.totals : y.cumulative.proposed)[metric] }));
+  const chartData = series.flatMap(p => p.current !== null && p.proposed !== null ? [{ ...p, current: p.current, proposed: p.proposed }] : []);
+  const issues = [...new Set(forecast.issues)];
+  if (!year.current.fields.length && !year.proposed.fields.length) return <div className="space-y-4">
+    <Section id="missing-fields" title="Add a field first">
+      <p className="text-ink-soft">Import a field boundary or acreage record to connect your ledger to a crop rotation.</p>
+      <Link href="/imports" className="mt-2 inline-block font-semibold text-sky-deep underline">Add field records</Link>
+      {issues.length > 0 && <details className="mt-3 text-sm"><summary className="cursor-pointer font-semibold">Review records ({issues.length})</summary><ul className="ml-5 list-disc">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul></details>}
+    </Section>
+    <LedgerDetails forecast={forecast} />
+  </div>;
+  return <div className="min-w-0 space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-sm text-ink-soft">Farm area {number(forecast.landAcres)} ac · Available to plant {number(forecast.usableAcres)} ac</p>
+      <Segmented label="Scenario" value={outlook} onChange={setOutlook} options={outlooks.map(value => ({ value, label: outlookName[value] }))} />
+    </div>
+    <Headline forecast={forecast} outlook={outlook} />
+    <p className="text-sm text-ink-soft">A dash means the supporting records are incomplete. Gross crop revenue covers projected crop sales. Net operating return deducts operating expenses. Financing, depreciation, taxes, land rent and capital purchases are reported in the ledger.</p>
+    {issues.length > 0 && <details className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint px-4 py-3 text-sm">
+      <summary className="cursor-pointer font-semibold">Review data and assumptions ({issues.length})</summary>
+      <ul className="my-3 ml-5 max-h-80 list-disc space-y-1 overflow-y-auto">{issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul>
+      <Link href="/imports" className="font-semibold text-sky-deep underline">Review imported records</Link>
+    </details>}
+    <Section id="scenarios" title="Scenario comparison">
+      <p className="mb-2 text-sm text-ink-soft">Whole-farm totals for the selected horizon. Observed variation and sourced assumptions determine the range. Matching values can reflect limited evidence.</p>
+      <Table title="Financial outlook by scenario" columns={['Scenario', ...headers]} rows={outlooks.map(o => [outlookName[o], ...scenarioCells(forecast.scenarios[o])])} />
+    </Section>
+    <Section id="projection" title="Returns by growing season" aside={<Segmented label="Annual or cumulative" value={period} onChange={setPeriod} options={[{ value: 'annual', label: 'Annual' }, { value: 'cumulative', label: 'Cumulative' }]} />}>
+      <MetricSelect label="Compare" value={metric} onChange={setMetric} />
+      {chartData.length === series.length && <><Legend /><PairColumns title={`${period} ${metricLabels[metric]} by year`} data={chartData} /></>}
+      <Table title={`${period} ${metricLabels[metric]}`} columns={['Year', 'Current rotation', 'Proposed rotation', 'Change']} rows={s.years.map(y => {
+        const row = period === 'annual' ? { current: y.current.totals, proposed: y.proposed.totals, delta: y.delta } : y.cumulative;
+        return [y.year, usd(row.current[metric]), usd(row.proposed[metric]), usd(row.delta[metric], true)];
+      })} />
+    </Section>
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      <label className="flex items-center gap-2 text-sm font-semibold">Inspect growing season <select className="min-h-11 rounded border border-line-strong bg-panel px-3" value={year.year} onChange={e => setSelectedYear(Number(e.target.value))}>
+        {s.years.map(y => <option key={y.year}>{y.year}</option>)}</select></label>
+      <Segmented label="Rotation details" value={plan} onChange={setPlan} options={[{ value: 'current', label: 'Current rotation' }, { value: 'proposed', label: 'Proposed rotation' }]} />
+    </div>
+    <Section id="production" title={`Production and returns · ${year.year}`}>
+      <h3 className="mb-1 font-semibold">By field · {planNames[plan]} rotation</h3>
+      <Table title="Field production and financials" columns={['Field', 'Previous crop', 'Crop', 'Planted ac', 'Harvested ac', 'Yield / ac', 'Production', 'Revenue / harvested ac', 'Gross revenue', 'Operating expenses', 'Net return', 'Yield confidence', 'Price confidence']}
+        rows={projection.fields.map(f => [f.name, f.previousCrop ?? '—', f.crop, number(f.plantedAcres), number(f.harvestedAcres), `${number(f.yieldPerAcre)} ${f.unit}`, `${number(f.production)} ${f.unit}`, usd(f.revenuePerAcre), usd(f.grossRevenue), usd(f.expenses), usd(f.netReturn), f.confidence, f.priceConfidence])} />
+      <h3 className="mb-1 mt-4 font-semibold">By crop</h3>
+      <Table title="Crop sales and production" columns={['Crop', 'Production', 'Gross revenue', 'Operating expenses', 'Net return']}
+        rows={projection.crops.map(c => [c.crop, `${number(c.production)} ${c.unit}`, usd(c.grossRevenue), usd(c.expenses), usd(c.netReturn)])} />
+    </Section>
+    <Contributions year={year} scenario={s} />
+    <Section id="transparency" title="Calculation details">
+      <p className="mb-2 text-sm text-ink-soft">Review the source quantities, prices, operating costs and equipment constraints for the selected field season.</p>
+      {projection.fields.map((f, i) => <details key={`${f.fieldId}-${i}`} className="border-t border-line py-2 text-sm">
+        <summary className="cursor-pointer font-semibold">{f.name} · {f.crop} · {f.confidence} yield confidence</summary>
+        <dl className="my-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{[
+          ['Contracted quantity', `${number(f.contractedQuantity)} ${f.unit}`], ['Uncontracted quantity', `${number(f.uncontractedQuantity)} ${f.unit}`],
+          ['Blended selling price', f.pricePerUnit === null ? '—' : `${f.pricePerUnit.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 4 })}/${f.unit}`],
+          ['Price confidence', f.priceConfidence], ['Known operating costs', usd(f.knownExpenses)],
+        ].map(([label, val]) => <div key={label}><dt className="text-ink-soft">{label}</dt><dd className="font-semibold">{val}</dd></div>)}</dl>
+        <ul className="ml-4 list-disc space-y-1">{Object.entries(f.expenseBreakdown).map(([kind, v]) => <li key={kind}>{kind} · {usd(v)}</li>)}{f.trace.map((line, j) => <li key={j}>{line}</li>)}</ul>
+        {f.issues.length > 0 && <div className="mt-3"><h3 className="font-semibold">Review</h3><ul className="ml-4 list-disc">{f.issues.map((line, j) => <li key={j}>{line}</li>)}</ul></div>}
+      </details>)}
+    </Section>
+    <LedgerDetails forecast={forecast} />
+  </div>;
 }

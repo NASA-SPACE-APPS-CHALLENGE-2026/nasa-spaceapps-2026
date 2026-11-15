@@ -140,18 +140,16 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await page.getByTestId('sim-acres').press('Enter');
   await expect(page.getByTestId('sim-acres')).toHaveValue('120');
 
-  // Finance: results for the whole farm, and the farmer's own number changes them.
+  // Finance traces the saved plan even before all its farm records are available.
   await page.goto('/finance');
   const headline = page.getByTestId('finance-headline');
   await expect(headline).toContainText('Whole farm over 5 years');
-  const before = await headline.textContent();
-  for (const id of ['partial', 'cash', 'risk', 'savings', 'sensitivity', 'transparency']) await expect(page.getByTestId(`section-${id}`)).toBeVisible();
+  for (const id of ['scenarios', 'projection', 'production', 'contributions', 'transparency', 'ledger']) await expect(page.getByTestId(`section-${id}`)).toBeVisible();
   await page.getByRole('radio', { name: 'Your numbers' }).click();
-  await page.getByText('Market: yields, prices and contracts').click();
-  await page.getByTestId('input-corn.price').fill('6');
-  await page.getByTestId('input-corn.price').press('Enter');
+  await expect(page.getByRole('heading', { name: 'Prices and operating expenses' })).toBeVisible();
+  await page.getByRole('radio', { name: '10 years' }).click();
   await page.getByRole('radio', { name: 'Results' }).click();
-  await expect(headline).not.toHaveText(before!);
+  await expect(headline).toContainText('Whole farm over 10 years');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.goto('/rotation');
   await expect(page.getByLabel('Field', { exact: true })).toHaveValue(/.+/);

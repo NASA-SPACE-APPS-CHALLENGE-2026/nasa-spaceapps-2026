@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { formatAcres, areaM2 } from '@/lib/domain/acreage';
 import { createField } from '@/lib/domain/field';
+import { setSeasonCrop } from '@/lib/domain/cropHistory';
+import { CROP_CATALOG } from '@/lib/domain/crops';
 import { hasBlockingIssue, overlapIssues } from '@/lib/domain/validation';
 import { useFarm, useStore } from '@/lib/client/StoreProvider';
 import { type BoundaryCandidate, candidateName, nameColumns, normalizeFeatures, type SkippedFeature } from '@/lib/import/normalize';
@@ -85,17 +87,35 @@ export function BoundaryImportCard() {
   const add = async () => {
     if (!parsed) return;
     setAdding(true);
-    const chosen = withOverlaps.filter((c) => picked.has(c.key));
-    const newFields = chosen.map((c, i) =>
-      createField({
-        name: candidateName(c, column, i + 1),
-        geometry: c.geometry,
-        definedBy: 'import',
-        importMeta: { fileName: parsed.fileName, sourceFeatureIndex: c.sourceIndex },
-      }),
-    );
-    await store.addFields(newFields);
-    router.push(`/fields?imported=${newFields.length}`);
+    setError(null);
+    try {
+      const used = new Set(store.getSnapshot().fields.map(field => field.id));
+      const newFields = withOverlaps.filter(c => picked.has(c.key)).map((c, i) => {
+        const entries = Object.entries(c.properties);
+        const sourceId = entries.find(([key]) => /^field[_\s-]?id$/i.test(key))?.[1] ?? parsed.features[c.sourceIndex].id ?? entries.find(([key]) => /^id$/i.test(key))?.[1];
+        const base = typeof sourceId === 'string' || typeof sourceId === 'number' ? String(sourceId).trim() : '';
+        const id = base && c.partIndex !== undefined ? `${base}.part${c.partIndex + 1}` : base;
+        if (id && (used.has(id) || Object.hasOwn(Object.prototype, id) || id === 'prototype')) throw new Error(`Field ID "${id}" is already in use or reserved. Choose a different ID in the file.`);
+        const field = createField({ id: id || undefined, name: candidateName(c, column, i + 1), geometry: c.geometry,
+          definedBy: 'import', importMeta: { fileName: parsed.fileName, sourceFeatureIndex: c.sourceIndex } });
+        used.add(field.id);
+        // Whole-feature acreage cannot also be assigned in full to each split part.
+        const properties = c.partIndex === undefined ? c.properties : Object.fromEntries(entries.filter(([key]) => !/acre|area/i.test(key)));
+        field.feature.properties = { ...properties, name: field.name, originalProperties: c.properties };
+        for (const season of [field.crops.current, ...field.crops.history]) {
+          const raw = entries.find(([key]) => new RegExp(`^crop[_ -]?${season.year}$`, 'i').test(key))?.[1];
+          if (typeof raw !== 'string' || !raw.trim()) continue;
+          const value = raw.trim().toLowerCase();
+          const crop = CROP_CATALOG.find(entry => entry.name.toLowerCase() === value || entry.id === value || entry.aliases?.includes(value));
+          field.crops = setSeasonCrop(field.crops, season.year, crop ? { kind: 'catalog', id: crop.id } : { kind: 'other', text: raw.trim() });
+        }
+        return field;
+      });
+      await store.addFields(newFields);
+      router.push(`/fields?imported=${newFields.length}`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally { setAdding(false); }
   };
 
   const shapes: MapShape[] = withOverlaps.map((c, i) => ({
@@ -116,7 +136,7 @@ export function BoundaryImportCard() {
             <span className="shrink-0 rounded-full bg-field-tint px-2.5 py-1 text-[12.5px] font-semibold text-field">Available</span>
           </div>
           <p className="mt-1 max-w-[62ch] text-[15px] leading-relaxed text-ink-soft">
-            Bring in field outlines exported from another farm platform, your GIS, or Google Earth. Crop columns in the file are not used.
+            Import field outlines from a farm platform, GIS or Google Earth. Include a fieldId to join your other records. Crop columns named crop_YYYY supply the crop for that season.
           </p>
           {!parsed && (
             <ol className="mt-4 space-y-2 text-[15px] leading-snug">
@@ -233,6 +253,7 @@ export function BoundaryImportCard() {
                 Choose a different file
               </Button>
             </div>
+            {error && <p role="alert" className="mt-2 text-sm text-alert">{error}</p>}
           </div>
         </div>
       )}

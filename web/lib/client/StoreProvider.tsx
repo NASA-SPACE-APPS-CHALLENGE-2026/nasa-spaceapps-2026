@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useSyncExternalStore } 
 import { createLocalRepositories } from '../repo/local';
 import { MemoryStorage } from '../repo/local/storage';
 import { DEFAULT_FINANCE } from '../domain/finance/inputs';
+import { emptyForecastRecords } from '../domain/finance/forecastRecords';
 import { FarmStore, type FarmState } from './store';
 
 const StoreContext = createContext<FarmStore | null>(null);
@@ -35,7 +36,7 @@ export function useStore(): FarmStore {
   return s;
 }
 
-const SERVER_STATE: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], finance: DEFAULT_FINANCE, weather: {}, settings: { externalLookups: true } };
+const SERVER_STATE: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], finance: DEFAULT_FINANCE, forecastRecords: emptyForecastRecords(), weather: {}, settings: { externalLookups: true } };
 
 export function useFarm(): FarmState {
   const store = useStore();

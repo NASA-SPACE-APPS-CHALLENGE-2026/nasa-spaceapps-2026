@@ -33,7 +33,7 @@ export interface SimulatorInputs {
 }
 
 export interface FinanceInputs {
-  horizon: 3 | 5;
+  horizon: 3 | 5 | 10;
   overrides: Record<string, number>;
   fields: Record<string, FieldFinance>;
   lastYear: { crops: Partial<Record<CropKey, { yield?: number; price?: number }>>; totalRevenue?: number; totalCosts?: number };
@@ -52,7 +52,7 @@ const optStr = z.string().max(120).optional().catch(undefined);
 const cropKey = z.enum(['corn', 'soybeans', 'oats', 'wheat']);
 
 export const financeSchema = z.object({
-  horizon: z.union([z.literal(3), z.literal(5)]).catch(5),
+  horizon: z.union([z.literal(3), z.literal(5), z.literal(10)]).catch(5),
   overrides: z.record(z.string(), num).catch({}),
   fields: z
     .record(
