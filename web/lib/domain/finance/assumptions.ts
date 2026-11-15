@@ -5,7 +5,7 @@
  */
 
 export type Confidence = 'high' | 'medium' | 'low';
-export type Origin = 'farmer' | 'default' | 'nasa';
+export type Origin = 'farmer' | 'default' | 'nasa' | 'import';
 
 export interface SourceRef {
   name: string;
@@ -24,7 +24,12 @@ export const SOURCES = {
   plottwist: { name: 'PlotTwist planning assumption (not from a published budget; please check locally)', date: 'Nov 2026' },
 } satisfies Record<string, SourceRef>;
 
-export type Group = 'Yields and prices' | 'Corn costs' | 'Soybean costs' | 'Small grain costs' | 'Fertilizer prices' | 'Cover crops' | 'Land and money' | 'Programs' | 'Risk' | 'Practices';
+/** Cost categories that imported books can calibrate (see lib/import/kinds/finance.ts). */
+export const ACTUAL_CATS = ['seed', 'fertilizer', 'chemicals', 'insurance', 'machinery', 'labor', 'other'] as const;
+export type ActualCat = (typeof ACTUAL_CATS)[number];
+const ACTUAL_LABELS: Record<ActualCat, string> = { seed: 'seed', fertilizer: 'fertilizer and lime', chemicals: 'herbicide and insecticide', insurance: 'crop insurance', machinery: 'machinery, fuel and repairs', labor: 'labor', other: 'miscellaneous costs' };
+
+export type Group = 'Yields and prices' | 'Corn costs' | 'Soybean costs' | 'Small grain costs' | 'Fertilizer prices' | 'Cover crops' | 'Land and money' | 'Programs' | 'Risk' | 'Practices' | 'Your records';
 
 export interface Assumption {
   id: string;
@@ -136,6 +141,18 @@ export const ASSUMPTIONS: Assumption[] = [
   guess('practice.noTillMachinery', 'Pre-harvest machinery saved with no-till', 'Practices', 30, '%'),
   guess('practice.irrigatedYield', 'Yield gain from irrigation', 'Practices', 12, '%'),
   guess('practice.irrigatedCost', 'Irrigation pumping and upkeep', 'Practices', 55, '$/ac'),
+
+  // ---- Your records: multipliers set only from imported books (1 = use the budget as is) ----
+  ...ACTUAL_CATS.map((cat) => ({
+    id: `actual.${cat}`,
+    label: `Your actual ${ACTUAL_LABELS[cat]} vs the budget`,
+    group: 'Your records' as Group,
+    value: 1,
+    unit: '×',
+    source: SOURCES.plottwist,
+    confidence: 'low' as Confidence,
+    note: 'Set only from imported finance records: what you actually spent last year divided by what PlotTwist modeled for the same fields and crops.',
+  })),
 ];
 
 export const ASSUMPTION_BY_ID: Record<string, Assumption> = Object.fromEntries(ASSUMPTIONS.map((a) => [a.id, a]));
@@ -155,6 +172,8 @@ export class Params {
   constructor(
     private overrides: Record<string, number> = {},
     private origins: Record<string, Origin> = {},
+    /** Where imported values came from ("Your records: yield-2025.csv"). */
+    private sources: Record<string, SourceRef> = {},
   ) {}
 
   get(id: string): number {
@@ -165,6 +184,12 @@ export class Params {
     return typeof o === 'number' && Number.isFinite(o) ? o : a.value;
   }
 
+  /** True when the value is not the default. Does not mark the id as used. */
+  has(id: string): boolean {
+    const o = this.overrides[id];
+    return typeof o === 'number' && Number.isFinite(o);
+  }
+
   resolve(id: string): Resolved {
     const a = ASSUMPTION_BY_ID[id];
     const o = this.overrides[id];
@@ -172,9 +197,17 @@ export class Params {
     return { value: has ? o : a.value, origin: has ? (this.origins[id] ?? 'farmer') : 'default', assumption: a };
   }
 
+  /** Source to show for a value: the published default, the farmer, or the imported file. */
+  sourceOf(id: string): SourceRef {
+    const r = this.resolve(id);
+    if (r.origin === 'default') return r.assumption.source;
+    if (r.origin === 'import') return this.sources[id] ?? { name: 'Your records', date: 'imported' };
+    return { name: 'You entered', date: 'in PlotTwist' };
+  }
+
   /** A copy with some values replaced (for sensitivity runs); does not affect `used`. */
   with(patch: Record<string, number>): Params {
-    const p = new Params({ ...this.overrides, ...patch }, this.origins);
+    const p = new Params({ ...this.overrides, ...patch }, this.origins, this.sources);
     return p;
   }
 

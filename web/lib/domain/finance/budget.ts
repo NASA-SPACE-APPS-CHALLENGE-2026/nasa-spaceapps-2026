@@ -1,5 +1,5 @@
 import { cropName } from '../rotation/agronomy';
-import type { Params } from './assumptions';
+import { ACTUAL_CATS, type Params } from './assumptions';
 
 /**
  * Per-acre budget for one season on one field, built from the ISU 2026 budgets and the farmer's overrides.
@@ -108,7 +108,10 @@ export function emptyCosts(): Record<CostCat, number> {
 
 export function seasonBudget(season: SeasonPlan, prev: SeasonPlan | undefined, setup: FieldSetup, P: Params, weather?: WeatherYear): SeasonBudget {
   const items: BudgetItem[] = [];
-  const add = (cat: CostCat, seasonOfYear: Season, amount: number) => amount && items.push({ cat, season: seasonOfYear, amount });
+  // Imported books can scale a whole category to what the farmer actually spent (actual.<cat>, default ×1).
+  // Only read when set, so unused multipliers don't show up in the transparency table.
+  const actual = (cat: CostCat) => ((ACTUAL_CATS as readonly string[]).includes(cat) && P.has(`actual.${cat}`) ? P.get(`actual.${cat}`) : 1);
+  const add = (cat: CostCat, seasonOfYear: Season, amount: number) => amount && items.push({ cat, season: seasonOfYear, amount: amount * actual(cat) });
   const revenueBy: Record<string, number> = {};
   const revenueSeason: Record<string, Season> = {};
   const yields: CropYield[] = [];

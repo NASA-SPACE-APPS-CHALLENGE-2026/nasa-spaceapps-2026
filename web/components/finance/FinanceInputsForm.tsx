@@ -1,10 +1,11 @@
 'use client';
 
 import { useId } from 'react';
-import { ASSUMPTIONS, SOURCES, type Group } from '@/lib/domain/finance/assumptions';
+import { ASSUMPTION_BY_ID, ASSUMPTIONS, SOURCES, type Group } from '@/lib/domain/finance/assumptions';
 import type { CropKey, Tenure } from '@/lib/domain/finance/budget';
 import { fieldAcres } from '@/lib/domain/finance/farm';
-import type { FieldFinance, FinanceInputs } from '@/lib/domain/finance/inputs';
+import { NO_IMPORTS, type FieldFinance, type FinanceInputs, type ImportedFinance } from '@/lib/domain/finance/inputs';
+import Link from 'next/link';
 import { currentCycle } from '@/lib/domain/finance/plans';
 import type { WeatherHistory } from '@/lib/domain/finance/weather';
 import { seasonLabel } from '@/lib/domain/rotation/strategies';
@@ -42,7 +43,11 @@ function Group({ title, children, open = false, intro }: { title: string; childr
 
 const GRID = 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3';
 
-export function FinanceInputsForm({ inputs, fields, crops, weather, onChange }: { inputs: FinanceInputs; fields: Field[]; crops: CropKey[]; weather?: WeatherHistory; onChange: (next: FinanceInputs) => void }) {
+/** "Your records: yield-2025.csv" → "yield-2025.csv". */
+const fileOf = (imported: ImportedFinance, id: string) => imported.sources[id]?.name.replace(/^Your records: /, '') ?? 'your records';
+
+export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops, weather, onChange }: { inputs: FinanceInputs; imported?: ImportedFinance; fields: Field[]; crops: CropKey[]; weather?: WeatherHistory; onChange: (next: FinanceInputs) => void }) {
+  const hasImports = Object.keys(imported.overrides).length > 0 || imported.lastYear.totalRevenue !== undefined || imported.lastYear.totalCosts !== undefined;
   const setOverride = (id: string, v: number | undefined) => {
     const overrides = { ...inputs.overrides };
     if (v === undefined) delete overrides[id];
@@ -58,10 +63,14 @@ export function FinanceInputsForm({ inputs, fields, crops, weather, onChange }: 
           label={a.label}
           unit={a.unit}
           value={inputs.overrides[a.id]}
-          placeholder={a.value}
+          placeholder={imported.overrides[a.id] ?? a.value}
           min={0}
           onCommit={(v) => setOverride(a.id, v)}
-          hint={`Default ${a.value.toLocaleString('en-US')}: ${SHORT_SOURCE.get(a.source.name) ?? a.source.name}`}
+          hint={
+            imported.overrides[a.id] !== undefined
+              ? `From your records (${fileOf(imported, a.id)}). Default ${a.value.toLocaleString('en-US')}.`
+              : `Default ${a.value.toLocaleString('en-US')}: ${SHORT_SOURCE.get(a.source.name) ?? a.source.name}`
+          }
           testId={`input-${a.id}`}
         />
       ))}
@@ -75,6 +84,15 @@ export function FinanceInputsForm({ inputs, fields, crops, weather, onChange }: 
   return (
     <div className="space-y-3" data-testid="finance-inputs">
       <p className="text-[15px] text-ink-soft">Everything is filled in with Iowa defaults. Change only what you know; your numbers are marked and always win. Leave a box empty to use the default.</p>
+      {hasImports && (
+        <p className="rounded-[var(--radius-control)] border border-field/30 bg-field-tint px-3 py-2 text-[14.5px] text-field" data-testid="imports-note">
+          Numbers from your imported records fill the empty boxes and are marked “From your records”. A number you type still wins. Manage or remove files on the{' '}
+          <Link href="/imports" className="font-semibold underline underline-offset-2">
+            Imports
+          </Link>{' '}
+          tab.
+        </p>
+      )}
 
       <Group title="Your farm" open>
         <div className="space-y-4">
@@ -91,8 +109,8 @@ export function FinanceInputsForm({ inputs, fields, crops, weather, onChange }: 
             </span>
           </label>
           <div className={GRID}>
-            <NumberField label="Last year’s total revenue (optional)" unit="$" value={inputs.lastYear.totalRevenue} min={0} onCommit={(v) => onChange({ ...inputs, lastYear: { ...inputs.lastYear, totalRevenue: v } })} />
-            <NumberField label="Last year’s total costs (optional)" unit="$" value={inputs.lastYear.totalCosts} min={0} onCommit={(v) => onChange({ ...inputs, lastYear: { ...inputs.lastYear, totalCosts: v } })} />
+            <NumberField label="Last year’s total revenue (optional)" unit="$" value={inputs.lastYear.totalRevenue} placeholder={imported.lastYear.totalRevenue} hint={imported.lastYear.totalRevenue !== undefined ? 'From your imported books.' : undefined} min={0} onCommit={(v) => onChange({ ...inputs, lastYear: { ...inputs.lastYear, totalRevenue: v } })} testId="input-lastYear.totalRevenue" />
+            <NumberField label="Last year’s total costs (optional)" unit="$" value={inputs.lastYear.totalCosts} placeholder={imported.lastYear.totalCosts} hint={imported.lastYear.totalCosts !== undefined ? 'From your imported books.' : undefined} min={0} onCommit={(v) => onChange({ ...inputs, lastYear: { ...inputs.lastYear, totalCosts: v } })} testId="input-lastYear.totalCosts" />
           </div>
         </div>
       </Group>
@@ -100,7 +118,7 @@ export function FinanceInputsForm({ inputs, fields, crops, weather, onChange }: 
       <Group title="Fields" open intro="Acres come from the boundary you drew. The rotation was read from the crops you entered.">
         <ul className="divide-y divide-line">
           {fields.map((f) => (
-            <FieldRow key={f.id} field={f} acresDefault={fieldAcres(f, { ...inputs, fields: {} })} ff={inputs.fields[f.id] ?? {}} onPatch={(p) => setField(f.id, p)} />
+            <FieldRow key={f.id} field={f} acresDefault={fieldAcres(f, { ...inputs, fields: {} })} rentDefault={inputs.overrides.rent ?? imported.overrides.rent ?? ASSUMPTION_BY_ID.rent.value} ff={inputs.fields[f.id] ?? {}} onPatch={(p) => setField(f.id, p)} />
           ))}
         </ul>
       </Group>
@@ -163,6 +181,12 @@ export function FinanceInputsForm({ inputs, fields, crops, weather, onChange }: 
 
       <Group title="Programs and savings">{assumptions(['Programs'])}</Group>
 
+      {Object.keys(imported.overrides).some((id) => id.startsWith('actual.')) && (
+        <Group title="Your actual costs (from your books)" open intro="Each cost category in the budget is multiplied by what your imported books show you actually spent, compared with what PlotTwist modeled. 1 means the budget as is.">
+          {assumptions(['Your records'], (id) => id in imported.overrides || id in inputs.overrides)}
+        </Group>
+      )}
+
       <Group title="Risk">
         {weather ? (
           <p className="mb-3 text-[14.5px]">
@@ -189,7 +213,7 @@ function TextInput({ label, value, onChange }: { label: string; value?: string; 
   );
 }
 
-function FieldRow({ field, ff, acresDefault, onPatch }: { field: Field; ff: FieldFinance; acresDefault: number; onPatch: (p: Partial<FieldFinance>) => void }) {
+function FieldRow({ field, ff, acresDefault, rentDefault, onPatch }: { field: Field; ff: FieldFinance; acresDefault: number; rentDefault: number; onPatch: (p: Partial<FieldFinance>) => void }) {
   const tenureId = useId();
   const cycle = currentCycle(field);
   const tenure: Tenure = ff.tenure ?? 'cash';
@@ -215,7 +239,7 @@ function FieldRow({ field, ff, acresDefault, onPatch }: { field: Field; ff: Fiel
             <option value="share">Crop-share rent</option>
           </select>
         </div>
-        {tenure === 'cash' && <NumberField label="Rent" unit="$/ac" min={0} value={ff.rentPerAcre} placeholder={270} onCommit={(v) => onPatch({ rentPerAcre: v })} />}
+        {tenure === 'cash' && <NumberField label="Rent" unit="$/ac" min={0} value={ff.rentPerAcre} placeholder={rentDefault} onCommit={(v) => onPatch({ rentPerAcre: v })} />}
         {tenure === 'share' && <NumberField label="Landlord’s share" unit="%" min={0} value={ff.sharePct} placeholder={50} onCommit={(v) => onPatch({ sharePct: v })} />}
         <label className="flex items-center gap-2 self-end pb-2 text-[15px]">
           <input type="checkbox" checked={!!ff.irrigated} onChange={(e) => onPatch({ irrigated: e.target.checked })} className="h-5 w-5 accent-[var(--color-sky)]" />

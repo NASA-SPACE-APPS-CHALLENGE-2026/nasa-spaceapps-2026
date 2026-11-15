@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Params, type Origin } from './assumptions';
+import { Params, type Origin, type SourceRef } from './assumptions';
 import type { CropKey, Tenure, Tillage } from './budget';
 
 /**
@@ -32,6 +32,20 @@ export interface SimulatorInputs {
   currentCrops?: Record<string, string>;
 }
 
+/**
+ * Values from imported records the farmer chose to apply (lib/import/derive.ts). Never stored here:
+ * it is merged in at read time with withImports(), so removing an import undoes it.
+ */
+export interface ImportedFinance {
+  overrides: Record<string, number>;
+  sources: Record<string, SourceRef>;
+  lastYear: { totalRevenue?: number; totalCosts?: number };
+  suppliers: { seedSupplier?: string; fertilizerSupplier?: string; grainBuyer?: string };
+  fields: Record<string, { nRateCorn?: number; tillage?: Tillage }>;
+}
+
+export const NO_IMPORTS: ImportedFinance = { overrides: {}, sources: {}, lastYear: {}, suppliers: {}, fields: {} };
+
 export interface FinanceInputs {
   horizon: 3 | 5;
   overrides: Record<string, number>;
@@ -42,6 +56,25 @@ export interface FinanceInputs {
   beginningFarmer: boolean;
   simulator: Record<string, SimulatorInputs>;
   updatedAt?: string;
+  /** Merged in by withImports(); not persisted. */
+  imported?: ImportedFinance;
+}
+
+/** Finance inputs with applied imports layered underneath what the farmer typed. */
+export function withImports(inputs: FinanceInputs, imported: ImportedFinance | undefined): FinanceInputs {
+  if (!imported) return inputs;
+  return { ...inputs, imported };
+}
+
+/** Last year's totals: what the farmer typed, else what their imported books say. */
+export function effectiveLastYear(inputs: FinanceInputs): { totalRevenue?: number; totalCosts?: number; fromRecords: { revenue: boolean; costs: boolean } } {
+  const typed = inputs.lastYear;
+  const imp = inputs.imported?.lastYear ?? {};
+  return {
+    totalRevenue: typed.totalRevenue ?? imp.totalRevenue,
+    totalCosts: typed.totalCosts ?? imp.totalCosts,
+    fromRecords: { revenue: typed.totalRevenue === undefined && imp.totalRevenue !== undefined, costs: typed.totalCosts === undefined && imp.totalCosts !== undefined },
+  };
 }
 
 export const DEFAULT_FINANCE: FinanceInputs = { horizon: 5, overrides: {}, fields: {}, lastYear: { crops: {} }, forward: {}, suppliers: {}, beginningFarmer: false, simulator: {} };
@@ -122,5 +155,15 @@ export function buildParams(inputs: FinanceInputs, extra: Record<string, number>
   for (const [k, v] of Object.entries(inputs.lastYear.crops) as Array<[CropKey, { yield?: number }]>) set(`${k}.yield`, v?.yield);
   if (inputs.suppliers.cornSeedPerBag) set('corn.seed', (inputs.suppliers.cornSeedPerBag * CORN_SEEDS_PER_ACRE) / KERNELS_PER_BAG);
   if (inputs.suppliers.anhydrousPerTon) set('n.price', inputs.suppliers.anhydrousPerTon / (2000 * ANHYDROUS_N));
-  return new Params(overrides, origins);
+  // Imported records come after everything the farmer typed, so typed values always win.
+  const sources: Record<string, SourceRef> = {};
+  for (const [id, v] of Object.entries(inputs.imported?.overrides ?? {})) {
+    if (typeof v === 'number' && Number.isFinite(v) && !(id in overrides)) {
+      overrides[id] = v;
+      origins[id] = 'import';
+      const src = inputs.imported?.sources[id];
+      if (src) sources[id] = src;
+    }
+  }
+  return new Params(overrides, origins, sources);
 }

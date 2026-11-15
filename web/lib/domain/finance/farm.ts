@@ -23,8 +23,9 @@ export function fieldSetup(field: Field, finance: FinanceInputs, sim?: Simulator
     rentPerAcre: f.rentPerAcre,
     sharePct: f.sharePct,
     irrigated: f.irrigated ?? false,
-    tillage: sim?.tillage,
-    nRateCorn: sim?.nRateCorn,
+    // The Simulator's own inputs win; otherwise use what imported machine records show for this field.
+    tillage: sim?.tillage ?? finance.imported?.fields[field.id]?.tillage,
+    nRateCorn: sim?.nRateCorn ?? finance.imported?.fields[field.id]?.nRateCorn,
   };
 }
 

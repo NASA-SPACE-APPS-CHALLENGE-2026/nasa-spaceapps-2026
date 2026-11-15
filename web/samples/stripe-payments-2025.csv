@@ -1,0 +1,5 @@
+id,Created (UTC),Amount,Amount Refunded,Currency,Fee,Description,Customer Email,Status
+ch_3Q1a,2025-07-21 15:04:11,1440.00,0.00,usd,42.06,180 small bales oat straw,buyer1@example.com,Paid
+ch_3Q1b,2025-08-02 15:04:11,2600.00,0.00,usd,75.70,"Alfalfa hay, 20 large rounds",buyer2@example.com,Paid
+ch_3Q1c,2025-08-09 15:04:11,650.00,0.00,usd,19.15,"Alfalfa hay, 5 large rounds",buyer3@example.com,Failed
+ch_3Q1d,2025-09-15 15:04:11,980.00,80.00,usd,28.72,"Sweet corn, farm stand season",buyer4@example.com,Paid

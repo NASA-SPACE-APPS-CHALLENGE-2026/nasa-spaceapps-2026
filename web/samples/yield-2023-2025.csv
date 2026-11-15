@@ -1,0 +1,16 @@
+Field,Year,Crop,Harvested Acres,Dry Yield (bu/ac),Moisture %
+North quarter,2023,Corn,146,195,16.8
+East quarter,2023,Corn,144.6,179.6,17.400000000000002
+Railroad 80,2023,Soybeans,98,57.2,12.4
+Home 80,2023,Oats,116.5,80.8,12.9
+Creek field,2023,Corn,82.8,203,18
+North quarter,2024,Soybeans,146,59,12.4
+East quarter,2024,Corn,144.6,194.6,17.400000000000002
+Railroad 80,2024,Corn,98,213.2,18
+Home 80,2024,Corn,116.5,214.8,16.8
+Creek field,2024,Soybeans,82.8,67,12.9
+North quarter,2025,Corn,146,202,16.8
+East quarter,2025,Soybeans,144.6,58.6,12.9
+Railroad 80,2025,Soybeans,98,60.2,12.4
+Home 80,2025,Soybeans,116.5,61.8,12.9
+Creek field,2025,Corn,82.8,210,18

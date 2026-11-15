@@ -35,7 +35,7 @@ export function useStore(): FarmStore {
   return s;
 }
 
-const SERVER_STATE: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], finance: DEFAULT_FINANCE, weather: {}, settings: { externalLookups: true } };
+const SERVER_STATE: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], finance: DEFAULT_FINANCE, imports: [], weather: {}, settings: { externalLookups: true } };
 
 export function useFarm(): FarmState {
   const store = useStore();

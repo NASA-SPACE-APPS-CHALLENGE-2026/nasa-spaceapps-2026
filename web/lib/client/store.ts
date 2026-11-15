@@ -6,6 +6,7 @@ import type { Repositories } from '../repo/interfaces';
 import { DEFAULT_SETTINGS } from '../repo/local';
 import type { CdlResponse } from '../sources/cdl';
 import { DEFAULT_FINANCE, type FinanceInputs } from '../domain/finance/inputs';
+import type { ImportRecord } from '../import/types';
 import { classifyYears, type MonthlyWeather, type WeatherHistory } from '../domain/finance/weather';
 import { interiorPoint } from '../domain/acreage';
 
@@ -19,6 +20,8 @@ export interface FarmState {
   plans: Plan[];
   /** Layer 5: Finance tab and Simulator inputs. */
   finance: FinanceInputs;
+  /** Layer 6: imported records, oldest first. */
+  imports: ImportRecord[];
   /** 40-year NASA POWER weather per field (not persisted; the server caches it). */
   weather: Record<string, WeatherState>;
   settings: FarmSettings;
@@ -81,7 +84,7 @@ const FIELD_CONCURRENCY = 2;
  * Background work is queued (2 fields at a time); each field's sources run in parallel and land independently.
  */
 export class FarmStore {
-  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], finance: DEFAULT_FINANCE, weather: {}, settings: DEFAULT_SETTINGS };
+  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], finance: DEFAULT_FINANCE, imports: [], weather: {}, settings: DEFAULT_SETTINGS };
   private listeners = new Set<() => void>();
   private queue: Array<() => Promise<void>> = [];
   private running = 0;
@@ -105,12 +108,13 @@ export class FarmStore {
   }
 
   async load(): Promise<void> {
-    const [fields, profiles, management, plans, finance, settings] = await Promise.all([
+    const [fields, profiles, management, plans, finance, imports, settings] = await Promise.all([
       this.repos.fields.list(),
       this.repos.profiles.list(),
       this.repos.management.list(),
       this.repos.plans.list(),
       this.repos.finance.get(),
+      this.repos.imports.list(),
       this.repos.settings.get(),
     ]);
     this.set({
@@ -120,6 +124,7 @@ export class FarmStore {
       management: Object.fromEntries(management.map((m) => [m.fieldId, m])),
       plans,
       finance,
+      imports,
       settings,
     });
     for (const f of fields) this.ensureLookups(f.id);
@@ -189,6 +194,21 @@ export class FarmStore {
   async deletePlan(id: string): Promise<void> {
     this.set({ plans: this.state.plans.filter((p) => p.id !== id) });
     await this.repos.plans.remove(id);
+  }
+
+  // ---------- Layer 6: imports ----------
+
+  /** Save a reviewed import (new or changed). Applied findings take effect through derivedFromImports(). */
+  async saveImport(record: ImportRecord): Promise<void> {
+    const exists = this.state.imports.some((r) => r.id === record.id);
+    this.set({ imports: exists ? this.state.imports.map((r) => (r.id === record.id ? record : r)) : [...this.state.imports, record] });
+    await this.repos.imports.save(record);
+  }
+
+  /** Remove an import; everything it applied to finance is undone with it. */
+  async removeImport(id: string): Promise<void> {
+    this.set({ imports: this.state.imports.filter((r) => r.id !== id) });
+    await this.repos.imports.remove(id);
   }
 
   // ---------- Layer 5: finance ----------

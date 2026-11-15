@@ -16,6 +16,7 @@ import { useActiveField } from '@/lib/client/useActiveField';
 import { useRotation } from '@/lib/client/useRotation';
 import { Legend, money, PairColumns, PairLines, SERIES } from '../finance/charts';
 import { NumberField, SECTION, Segmented } from '../finance/ui';
+import { useEffectiveFinance } from '@/lib/client/useEffectiveFinance';
 import { FieldPicker, NoFieldsYet } from '../ui/FieldPicker';
 
 const CROP_CHOICES = ['corn', 'soybeans', 'oats', 'winter-wheat', 'fallow'];
@@ -24,6 +25,8 @@ const SELECT = 'mt-1 block min-h-11 w-full rounded-[var(--radius-control)] borde
 export function SimulatorScreen() {
   const store = useStore();
   const { plans, finance } = useFarm();
+  // The engine sees applied imports (machine-record N rates, imported prices); saving always uses the raw inputs.
+  const { finance: effective } = useEffectiveFinance();
   const { field, fields, loaded, select } = useActiveField();
   const rotation = useRotation(field);
 
@@ -53,8 +56,8 @@ export function SimulatorScreen() {
 
   const run = useMemo(() => {
     if (!field) return null;
-    return simulate(field, suggested?.plan, finance, effectiveSim, { lat: interiorPoint(field.feature.geometry)[1], slopePct: rotation?.inputs.slopePct?.value });
-  }, [field, suggested, finance, effectiveSim, rotation]);
+    return simulate(field, suggested?.plan, effective, effectiveSim, { lat: interiorPoint(field.feature.geometry)[1], slopePct: rotation?.inputs.slopePct?.value });
+  }, [field, suggested, effective, effectiveSim, rotation]);
 
   return (
     <div className="h-full overflow-y-auto">

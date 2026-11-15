@@ -4,6 +4,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { cropKeyOf, type CropKey } from '@/lib/domain/finance/budget';
 import { farmFieldInputs } from '@/lib/domain/finance/farm';
+import { effectiveLastYear } from '@/lib/domain/finance/inputs';
+import { useEffectiveFinance } from '@/lib/client/useEffectiveFinance';
 import { useFarm, useStore } from '@/lib/client/StoreProvider';
 import { useFarmAnalysis } from '@/lib/client/useFarmAnalysis';
 import { NoFieldsYet } from '../ui/FieldPicker';
@@ -14,6 +16,7 @@ import { Segmented } from './ui';
 export function FinanceScreen() {
   const store = useStore();
   const { fields, plans, finance, loaded } = useFarm();
+  const { finance: effective, imported } = useEffectiveFinance();
   const { analysis, weather, planned } = useFarmAnalysis();
   const params = useSearchParams();
   const router = useRouter();
@@ -45,9 +48,9 @@ export function FinanceScreen() {
         ) : !fields.length || !analysis ? (
           <NoFieldsYet what="Finance" text="Finance compares your current rotation with your plans, so it needs at least one field." />
         ) : tab === 'inputs' ? (
-          <FinanceInputsForm inputs={finance} fields={fields} crops={crops} weather={weather?.status === 'ok' ? weather.history : undefined} onChange={(next) => void store.saveFinance(next)} />
+          <FinanceInputsForm inputs={finance} imported={imported} fields={fields} crops={crops} weather={weather?.status === 'ok' ? weather.history : undefined} onChange={(next) => void store.saveFinance(next)} />
         ) : (
-          <FinanceResults a={analysis} weather={weather} planned={planned} fieldCount={fields.length} lastYear={finance.lastYear} />
+          <FinanceResults a={analysis} weather={weather} planned={planned} fieldCount={fields.length} lastYear={effectiveLastYear(effective)} />
         )}
       </div>
     </div>

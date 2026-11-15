@@ -1,3 +1,4 @@
+import type { ImportRecord } from '../../import/types';
 import { parseFinance } from '../../domain/finance/inputs';
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan } from '../../domain/types';
 import type { Repositories } from '../interfaces';
@@ -11,6 +12,7 @@ export const STORAGE_KEYS = {
   plans: 'fieldshift.plans',
   settings: 'fieldshift.settings',
   finance: 'fieldshift.finance',
+  imports: 'fieldshift.imports',
 } as const;
 
 export const DEFAULT_SETTINGS: FarmSettings = { externalLookups: true };
@@ -27,6 +29,7 @@ export function createLocalRepositories(storage: KeyValueStorage): Repositories 
   const plans = new VersionedCollection<Plan>(storage, STORAGE_KEYS.plans);
   const settings = new VersionedCollection<FarmSettings>(storage, STORAGE_KEYS.settings);
   const finance = new VersionedCollection<unknown>(storage, STORAGE_KEYS.finance);
+  const imports = new VersionedCollection<ImportRecord>(storage, STORAGE_KEYS.imports);
 
   return {
     fields: {
@@ -117,6 +120,21 @@ export function createLocalRepositories(storage: KeyValueStorage): Repositories 
       },
       async save(inputs) {
         finance.write({ farm: inputs });
+      },
+    },
+    imports: {
+      async list() {
+        return Object.values(imports.read()).sort((a, b) => a.importedAt.localeCompare(b.importedAt));
+      },
+      async save(record) {
+        const all = imports.read();
+        all[record.id] = record;
+        imports.write(all);
+      },
+      async remove(id) {
+        const all = imports.read();
+        delete all[id];
+        imports.write(all);
       },
     },
     settings: {

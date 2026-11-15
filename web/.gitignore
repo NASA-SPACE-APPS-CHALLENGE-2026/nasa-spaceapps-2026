@@ -49,3 +49,8 @@ next-env.d.ts
 
 # Copied from node_modules by scripts/copy-maplibre-worker.mjs
 /public/vendor/
+
+# browser assets copied from node_modules by scripts/copy-assets.mjs
+/public/pdfjs/
+/public/ocr/
+*.traineddata

@@ -73,12 +73,32 @@ test('add fields by ZIP then drawing, enter crops, import GeoJSON, reload', asyn
   await expect(page.getByTestId('season-2025')).toContainText('You confirmed');
 });
 
-test('stub import cards accept files without claiming to process them', async ({ page }) => {
+test('record imports are read, reviewed, applied to Finance and removable', async ({ page }) => {
+  await page.goto('/fields');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: /demo farm/i }).click();
+  await expect(page.getByRole('list', { name: 'Fields' }).getByRole('button')).toHaveCount(6);
+
   await page.goto('/imports');
   const card = page.getByRole('region', { name: 'Finance and payments' });
-  await card.locator('input[type=file]').setInputFiles({ name: 'stripe-payments.csv', mimeType: 'text/csv', buffer: Buffer.from('id,amount\n1,10\n') });
-  await expect(card).toContainText('Received, not yet processed.');
-  await expect(card.getByRole('button', { name: /Processing comes in a later milestone/ })).toBeDisabled();
+  await card.locator('input[type=file]').setInputFiles(path.join(__dirname, '..', '..', 'samples', 'quickbooks-2025.csv'));
+  const review = card.getByTestId('import-review');
+  await expect(review).toContainText('19 transactions');
+  await expect(review.getByText('Corn price received')).toBeVisible();
+  await review.getByTestId('apply-import').click();
+  await expect(card.getByTestId('imported-file')).toContainText('Using');
+  await expect(page.getByTestId('imports-summary')).toContainText('Corn price');
+
+  // Finance shows the imported books under anything typed.
+  await page.goto('/finance?tab=inputs');
+  await expect(page.getByTestId('imports-note')).toBeVisible();
+  await expect(page.getByTestId('input-lastYear.totalRevenue')).toHaveAttribute('placeholder', '510309');
+
+  // Removing the file undoes it; a wrong file type is refused.
+  await page.goto('/imports');
+  await card.getByRole('button', { name: 'Remove quickbooks-2025.csv' }).click();
+  await expect(page.getByTestId('imports-summary')).toHaveCount(0);
   await card.locator('input[type=file]').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('x') });
   await expect(card.getByRole('alert')).toContainText('not an accepted file type');
 });
