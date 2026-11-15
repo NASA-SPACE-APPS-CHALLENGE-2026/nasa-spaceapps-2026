@@ -1,7 +1,7 @@
 'use client';
 
 import { useId } from 'react';
-import { ASSUMPTIONS, SOURCES, type Group } from '@/lib/domain/finance/assumptions';
+import { ASSUMPTION_BY_ID, ASSUMPTIONS, SOURCES, type Group } from '@/lib/domain/finance/assumptions';
 import type { CropKey, Tenure } from '@/lib/domain/finance/budget';
 import { fieldAcres } from '@/lib/domain/finance/farm';
 import { NO_IMPORTS, type FieldFinance, type FinanceInputs, type ImportedFinance } from '@/lib/domain/finance/inputs';
@@ -118,7 +118,7 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
       <Group title="Fields" open intro="Acres come from the boundary you drew. The rotation was read from the crops you entered.">
         <ul className="divide-y divide-line">
           {fields.map((f) => (
-            <FieldRow key={f.id} field={f} acresDefault={fieldAcres(f, { ...inputs, fields: {} })} ff={inputs.fields[f.id] ?? {}} onPatch={(p) => setField(f.id, p)} />
+            <FieldRow key={f.id} field={f} acresDefault={fieldAcres(f, { ...inputs, fields: {} })} rentDefault={inputs.overrides.rent ?? imported.overrides.rent ?? ASSUMPTION_BY_ID.rent.value} ff={inputs.fields[f.id] ?? {}} onPatch={(p) => setField(f.id, p)} />
           ))}
         </ul>
       </Group>
@@ -213,7 +213,7 @@ function TextInput({ label, value, onChange }: { label: string; value?: string; 
   );
 }
 
-function FieldRow({ field, ff, acresDefault, onPatch }: { field: Field; ff: FieldFinance; acresDefault: number; onPatch: (p: Partial<FieldFinance>) => void }) {
+function FieldRow({ field, ff, acresDefault, rentDefault, onPatch }: { field: Field; ff: FieldFinance; acresDefault: number; rentDefault: number; onPatch: (p: Partial<FieldFinance>) => void }) {
   const tenureId = useId();
   const cycle = currentCycle(field);
   const tenure: Tenure = ff.tenure ?? 'cash';
@@ -239,7 +239,7 @@ function FieldRow({ field, ff, acresDefault, onPatch }: { field: Field; ff: Fiel
             <option value="share">Crop-share rent</option>
           </select>
         </div>
-        {tenure === 'cash' && <NumberField label="Rent" unit="$/ac" min={0} value={ff.rentPerAcre} placeholder={270} onCommit={(v) => onPatch({ rentPerAcre: v })} />}
+        {tenure === 'cash' && <NumberField label="Rent" unit="$/ac" min={0} value={ff.rentPerAcre} placeholder={rentDefault} onCommit={(v) => onPatch({ rentPerAcre: v })} />}
         {tenure === 'share' && <NumberField label="Landlord’s share" unit="%" min={0} value={ff.sharePct} placeholder={50} onCommit={(v) => onPatch({ sharePct: v })} />}
         <label className="flex items-center gap-2 self-end pb-2 text-[15px]">
           <input type="checkbox" checked={!!ff.irrigated} onChange={(e) => onPatch({ irrigated: e.target.checked })} className="h-5 w-5 accent-[var(--color-sky)]" />
