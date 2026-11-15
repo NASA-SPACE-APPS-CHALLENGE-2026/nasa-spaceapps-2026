@@ -7,6 +7,8 @@ import { runSource } from '@/lib/sources/registry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Slow public services (MODIS NDVI takes 30–60 s; USGS elevation retries) need more than Vercel's short default.
+export const maxDuration = 120;
 
 export async function POST(req: Request, { params }: { params: Promise<{ source: string }> }) {
   const { source } = await params;

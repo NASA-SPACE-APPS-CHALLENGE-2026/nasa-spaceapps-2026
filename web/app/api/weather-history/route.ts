@@ -6,6 +6,8 @@ import { fetchWeatherHistory } from '@/lib/sources/weatherHistory';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// 40 years of NASA POWER monthly data can take a while on a cold cache.
+export const maxDuration = 60;
 
 const body = z.object({ lon: z.number().min(-180).max(180), lat: z.number().min(-90).max(90) });
 
