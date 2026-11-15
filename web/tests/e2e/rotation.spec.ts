@@ -127,6 +127,32 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   // Logo goes to Overview; Rotation Explorer reopens the last field with its answers.
   await page.getByRole('link', { name: /PlotTwist home/ }).click();
   await expect(page).toHaveURL(/\/overview$/);
+  await expect(page.getByTestId('overview-metrics')).toContainText('29%');
+  await expect(page.getByTestId('overview-rotation')).toContainText('Back forty');
+  await expect(page.getByTestId('overview-rotation')).toContainText('plan');
+
+  // Simulator: the plan from the Planner is filled in automatically and compared with the current rotation.
+  await page.goto('/simulator');
+  await expect(page.getByTestId('sim-plan-proposed')).toContainText('From your Planner');
+  await expect(page.getByTestId('sim-results')).toBeVisible();
+  await expect(page.getByTestId('sim-pros').getByRole('listitem').first()).toBeVisible();
+  await page.getByTestId('sim-acres').fill('120');
+  await page.getByTestId('sim-acres').press('Enter');
+  await expect(page.getByTestId('sim-acres')).toHaveValue('120');
+
+  // Finance: results for the whole farm, and the farmer's own number changes them.
+  await page.goto('/finance');
+  const headline = page.getByTestId('finance-headline');
+  await expect(headline).toContainText('Whole farm over 5 years');
+  const before = await headline.textContent();
+  for (const id of ['partial', 'cash', 'risk', 'savings', 'sensitivity', 'transparency']) await expect(page.getByTestId(`section-${id}`)).toBeVisible();
+  await page.getByRole('radio', { name: 'Your numbers' }).click();
+  await page.getByText('Market: yields, prices and contracts').click();
+  await page.getByTestId('input-corn.price').fill('6');
+  await page.getByTestId('input-corn.price').press('Enter');
+  await page.getByRole('radio', { name: 'Results' }).click();
+  await expect(headline).not.toHaveText(before!);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.goto('/rotation');
   await expect(page.getByLabel('Field', { exact: true })).toHaveValue(/.+/);
   await expect(page.getByLabel('Field', { exact: true }).locator('option:checked')).toContainText('Back forty');

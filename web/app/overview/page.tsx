@@ -1,11 +1,7 @@
-import { ComingSoon } from '@/components/shell/ComingSoon';
+import { OverviewScreen } from '@/components/overview/OverviewScreen';
 
 export const metadata = { title: 'Overview | PlotTwist' };
 
 export default function Page() {
-  return (
-    <ComingSoon title="Overview">
-      <p>A dashboard across all your fields: what is planted, what is planned, and where weather and soil put each field at risk. It will draw on the field profiles, your answers in Rotation Explorer and the plans you make in the Planner.</p>
-    </ComingSoon>
-  );
+  return <OverviewScreen />;
 }

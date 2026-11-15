@@ -7,6 +7,8 @@ import { seasonBudget, type FieldSetup, type SeasonPlan } from '@/lib/domain/fin
 import { coverMonths, currentPlanSeasons, proposedPlanSeasons } from '@/lib/domain/finance/plans';
 import { buildParams, DEFAULT_FINANCE, parseFinance } from '@/lib/domain/finance/inputs';
 import { classifyYears } from '@/lib/domain/finance/weather';
+import { simulate } from '@/lib/domain/finance/simulate';
+import { upcomingTasks } from '@/lib/domain/finance/farm';
 import { FarmStore } from '@/lib/client/store';
 import { createLocalRepositories } from '@/lib/repo/local';
 import { MemoryStorage } from '@/lib/repo/local/storage';
@@ -191,5 +193,44 @@ describe('finance inputs (layer 5)', () => {
     await again.load();
     expect(again.getSnapshot().finance).toMatchObject({ horizon: 3, beginningFarmer: true, overrides: { 'corn.price': 4.25 } });
     expect(parseFinance({ horizon: 7, overrides: { x: 'y' }, beginningFarmer: 'yes' })).toMatchObject({ horizon: 5, overrides: {}, beginningFarmer: false });
+  });
+});
+
+describe('Scenario Simulator', () => {
+  const plan = (f: Field): Plan => ({
+    id: 'p', fieldId: f.id, strategyId: 'cover', name: 'Cover crop plan', createdAt: '', updatedAt: '',
+    seasons: [
+      { year: 2027, crop: { kind: 'catalog', id: 'soybeans' }, cover: { species: 'cereal-rye', name: 'Cereal rye' }, tasks: [] },
+      { year: 2028, crop: { kind: 'catalog', id: 'corn' }, cover: { species: 'cereal-rye', name: 'Cereal rye' }, tasks: [] },
+    ],
+  });
+
+  it('compares the plan with the current rotation and lists pros and cons', () => {
+    const f = cornSoyField();
+    const { result } = simulate(f, plan(f), DEFAULT_FINANCE, { acres: 100 }, { lat: 42, slopePct: 4 });
+    expect(result.acres).toBe(100);
+    expect(result.startYear).toBe(2027);
+    expect(result.proposed.coverMonths).toBeGreaterThan(result.current.coverMonths);
+    expect(result.pros.some((t) => /more months a year/.test(t))).toBe(true);
+    expect(result.cons.some((t) => /seeding pass/.test(t))).toBe(true);
+    expect(['Low', 'Moderate', 'High']).toContain(result.proposed.erosion);
+  });
+
+  it('a dry-summer scenario cuts corn and soybean yields; not planted yet starts the plan this season', () => {
+    const f = cornSoyField();
+    const normal = simulate(f, plan(f), DEFAULT_FINANCE, {}, { lat: 42 }).result;
+    const dry = simulate(f, plan(f), DEFAULT_FINANCE, { scenario: 'dry' }, { lat: 42 }).result;
+    expect(dry.current.netPerAcre).toBeLessThan(normal.current.netPerAcre);
+    expect(dry.current.yields.find((y) => y.crop === 'Corn')!.bu).toBe(Math.round(211 * 0.8));
+    const early = simulate(f, plan(f), DEFAULT_FINANCE, { stage: 'pre-plant' }, { lat: 42 }).result;
+    expect(early.startYear).toBe(2026);
+    expect(early.current.seasons[0]).toMatchObject({ year: 2026, crops: ['corn'] });
+  });
+
+  it('lists the next two months of Planner tasks on the Overview', () => {
+    const f = cornSoyField();
+    const p = { ...plan(f), seasons: [{ ...plan(f).seasons[0], year: 2026, tasks: [{ id: 't1', month: 12, kind: 'note' as const, label: 'Order seed' }, { id: 't2', month: 6, kind: 'plant' as const, label: 'Later' }] }] };
+    const up = upcomingTasks([f], [p], new Date('2026-11-15T12:00:00'));
+    expect(up.map((u) => u.task.label)).toEqual(['Order seed']);
   });
 });

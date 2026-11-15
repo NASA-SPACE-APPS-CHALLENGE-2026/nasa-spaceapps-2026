@@ -28,6 +28,8 @@ export interface SimulatorInputs {
   scenario?: WeatherScenario;
   /** Per-crop yield and price for this field only, keyed like "corn.yield". */
   overrides?: Record<string, number>;
+  /** Plan A ("what you do now") edited by year: crop id per year. */
+  currentCrops?: Record<string, string>;
 }
 
 export interface FinanceInputs {
@@ -85,6 +87,7 @@ export const financeSchema = z.object({
         nRateCorn: optNum,
         scenario: z.enum(['normal', 'dry', 'wet']).optional().catch(undefined),
         overrides: z.record(z.string(), num).optional().catch(undefined),
+        currentCrops: z.record(z.string(), z.string().max(40)).optional().catch(undefined),
       }),
     )
     .catch({}),

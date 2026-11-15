@@ -1,4 +1,17 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { expect, type Page } from '@playwright/test';
+
+/** 40 years of monthly weather from the recorded NASA POWER fixture, in the /api/weather-history shape. */
+function weatherYears() {
+  const p = JSON.parse(readFileSync(path.join(__dirname, '..', 'fixtures', 'power-monthly.json'), 'utf8')).properties.parameter;
+  const years = [];
+  for (let y = 1985; y <= 2024; y++) {
+    const m = Array.from({ length: 12 }, (_, i) => `${y}${String(i + 1).padStart(2, '0')}`);
+    years.push({ year: y, rainMm: m.map((k) => p.PRECTOTCORR_SUM[k]), maxTempC: m.map((k) => p.T2M_MAX[k]) });
+  }
+  return years;
+}
 
 /** Third-party data is mocked at PlotTwist's own API boundary (/api/profile/*, /api/cdl), so tests are deterministic. */
 const AMES_CLIMATE = {
@@ -31,6 +44,7 @@ export async function mockSources(page: Page) {
           },
     });
   });
+  await page.route('**/api/weather-history', (route) => route.fulfill({ json: { years: weatherYears(), fetchedAt: '2026-11-14T12:00:00Z' } }));
   await page.route('**/api/cdl', async (route) => {
     const { years } = route.request().postDataJSON() as { years: number[] };
     await route.fulfill({

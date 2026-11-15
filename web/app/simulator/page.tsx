@@ -1,11 +1,12 @@
-import { ComingSoon } from '@/components/shell/ComingSoon';
+import { Suspense } from 'react';
+import { SimulatorScreen } from '@/components/simulator/SimulatorScreen';
 
 export const metadata = { title: 'Scenario Simulator | PlotTwist' };
 
 export default function Page() {
   return (
-    <ComingSoon title="Scenario Simulator">
-      <p>Compare a plan from the Planner with what you do today, field by field, under wetter, drier or hotter seasons.</p>
-    </ComingSoon>
+    <Suspense>
+      <SimulatorScreen />
+    </Suspense>
   );
 }

@@ -39,43 +39,60 @@ function carryForward(cycle: string[][], lastIds: string[] | undefined, years: n
   return years.map((year, i) => ({ year, crops: cycle[(at + 1 + i) % cycle.length] }));
 }
 
-export function horizonYears(field: Field, horizon: number): number[] {
-  const first = field.crops.current.year + 1;
-  return Array.from({ length: horizon }, (_, i) => first + i);
+/** The first plan year: next season, or this season when the crop is not planted yet. */
+export function firstPlanYear(field: Field, startThisSeason = false): number {
+  return field.crops.current.year + (startThisSeason ? 0 : 1);
 }
 
-/** What the field is doing this year (the season before the plan starts). */
-export function thisSeason(field: Field): SeasonPlan {
-  return { year: field.crops.current.year, crops: cropIdsOf(field.crops.current.crop) ?? [] };
+export function horizonYears(field: Field, horizon: number, startYear = firstPlanYear(field)): number[] {
+  return Array.from({ length: horizon }, (_, i) => startYear + i);
 }
 
-export function currentPlanSeasons(field: Field, horizon: number): SeasonPlan[] {
+/** The season before the plan starts (for rotation effects in the first plan year). */
+export function thisSeason(field: Field, startYear = firstPlanYear(field)): SeasonPlan {
+  if (startYear > field.crops.current.year) return { year: field.crops.current.year, crops: cropIdsOf(field.crops.current.crop) ?? [] };
+  const prev = field.crops.history.find((h) => h.year === startYear - 1);
+  return { year: startYear - 1, crops: cropIdsOf(prev?.crop) ?? [] };
+}
+
+function currentCropIds(field: Field): string[] | null {
+  const ids = cropIdsOf(field.crops.current.crop);
+  return ids && ids.length ? ids : null;
+}
+
+export function currentPlanSeasons(field: Field, horizon: number, startYear = firstPlanYear(field)): SeasonPlan[] {
+  const years = horizonYears(field, horizon, startYear);
+  const cycle = currentCycle(field);
+  const cur = currentCropIds(field);
+  if (startYear <= field.crops.current.year && cur) return [{ year: years[0], crops: cur }, ...carryForward(cycle, cur, years.slice(1))];
   const known = knownHistory(field);
-  return carryForward(currentCycle(field), known[known.length - 1]?.ids, horizonYears(field, horizon));
+  return carryForward(cycle, known[known.length - 1]?.ids, years);
 }
 
 /**
  * The Planner plan for the horizon years. Years the plan does not cover continue the plan's own pattern;
  * with no plan at all the field stays on its current rotation.
  */
-export function proposedPlanSeasons(field: Field, plan: Plan | undefined, horizon: number): SeasonPlan[] {
-  const years = horizonYears(field, horizon);
-  if (!plan) return currentPlanSeasons(field, horizon);
+export function proposedPlanSeasons(field: Field, plan: Plan | undefined, horizon: number, startYear = firstPlanYear(field)): SeasonPlan[] {
+  const years = horizonYears(field, horizon, startYear);
+  if (!plan) return currentPlanSeasons(field, horizon, startYear);
   const planned = plan.seasons
-    .filter((s) => s.year > field.crops.current.year)
+    .filter((s) => s.year >= startYear)
     .map((s) => ({ year: s.year, crops: cropIdsOf(s.crop) ?? [], cover: coverOf(s.cover) }))
     .filter((s) => s.crops.length > 0);
-  if (!planned.length) return currentPlanSeasons(field, horizon);
+  if (!planned.length) return currentPlanSeasons(field, horizon, startYear);
   const byYear = new Map(planned.map((s) => [s.year, s]));
   const cycle = detectCycle(planned.map((s) => s.crops));
   const covers = new Map(planned.map((s) => [s.crops.join('>'), s.cover]));
   const lastPlanned = planned[planned.length - 1];
   const extra = carryForward(cycle, lastPlanned.crops, years.filter((y) => y > lastPlanned.year));
+  const cur = currentCropIds(field);
   return years.map((year) => {
     const p = byYear.get(year);
     if (p) return p;
     const e = extra.find((x) => x.year === year);
     if (e) return { ...e, cover: covers.get(e.crops.join('>')) };
+    if (year === field.crops.current.year && cur) return { year, crops: cur };
     return { year, crops: [] };
   });
 }
