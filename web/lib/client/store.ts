@@ -1,4 +1,5 @@
 import { cdlYearsFor, applyDetections } from '../domain/cropHistory';
+import { financialProfileSchema, type FinancialProfile } from '../domain/finance';
 import { SOURCE_META, SOURCE_ORDER } from '../domain/sourceMeta';
 import { toManagementRecord, type RotationAnswers } from '../domain/management';
 import type { CdlDetection, FarmSettings, Field, FieldProfile, ManagementAnswers, Plan, SavedScenario, SourceId, SourceResult } from '../domain/types';
@@ -16,6 +17,8 @@ export interface FarmState {
   plans: Plan[];
   /** Scenario configurations are lightweight and local to the farmer's browser. */
   scenarios: SavedScenario[];
+  /** Farmer-entered financial assumptions, stored separately from crop history and plans. */
+  financialProfiles: Record<string, FinancialProfile>;
   settings: FarmSettings;
 }
 
@@ -62,7 +65,7 @@ const FIELD_CONCURRENCY = 2;
  * Background work is queued (2 fields at a time); each field's sources run in parallel and land independently.
  */
 export class FarmStore {
-  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], scenarios: [], settings: DEFAULT_SETTINGS };
+  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], scenarios: [], financialProfiles: {}, settings: DEFAULT_SETTINGS };
   private listeners = new Set<() => void>();
   private queue: Array<() => Promise<void>> = [];
   private running = 0;
@@ -86,12 +89,13 @@ export class FarmStore {
   }
 
   async load(): Promise<void> {
-    const [fields, profiles, management, plans, scenarios, settings] = await Promise.all([
+    const [fields, profiles, management, plans, scenarios, financialProfiles, settings] = await Promise.all([
       this.repos.fields.list(),
       this.repos.profiles.list(),
       this.repos.management.list(),
       this.repos.plans.list(),
       this.repos.scenarios.list(),
+      this.repos.finance.list(),
       this.repos.settings.get(),
     ]);
     this.set({
@@ -101,6 +105,7 @@ export class FarmStore {
       management: Object.fromEntries(management.map((m) => [m.fieldId, m])),
       plans,
       scenarios,
+      financialProfiles: Object.fromEntries(financialProfiles.map((p) => [p.fieldId, p])),
       settings,
     });
     for (const f of fields) this.ensureLookups(f.id);
@@ -122,14 +127,16 @@ export class FarmStore {
   }
 
   async deleteField(id: string): Promise<void> {
-    await Promise.all([this.repos.fields.remove(id), this.repos.profiles.remove(id), this.repos.management.remove(id), this.repos.plans.removeForField(id), this.repos.scenarios.removeForField(id)]);
+    await Promise.all([this.repos.fields.remove(id), this.repos.profiles.remove(id), this.repos.management.remove(id), this.repos.plans.removeForField(id), this.repos.scenarios.removeForField(id), this.repos.finance.remove(id)]);
     const profiles = { ...this.state.profiles };
     delete profiles[id];
     const management = { ...this.state.management };
     delete management[id];
+    const financialProfiles = { ...this.state.financialProfiles };
+    delete financialProfiles[id];
     const settings = this.state.settings.lastFieldId === id ? { ...this.state.settings, lastFieldId: undefined } : this.state.settings;
     if (settings !== this.state.settings) await this.repos.settings.save(settings);
-    this.set({ fields: this.state.fields.filter((f) => f.id !== id), profiles, management, plans: this.state.plans.filter((p) => p.fieldId !== id), scenarios: this.state.scenarios.filter((s) => s.fieldId !== id), settings });
+    this.set({ fields: this.state.fields.filter((f) => f.id !== id), profiles, management, financialProfiles, plans: this.state.plans.filter((p) => p.fieldId !== id), scenarios: this.state.scenarios.filter((s) => s.fieldId !== id), settings });
   }
 
   async setSettings(settings: FarmSettings): Promise<void> {
@@ -181,6 +188,13 @@ export class FarmStore {
   async deleteScenario(id: string): Promise<void> {
     await this.repos.scenarios.remove(id);
     this.set({ scenarios: this.state.scenarios.filter((s) => s.id !== id) });
+  }
+
+  async saveFinancialProfile(profile: FinancialProfile): Promise<void> {
+    const validated = financialProfileSchema.parse(profile);
+    if (!this.field(validated.fieldId)) throw new Error('Cannot save financial assumptions for a field that no longer exists.');
+    await this.repos.finance.save(validated);
+    this.set({ financialProfiles: { ...this.state.financialProfiles, [validated.fieldId]: validated } });
   }
 
   // ---------- background lookups ----------

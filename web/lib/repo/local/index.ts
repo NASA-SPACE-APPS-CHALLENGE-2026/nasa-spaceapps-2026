@@ -1,4 +1,5 @@
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan, SavedScenario } from '../../domain/types';
+import type { FinancialProfile } from '../../domain/finance';
 import type { Repositories } from '../interfaces';
 import { FIELDS_MIGRATIONS, FIELDS_VERSION } from './migrations';
 import { type KeyValueStorage, VersionedCollection } from './storage';
@@ -9,6 +10,7 @@ export const STORAGE_KEYS = {
   management: 'fieldshift.management',
   plans: 'fieldshift.plans',
   scenarios: 'fieldshift.scenarios',
+  finance: 'fieldshift.finance',
   settings: 'fieldshift.settings',
 } as const;
 
@@ -25,6 +27,7 @@ export function createLocalRepositories(storage: KeyValueStorage): Repositories 
   const management = new VersionedCollection<ManagementAnswers>(storage, STORAGE_KEYS.management);
   const plans = new VersionedCollection<Plan>(storage, STORAGE_KEYS.plans);
   const scenarios = new VersionedCollection<SavedScenario>(storage, STORAGE_KEYS.scenarios);
+  const finance = new VersionedCollection<FinancialProfile>(storage, STORAGE_KEYS.finance);
   const settings = new VersionedCollection<FarmSettings>(storage, STORAGE_KEYS.settings);
 
   return {
@@ -131,6 +134,24 @@ export function createLocalRepositories(storage: KeyValueStorage): Repositories 
         const all = scenarios.read();
         for (const [id, scenario] of Object.entries(all)) if (scenario.fieldId === fieldId) delete all[id];
         scenarios.write(all);
+      },
+    },
+    finance: {
+      async list() {
+        return Object.values(finance.read());
+      },
+      async get(fieldId) {
+        return finance.read()[fieldId];
+      },
+      async save(profile) {
+        const all = finance.read();
+        all[profile.fieldId] = profile;
+        finance.write(all);
+      },
+      async remove(fieldId) {
+        const all = finance.read();
+        delete all[fieldId];
+        finance.write(all);
       },
     },
     settings: {

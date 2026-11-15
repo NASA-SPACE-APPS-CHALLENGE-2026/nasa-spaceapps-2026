@@ -1,4 +1,5 @@
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan, SavedScenario } from '../domain/types';
+import type { FinancialProfile } from '../domain/finance';
 
 /**
  * Persistence boundaries. Each layer has its own repository so they can move to a database
@@ -45,6 +46,13 @@ export interface ScenarioRepository {
   removeForField(fieldId: string): Promise<void>;
 }
 
+export interface FinanceRepository {
+  list(): Promise<FinancialProfile[]>;
+  get(fieldId: string): Promise<FinancialProfile | undefined>;
+  save(profile: FinancialProfile): Promise<void>;
+  remove(fieldId: string): Promise<void>;
+}
+
 export interface SettingsRepository {
   get(): Promise<FarmSettings>;
   save(settings: FarmSettings): Promise<void>;
@@ -56,5 +64,6 @@ export interface Repositories {
   management: ManagementRepository;
   plans: PlanRepository;
   scenarios: ScenarioRepository;
+  finance: FinanceRepository;
   settings: SettingsRepository;
 }
