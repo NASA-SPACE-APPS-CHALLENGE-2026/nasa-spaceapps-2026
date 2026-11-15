@@ -487,14 +487,15 @@ export function FinanceScreen() {
   }
 
   if (!loaded) {
-    return <main className="mx-auto max-w-7xl px-4 py-8"><p className="text-ink-soft">Loading your fields…</p></main>;
+    return <div className="h-full overflow-y-auto overscroll-contain"><p className="mx-auto max-w-7xl px-4 py-8 text-ink-soft">Loading your fields…</p></div>;
   }
   if (!field) {
-    return <main className="mx-auto max-w-7xl space-y-5 px-4 py-8 lg:px-8"><header><p className="text-sm font-semibold uppercase tracking-[0.13em] text-field">FieldShift · Finance</p><h1 className="mt-2 font-plate text-3xl">Plan with your numbers</h1></header><NoFieldsYet what="Finance" /></main>;
+    return <div className="h-full overflow-y-auto overscroll-contain"><div className="mx-auto max-w-7xl space-y-5 px-4 py-8 lg:px-8"><header><p className="text-sm font-semibold uppercase tracking-[0.13em] text-field">FieldShift · Finance</p><h1 className="mt-2 font-plate text-3xl">Plan with your numbers</h1></header><NoFieldsYet what="Finance" /></div></div>;
   }
   if (!rotation?.result.strategies.length || !profile) {
     return (
-      <main className="mx-auto max-w-7xl space-y-5 px-4 py-8 lg:px-8">
+      <div className="h-full overflow-y-auto overscroll-contain">
+      <div className="mx-auto max-w-7xl space-y-5 px-4 py-8 lg:px-8">
         <header><p className="text-sm font-semibold uppercase tracking-[0.13em] text-field">FieldShift · Finance</p><h1 className="mt-2 font-plate text-3xl">Plan with your numbers</h1></header>
         <FieldPicker fields={availableFields} field={field} onSelect={selectField} />
         <section className={PANEL}>
@@ -502,7 +503,8 @@ export function FinanceScreen() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">{rotation?.result.problem ?? 'Enter the current crop and at least one season of history to build a rotation comparison.'}</p>
           <Link href="/fields" className="mt-4 inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-sky px-4 font-semibold text-white hover:bg-sky-deep">Review this field</Link>
         </section>
-      </main>
+      </div>
+      </div>
     );
   }
 
@@ -514,7 +516,8 @@ export function FinanceScreen() {
   const selectedCropInputs = cropIds;
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 lg:px-8 lg:py-8">
+    <div className="h-full overflow-y-auto overscroll-contain">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 lg:px-8 lg:py-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[13px] font-bold uppercase tracking-[0.15em] text-field">FieldShift · Field finances</p>
@@ -779,7 +782,8 @@ export function FinanceScreen() {
       <footer className="border-t border-line pt-4 text-[12px] leading-5 text-ink-faint">
         <p>Assumptions are editable and stored per field on this device. Prices, yields, cost estimates, land rent, and scenario effects are not independently verified. Public soil, satellite, and weather data are not used to calculate dollars.</p>
       </footer>
-    </main>
+    </div>
+    </div>
   );
 }
 

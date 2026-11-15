@@ -33,6 +33,11 @@ test('compare field finances with farmer-entered assumptions and create a Planne
   await expect(page.locator('svg[role="img"]')).toHaveCount(3);
   await expect(page.getByText('Needs inputs', { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  const financeScroller = page.locator('main > div').first();
+  await expect(financeScroller).toHaveCSS('overflow-y', 'auto');
+  expect(await financeScroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  await financeScroller.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  expect(await financeScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 
   const fieldId = await page.getByLabel('Field', { exact: true }).inputValue();
   expect(fieldId).toBeTruthy();
