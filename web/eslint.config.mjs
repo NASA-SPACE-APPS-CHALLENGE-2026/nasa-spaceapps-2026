@@ -18,6 +18,9 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Browser assets copied from node_modules by scripts/copy-assets.mjs
+      "public/ocr/**",
+      "public/pdfjs/**",
     ],
   },
 ];

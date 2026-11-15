@@ -1,3 +1,4 @@
+import type { ImportRecord } from '../import/types';
 import type { FinanceInputs } from '../domain/finance/inputs';
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan } from '../domain/types';
 
@@ -44,6 +45,13 @@ export interface FinanceRepository {
   save(inputs: FinanceInputs): Promise<void>;
 }
 
+/** Layer 6: imported records (normalized rows and findings, never the original file). */
+export interface ImportRepository {
+  list(): Promise<ImportRecord[]>;
+  save(record: ImportRecord): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 export interface SettingsRepository {
   get(): Promise<FarmSettings>;
   save(settings: FarmSettings): Promise<void>;
@@ -55,5 +63,6 @@ export interface Repositories {
   management: ManagementRepository;
   plans: PlanRepository;
   finance: FinanceRepository;
+  imports: ImportRepository;
   settings: SettingsRepository;
 }

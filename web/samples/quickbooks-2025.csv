@@ -1,0 +1,20 @@
+Date,Transaction Type,Num,Name,Memo/Description,Account,Split,Amount
+01/15/2025,Deposit,1001,Heartland Co-op,"9,800 bu corn @ 4.31",Sales of Products Raised,Farm Checking,42238.00
+02/03/2025,Bill,1002,Prairie Valley Cooperative,Seed corn and soybean seed,Seeds and Plants,Farm Checking,61280.00
+03/12/2025,Bill,1003,Prairie Valley Cooperative,"Anhydrous, potash, DAP",Fertilizers and Lime,Farm Checking,79340.00
+03/31/2025,Check,1004,Smith Family Trust,"2025 cash rent, first half",Rent or Lease - Land,Farm Checking,92500.00
+04/22/2025,Bill,1005,Prairie Valley Cooperative,Pre-emerge herbicide,Chemicals,Farm Checking,21460.00
+05/05/2025,Expense,1006,Casey's,"Diesel, planting","Gasoline, Fuel, and Oil",Farm Checking,6240.55
+05/30/2025,Bill,1007,Farm Bureau Financial,Crop insurance premium,Insurance (other than health),Farm Checking,8420.00
+06/14/2025,Bill,1008,Prairie Valley Cooperative,Post-emerge herbicide,Chemicals,Farm Checking,15990.00
+06/30/2025,Check,1009,Payroll,Seasonal labor June,Labor Hired,Farm Checking,9100.00
+07/18/2025,Bill,1010,Ziegler CAT,Combine repairs,Repairs and Maintenance,Farm Checking,7780.40
+08/01/2025,Deposit,1011,USDA FSA,ARC-CO payment,Agricultural Program Payments,Farm Checking,4120.00
+09/30/2025,Check,1012,Smith Family Trust,"2025 cash rent, second half",Rent or Lease - Land,Farm Checking,92500.00
+10/10/2025,Transfer,1013,Farm Savings,Transfer to savings,Transfer,Farm Checking,20000.00
+10/24/2025,Expense,1014,Heartland Co-op,Drying and hauling,Custom Hire (Machine Work),Farm Checking,11870.00
+10/30/2025,Expense,1015,Casey's,"Diesel, harvest","Gasoline, Fuel, and Oil",Farm Checking,9810.20
+11/12/2025,Deposit,1016,Heartland Co-op,"42,500 bu corn @ 4.18",Sales of Products Raised,Farm Checking,177650.00
+11/20/2025,Deposit,1017,ADM Des Moines,"21,300 bu soybeans @ 10.42",Sales of Products Raised,Farm Checking,221946.00
+12/15/2025,Check,1018,Ames National Bank,Operating loan interest,Interest,Farm Checking,14260.00
+12/20/2025,Deposit,1019,ADM Des Moines,"6,100 bu soybeans @ 10.55",Sales of Products Raised,Farm Checking,64355.00

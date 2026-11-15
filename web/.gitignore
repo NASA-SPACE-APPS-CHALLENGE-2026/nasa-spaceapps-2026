@@ -46,3 +46,8 @@ next-env.d.ts
 /.cache/
 /test-results/
 /playwright-report/
+
+# browser assets copied from node_modules by scripts/copy-assets.mjs
+/public/pdfjs/
+/public/ocr/
+*.traineddata

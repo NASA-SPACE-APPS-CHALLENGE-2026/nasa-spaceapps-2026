@@ -1,0 +1,17 @@
+Client,Farm,Field,Operation,Start Date,Crop,Product,Avg Rate,Rate Unit,Area (ac)
+Demo Farms,Home,North quarter,Tillage,2024-11-02,,Chisel Plow,,,146
+Demo Farms,Home,North quarter,Application,2025-04-08,Corn,Anhydrous Ammonia 82-0-0,185,lb/ac,146
+Demo Farms,Home,North quarter,Seeding,2025-04-29,Corn,Pioneer P1185Q,34,ksds/ac,146
+Demo Farms,Home,North quarter,Application,2025-06-10,Corn,UAN 28% Solution,9,gal/ac,146
+Demo Farms,Home,North quarter,Harvest,2025-10-14,Corn,,211,bu/ac,146
+Demo Farms,Home,East quarter,Seeding,2025-05-09,Soybeans,Asgrow AG24XF4,142000,seeds/ac,144.6
+Demo Farms,Home,East quarter,Harvest,2025-10-02,Soybeans,,62,bu/ac,144.6
+Demo Farms,Home,Railroad 80,Seeding,2025-05-09,Soybeans,Asgrow AG24XF4,142000,seeds/ac,98
+Demo Farms,Home,Railroad 80,Harvest,2025-10-02,Soybeans,,62,bu/ac,98
+Demo Farms,Home,Home 80,Seeding,2025-05-09,Soybeans,Asgrow AG24XF4,142000,seeds/ac,116.5
+Demo Farms,Home,Home 80,Harvest,2025-10-02,Soybeans,,62,bu/ac,116.5
+Demo Farms,Home,Creek field,Tillage,2024-11-02,,Chisel Plow,,,82.8
+Demo Farms,Home,Creek field,Application,2025-04-08,Corn,Anhydrous Ammonia 82-0-0,185,lb/ac,82.8
+Demo Farms,Home,Creek field,Seeding,2025-04-29,Corn,Pioneer P1185Q,34,ksds/ac,82.8
+Demo Farms,Home,Creek field,Application,2025-06-10,Corn,UAN 28% Solution,9,gal/ac,82.8
+Demo Farms,Home,Creek field,Harvest,2025-10-14,Corn,,211,bu/ac,82.8

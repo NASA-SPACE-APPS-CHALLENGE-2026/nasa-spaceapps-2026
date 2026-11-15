@@ -341,7 +341,7 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
 
   const transparency: TransparencyRow[] = [...P.used].sort().map((id) => {
     const r = P.resolve(id);
-    return { id, label: r.assumption.label, group: r.assumption.group, value: r.value, unit: r.assumption.unit, origin: r.origin, source: r.origin === 'default' ? r.assumption.source : { name: 'You entered', date: 'in PlotTwist' }, confidence: r.origin === 'default' ? r.assumption.confidence : 'high', note: r.assumption.note };
+    return { id, label: r.assumption.label, group: r.assumption.group, value: r.value, unit: r.assumption.unit, origin: r.origin, source: P.sourceOf(id), confidence: r.origin === 'default' ? r.assumption.confidence : 'high', note: r.assumption.note };
   });
 
   const all = [...P.used];

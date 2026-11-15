@@ -6,12 +6,14 @@ import { anchorField, farmFieldInputs } from '../domain/finance/farm';
 import { buildParams } from '../domain/finance/inputs';
 import type { Params } from '../domain/finance/assumptions';
 import { useFarm, useStore } from './StoreProvider';
+import { useEffectiveFinance } from './useEffectiveFinance';
 import type { WeatherState } from './store';
 
 /** Whole-farm finance analysis from the store, recomputed whenever fields, plans or finance inputs change. */
 export function useFarmAnalysis(): { analysis: FarmAnalysis | null; params: Params; weather: WeatherState | undefined; planned: number } {
   const store = useStore();
-  const { fields, plans, finance, weather, loaded } = useFarm();
+  const { fields, plans, weather, loaded } = useFarm();
+  const { finance } = useEffectiveFinance();
   const anchor = anchorField(fields);
   useEffect(() => {
     if (anchor) store.ensureWeather(anchor.id);
