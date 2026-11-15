@@ -216,6 +216,29 @@ describe('USDA Cropland Data Layer (CropScape)', () => {
     expect(f.calls.filter((u) => u.includes('GetCDLFile')).length).toBe(fileCalls); // breaker open
   });
 
+  it('does not prefill a year when no class covers at least half the samples', async () => {
+    let i = 0;
+    const names = ['Corn', 'Soybeans', 'Developed/Low Intensity', 'Grass/Pasture', 'Oats'];
+    const codes = [1, 5, 122, 176, 28];
+    const f = mockFetch([
+      [/GetCDLFile/, () => text('timeout', 504)],
+      [
+        /GetCDLValue\?year=2025/,
+        () => {
+          const k = i++ % 5;
+          return text(`<Result>{x: 1, y: 2, value: ${codes[k]}, category: "${names[k]}", color: "#000"}</Result>`);
+        },
+      ],
+      [/GetCDLValue\?year=2024/, () => text(fixture('cdl-value-2025.xml'))],
+    ]);
+    const r = await detectCdl(AMES_FIELD, [2025, 2024], deps(f), NOW);
+    expect(r.status).toBe('partial');
+    expect(r.years[0]).toMatchObject({ year: 2025, detection: null });
+    expect(r.years[0].message).toMatch(/mix of crops/);
+    expect(r.years[1].detection?.cdlName).toBe('Soybeans');
+    expect(r.message).toMatch(/For 2025, the crop maps show a mix/);
+  });
+
   it('reports unavailable plainly when CropScape is down entirely', async () => {
     const f = mockFetch([[/CDLService/, () => text(fixture('cdl-value-fault.xml'), 500)]]);
     const r = await detectCdl(AMES_FIELD, [2025], deps(f), NOW);

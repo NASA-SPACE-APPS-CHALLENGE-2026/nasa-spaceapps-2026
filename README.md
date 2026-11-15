@@ -25,3 +25,7 @@ Run the provider, field-boundary, and strategy-scoring tests with Node.js:
 ```sh
 node --test tests/*.test.js
 ```
+
+## Milestone 1 web app
+
+The Next.js version of FieldShift (Fields, Imports, and live NASA/USDA/USGS field profiles) is in [`web/`](web/README.md). Run it with `cd web && npm install && npm run dev`.

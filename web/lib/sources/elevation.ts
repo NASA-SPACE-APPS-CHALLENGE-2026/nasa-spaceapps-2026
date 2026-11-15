@@ -101,6 +101,22 @@ export function elevationValues(samples: ElevationSample[]): ProfileValue[] {
   return values;
 }
 
+/**
+ * EPQS is flaky (tested 2026-11-14): instant HTTP 500s and 29-second 504s, even for sequential calls.
+ * Fast 5xx answers are retried twice with a short pause; timeouts are not retried (they already cost ~30 s).
+ */
+async function fetchWithRetry(deps: SourceDeps, url: string, delays = [400, 1200]): Promise<string> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchOkText(deps.fetch, url, { label: 'USGS elevation service', timeoutMs: 35000 });
+    } catch (err) {
+      const retryable = err instanceof SourceError && err.kind === 'http' && (err.status ?? 0) >= 500 && err.status !== 504;
+      if (!retryable || attempt >= delays.length) throw err;
+      await new Promise((r) => setTimeout(r, delays[attempt]));
+    }
+  }
+}
+
 export const elevationSource: ProfileSource = {
   id: 'elevation',
   async run(ctx: SourceContext, deps: SourceDeps): Promise<SourceResult> {
@@ -110,12 +126,12 @@ export const elevationSource: ProfileSource = {
       const points = samplePointsInside(ctx.geometry, 3, 9);
       let fetchedAt: string | undefined;
       let lastError: unknown;
-      const results = await mapLimit(points, 9, async (point) => {
+      const results = await mapLimit(points, 3, async (point) => {
         const [x, y] = point.map((v) => Math.round(v * 1e6) / 1e6);
         const url = `${EPQS_URL}?x=${x}&y=${y}&wkid=4326&units=Meters&includeDate=false`;
         try {
           const res = await deps.cache.getOrFetch(`epqs:${url}`, 365 * DAY, async () => {
-            const text = await fetchOkText(deps.fetch, url, { label: 'USGS elevation service', timeoutMs: 45000 });
+            const text = await fetchWithRetry(deps, url);
             parseEpqs(text); // only cache answers that parse
             return text;
           }, ctx.now);

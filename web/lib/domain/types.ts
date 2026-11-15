@@ -57,6 +57,8 @@ export interface CdlRunState {
   status: 'idle' | 'loading' | 'done' | 'unavailable';
   message?: string;
   checkedAt?: string;
+  /** The browser could not reach our own server (offline, page closed mid-request): retry automatically. */
+  transient?: boolean;
 }
 
 export interface Field {
@@ -100,6 +102,8 @@ export interface SourceResult {
   message?: string;
   docsUrl: string;
   values: ProfileValue[];
+  /** Set by the browser when our own server could not be reached; retried automatically next time. */
+  transient?: boolean;
 }
 
 export interface FieldProfile {

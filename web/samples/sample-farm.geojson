@@ -1,0 +1,166 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "FIELD_NAME": "North 80",
+        "FARM": "Story Co. farm",
+        "CROP_2026": "Corn"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -93.53,
+              42.04
+            ],
+            [
+              -93.524,
+              42.04
+            ],
+            [
+              -93.524,
+              42.0445
+            ],
+            [
+              -93.53,
+              42.0445
+            ],
+            [
+              -93.53,
+              42.04
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FIELD_NAME": "Creek bottom",
+        "FARM": "Story Co. farm"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -93.522,
+              42.04
+            ],
+            [
+              -93.516,
+              42.04
+            ],
+            [
+              -93.516,
+              42.0445
+            ],
+            [
+              -93.522,
+              42.0445
+            ],
+            [
+              -93.522,
+              42.04
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FIELD_NAME": "Split quarter",
+        "FARM": "Story Co. farm"
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                -93.53,
+                42.034
+              ],
+              [
+                -93.526,
+                42.034
+              ],
+              [
+                -93.526,
+                42.037
+              ],
+              [
+                -93.53,
+                42.037
+              ],
+              [
+                -93.53,
+                42.034
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                -93.524,
+                42.034
+              ],
+              [
+                -93.52,
+                42.034
+              ],
+              [
+                -93.52,
+                42.037
+              ],
+              [
+                -93.524,
+                42.037
+              ],
+              [
+                -93.524,
+                42.034
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FIELD_NAME": "Well site"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -93.512,
+          42.036
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FIELD_NAME": "East fence"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -93.516,
+            42.034
+          ],
+          [
+            -93.516,
+            42.0445
+          ]
+        ]
+      }
+    }
+  ]
+}

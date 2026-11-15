@@ -120,3 +120,27 @@ describe('FarmStore + local repositories', () => {
     expect(storage.getItem(`${STORAGE_KEYS.fields}.corrupt`)).toBe('{not json');
   });
 });
+
+describe('transient failures', () => {
+  it('retries lookups that failed because our own server was unreachable', async () => {
+    const storage = new MemoryStorage();
+    const failing: StoreApi = {
+      async fetchSource(source) {
+        return { sourceId: source, sourceName: 'x', docsUrl: '', status: 'unavailable', transient: true, values: [], message: 'FieldShift server could not be reached' };
+      },
+      async fetchCdl() {
+        return { status: 'unavailable', transient: true, years: [], message: 'FieldShift server could not be reached' };
+      },
+    };
+    const first = new FarmStore(createLocalRepositories(storage), failing, NOW);
+    await first.load();
+    await first.addFields([createField({ name: 'A', geometry: squareAroundPoint([-93.6, 42], 40), definedBy: 'pin' })]);
+    await first.idle();
+    const api = fakeApi();
+    const second = new FarmStore(createLocalRepositories(storage), api, NOW);
+    await second.load();
+    await second.idle();
+    expect(api.sourceCalls).toHaveLength(6);
+    expect(api.cdlCalls).toBe(1);
+  });
+});

@@ -30,7 +30,7 @@ export const httpApi: StoreApi = {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as SourceResult;
     } catch (err) {
-      return { sourceId: source, sourceName: meta.provider, docsUrl: meta.docsUrl, status: 'unavailable', values: [], message: `FieldShift server could not be reached (${(err as Error).message}).` };
+      return { sourceId: source, sourceName: meta.provider, docsUrl: meta.docsUrl, status: 'unavailable', transient: true, values: [], message: `FieldShift server could not be reached (${(err as Error).message}).` };
     }
   },
   async fetchCdl(field, years) {
@@ -43,7 +43,7 @@ export const httpApi: StoreApi = {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as CdlResponse;
     } catch (err) {
-      return { status: 'unavailable', message: `FieldShift server could not be reached (${(err as Error).message}). Enter past crops by hand.`, years: [] };
+      return { status: 'unavailable', transient: true, message: `FieldShift server could not be reached (${(err as Error).message}). Enter past crops by hand.`, years: [] };
     }
   },
 };
@@ -122,7 +122,7 @@ export class FarmStore {
       const r = profile.sources[id];
       if (!r || r.status === 'loading') return true;
       const stale = SOURCE_META[id].staleAfterMs;
-      if (r.status === 'unavailable') return false; // manual Refresh retries
+      if (r.status === 'unavailable') return !!r.transient; // provider outages wait for a manual Refresh
       if (stale !== null && r.fetchedAt && now - Date.parse(r.fetchedAt) > stale) return true;
       return false;
     });
@@ -133,7 +133,7 @@ export class FarmStore {
     const field = this.field(fieldId);
     if (!field) return;
     const sources = this.sourcesToFetch(field, this.state.profiles[fieldId]);
-    const needCdl = field.cdl.status === 'idle' || field.cdl.status === 'loading';
+    const needCdl = field.cdl.status === 'idle' || field.cdl.status === 'loading' || (field.cdl.status === 'unavailable' && !!field.cdl.transient);
     if (sources.length || needCdl) this.enqueue(fieldId, sources, needCdl);
   }
 
@@ -221,7 +221,7 @@ export class FarmStore {
             return {
               ...f,
               crops: applyDetections(f.crops, detections),
-              cdl: { status: res.status === 'unavailable' ? 'unavailable' : 'done', message: res.message, checkedAt: this.now().toISOString() },
+              cdl: { status: res.status === 'unavailable' ? 'unavailable' : 'done', message: res.message, checkedAt: this.now().toISOString(), transient: res.transient },
             };
           });
         })(),

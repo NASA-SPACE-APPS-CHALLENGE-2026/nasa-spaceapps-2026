@@ -39,9 +39,9 @@ describe('acreage', () => {
     [160, 42.0],
     [0.5, 30.0],
     [2500, 47.5],
-  ])('pin square of %s ac at lat %s has the requested area within 0.5%%', (acres, lat) => {
+  ])('pin square of %s ac at lat %s has the requested area within 0.05%%', (acres, lat) => {
     const g = squareAroundPoint([-95, lat], acres);
-    expect(Math.abs(acresFromM2(areaM2(g)) - acres) / acres).toBeLessThan(0.005);
+    expect(Math.abs(acresFromM2(areaM2(g)) - acres) / acres).toBeLessThan(0.0005);
   });
 
   it('pin square is centred on the pin and closed', () => {

@@ -36,9 +36,18 @@ export function squareAroundPoint(center: LonLat, acres: number): FieldGeometry 
     throw new RangeError(`Acreage must be between ${MIN_PIN_ACRES} and ${MAX_PIN_ACRES}.`);
   }
   const [lon, lat] = center;
-  const half = Math.sqrt(m2FromAcres(acres)) / 2;
-  const dLat = (half / EARTH_RADIUS_M) * (180 / Math.PI);
-  const dLon = (half / (EARTH_RADIUS_M * Math.cos((lat * Math.PI) / 180))) * (180 / Math.PI);
+  const target = m2FromAcres(acres);
+  const build = (half: number): FieldGeometry => {
+    const dLat = (half / EARTH_RADIUS_M) * (180 / Math.PI);
+    const dLon = (half / (EARTH_RADIUS_M * Math.cos((lat * Math.PI) / 180))) * (180 / Math.PI);
+    return squareRing(lon, lat, dLon, dLat);
+  };
+  // First guess from flat geometry, then one correction against the geodesic area (exact to ~0.01%).
+  const guess = Math.sqrt(target) / 2;
+  return build(guess * Math.sqrt(target / turfArea(build(guess))));
+}
+
+function squareRing(lon: number, lat: number, dLon: number, dLat: number): FieldGeometry {
   const ring: LonLat[] = [
     [lon - dLon, lat - dLat],
     [lon + dLon, lat - dLat],
@@ -46,11 +55,11 @@ export function squareAroundPoint(center: LonLat, acres: number): FieldGeometry 
     [lon - dLon, lat + dLat],
     [lon - dLon, lat - dLat],
   ];
-  return { type: 'Polygon', coordinates: [ring.map(([x, y]) => [round6(x), round6(y)])] };
+  return { type: 'Polygon', coordinates: [ring.map(([x, y]) => [round7(x), round7(y)])] };
 }
 
-function round6(n: number): number {
-  return Math.round(n * 1e6) / 1e6;
+function round7(n: number): number {
+  return Math.round(n * 1e7) / 1e7;
 }
 
 /** A representative point guaranteed to be inside the field (centroid when it is inside). */

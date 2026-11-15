@@ -165,11 +165,17 @@ export interface CdlResponse {
   status: 'ok' | 'partial' | 'unavailable';
   message?: string;
   years: CdlYearResult[];
+  /** Client-side only: our own server was unreachable. */
+  transient?: boolean;
 }
 
-function toDetection(counts: ClassCounts, names: Map<number, string>, method: CdlMethod, fetchedAt: string): CdlDetection | null {
+/** Below this share the field is too mixed to call one crop; the farmer fills that year in. */
+export const MIN_DOMINANT_SHARE = 0.5;
+
+export function toDetection(counts: ClassCounts, names: Map<number, string>, method: CdlMethod, fetchedAt: string): CdlDetection | 'mixed' | null {
   const dom = dominantClass(counts);
   if (!dom) return null;
+  if (dom.share < MIN_DOMINANT_SHARE) return 'mixed';
   return {
     cdlCode: dom.code,
     cdlName: names.get(dom.code) ?? CDL_CLASS_NAMES[dom.code] ?? `CDL class ${dom.code}`,
@@ -180,6 +186,8 @@ function toDetection(counts: ClassCounts, names: Map<number, string>, method: Cd
     fetchedAt,
   };
 }
+
+const MIXED_MESSAGE = 'The crop maps show a mix of crops here, with no single crop covering most of the field.';
 
 export async function detectCdl(geometry: FieldGeometry, years: number[], deps: SourceDeps, now = new Date()): Promise<CdlResponse> {
   if (years.length === 0) return { status: 'ok', years: [] };
@@ -192,6 +200,7 @@ export async function detectCdl(geometry: FieldGeometry, years: number[], deps: 
       try {
         const z = await zonalYear(geometry, year, deps, now);
         const d = toDetection(z.counts, new Map(), 'zonal', z.fetchedAt);
+        if (d === 'mixed') return { year, detection: null, message: MIXED_MESSAGE };
         if (d) return { year, detection: d };
       } catch {
         zonalDownUntil = now.getTime() + BREAKER_MS;
@@ -199,6 +208,7 @@ export async function detectCdl(geometry: FieldGeometry, years: number[], deps: 
     }
     const s = await sampledYear(points, year, deps, now);
     const d = toDetection(s.counts, s.names, 'sampled', s.fetchedAt);
+    if (d === 'mixed') return { year, detection: null, message: MIXED_MESSAGE };
     if (d) return { year, detection: d };
     return { year, detection: null, message: s.lastError ? messageOf(s.lastError) : 'CropScape has no crop data for this field in this year.' };
   });
@@ -207,5 +217,7 @@ export async function detectCdl(geometry: FieldGeometry, years: number[], deps: 
   if (ok === 0) {
     return { status: 'unavailable', message: `USDA CropScape is not responding right now (${results[0]?.message ?? 'no data'}). Please enter past crops by hand; you can retry detection later.`, years: results };
   }
-  return { status: 'partial', message: `Crop history was detected for ${ok} of ${results.length} years; enter the rest by hand.`, years: results };
+  const mixed = results.filter((r) => r.message === MIXED_MESSAGE).map((r) => r.year);
+  const mixedNote = mixed.length ? ` For ${mixed.join(' and ')}, the crop maps show a mix with no clear main crop.` : '';
+  return { status: 'partial', message: `Crop history was detected for ${ok} of ${results.length} years; enter the rest by hand.${mixedNote}`, years: results };
 }

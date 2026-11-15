@@ -1,0 +1,10 @@
+{
+  "name": "FieldShift",
+  "short_name": "FieldShift",
+  "description": "Plan crop rotations for your fields with NASA and USDA data.",
+  "start_url": "/fields",
+  "display": "standalone",
+  "background_color": "#f6f9f7",
+  "theme_color": "#f6f9f7",
+  "icons": [{ "src": "/fieldshift.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FieldShift web app (Milestone 1)
 
-## Getting Started
+Crop-rotation planning for farmers, built for NASA Space Apps 2026 ("Field Shift: Adapting Farms with NASA Data"). This folder is the Next.js app; the original vanilla-JS prototype lives at the repository root.
 
-First, run the development server:
+Milestone 1 delivers:
 
-```bash
+- **App shell** with the tabs Overview, Fields, Rotation Explorer, Planner, Scenario Simulator, Finance and Imports. The app opens on Fields. Tabs other than Fields and Imports are routed "coming soon" pages.
+- **Fields**: add fields by drawing a boundary on USGS satellite imagery, dropping a pin (square, 40 acres by default, resizable), typing coordinates, or starting from a ZIP code and then pinning or drawing. Rename, edit the boundary, move a pin, delete. The farmer enters only the shape, this season's crop (2026) and earlier seasons (3 by default, up to 5). Earlier seasons are prefilled from the USDA Cropland Data Layer and marked "Check this info" until confirmed.
+- **Automatic field profile**: weather and climate (NASA POWER), soil (USDA SSURGO), elevation and slope (USGS 3DEP), plus SMAP, IMERG and NDVI stubs that need an Earthdata token. Each source shows its own status, provider, fetch date, and an honesty label (Measured, Estimated, or Check this info) on every value.
+- **Imports**: five upload cards. **Land boundaries** works: GeoJSON, KML, or a zipped shapefile, parsed in the browser, previewed on a map, and you pick which shapes become fields. The other four cards (machine data, supplier records, finance CSV, yield records) accept files and say plainly that they were received but not processed.
+
+It runs with **zero API keys**.
+
+## Run it
+
+Requires Node.js 20 or newer.
+
+```sh
+cd web
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. To try an import, use `samples/sample-farm.geojson` (fields near Ames, Iowa).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Optional: copy `.env.example` to `.env.local` and set `EARTHDATA_TOKEN` to have the server check a NASA Earthdata token (the SMAP, IMERG and NDVI integrations themselves come in a later milestone).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Test
 
-## Learn More
+```sh
+npm test                 # 72 unit tests (Vitest): acreage, crop history, validation, file parsing, data sources, store
+npx playwright install chromium   # once
+npm run test:e2e         # end-to-end on desktop and phone viewports; reuses a running dev server on :3000
+npm run typecheck
+npm run lint
+```
 
-To learn more about Next.js, take a look at the following resources:
+The data-source tests run against responses recorded from the real endpoints (`tests/fixtures/`), so they need no network. The end-to-end tests mock FieldShift's own `/api/profile/*` and `/api/cdl` routes and walk through the Milestone 1 checklist: ZIP + pin, polygon, crops, GeoJSON import, reload.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> Don't run `npm run build` while `npm run dev` is running: both write to `.next/` and the dev server will start returning errors. Stop the dev server first (or delete `.next/` and restart it).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## How it is put together
 
-## Deploy on Vercel
+```
+app/                    routes: /fields, /imports, five "coming soon" tabs, and API routes
+  api/profile/[source]  runs one data source for a field boundary (server-side)
+  api/cdl               detects past crops from the Cropland Data Layer
+  api/zip/[zip]         ZIP → approximate centre (bundled Census data)
+components/             map (Leaflet + Geoman), fields screen, imports cards, UI pieces
+lib/domain/             types, crop catalogue + CDL mapping, acreage, crop history, validation
+lib/sources/            one module per data source behind a common interface
+lib/server/             fetch with timeouts, disk cache (.cache/), request validation
+lib/repo/               repository interfaces + localStorage adapters
+lib/client/             FarmStore: state + background lookups (2 fields at a time)
+lib/import/             GeoJSON / KML / shapefile parsing and normalisation
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Data model: three separate layers per field
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Field** (`fieldshift.fields`): the GeoJSON shape, how it was defined (polygon, pin, coordinates, ZIP + pin, import), acreage, and crops. Each season records its origin (farmer or CDL) and status (empty, detected, confirmed).
+2. **FieldProfile** (`fieldshift.profiles`): the automatic profile, one result per source, tied to a geometry hash so a changed boundary invalidates it.
+3. **ManagementAnswers** (`fieldshift.management`): reserved for the questionnaire in a later milestone.
+
+Each layer has its own repository interface (`lib/repo/interfaces.ts`), with async methods, so a database can replace `localStorage` without changing callers. Stored data is versioned for future migrations, and unreadable data is set aside instead of being silently dropped.
+
+### Data sources
+
+See [`docs/data-sources.md`](docs/data-sources.md) for endpoints, labels, caching, and what worked when tested live.
+
+## Design notes
+
+The look is a light, cool field-and-sky palette (sky blue for actions, field green, wheat gold) in one typeface, Archivo, with semi-condensed headings. The signature element is the rotation strip on every field: one swatch per season, hatched while a detected crop is unconfirmed. On phones the map fills the screen and the panel becomes a draggable bottom sheet; all controls are at least 44 px tall.

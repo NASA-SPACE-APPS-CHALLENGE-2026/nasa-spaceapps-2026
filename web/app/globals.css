@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-paper: #f6f9f7;
+  --color-panel: #ffffff;
+  --color-ink: #1d2b22;
+  --color-ink-soft: #4a5a50;
+  --color-ink-faint: #75847a;
+  --color-line: #d6e1d9;
+  --color-line-strong: #b9c9bd;
+
+  --color-sky: #2b7fd0;
+  --color-sky-deep: #1d5f9e;
+  --color-sky-tint: #e7f1fb;
+
+  --color-field: #2f6b3a;
+  --color-field-tint: #e4f0e6;
+
+  --color-wheat: #c9971f;
+  --color-wheat-deep: #7d5c0c;
+  --color-wheat-tint: #fbf2d9;
+
+  --color-alert: #b3402a;
+  --color-alert-tint: #fbe9e4;
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-control: 10px;
+  --radius-panel: 16px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: 'tnum' 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-plate {
+  font-stretch: 87.5%;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-sky);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Leaflet controls in the app's voice */
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: #dfe8e2;
+}
+.leaflet-bar a {
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  color: var(--color-ink);
+}
+.leaflet-tooltip.field-label {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  color: var(--color-ink);
+  font-weight: 600;
+  padding: 2px 8px;
+  box-shadow: none;
+}
+.leaflet-tooltip.field-label::before {
+  display: none;
+}
+.pin-icon {
+  background: none;
+  border: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid var(--color-sky-tint);
+  border-top-color: var(--color-sky);
+  animation: spin 0.8s linear infinite;
 }
