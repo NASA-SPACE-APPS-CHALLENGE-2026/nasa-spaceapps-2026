@@ -31,6 +31,8 @@ export interface Reason {
   text: string;
   /** Points this reason added to (or took from) the bar. Absent = context only. */
   effect?: number;
+  /** The reason that sets the bar's starting point (shown first in summaries). */
+  headline?: boolean;
   sources: ReasonSource[];
 }
 
@@ -90,6 +92,11 @@ class Bar {
   }
   note(text: string, sources: ReasonSource[]) {
     this.reasons.push({ text, sources });
+  }
+  /** Set the starting score and explain it. */
+  start(base: number, text: string, sources: ReasonSource[]) {
+    this.score = base;
+    this.reasons.push({ text, sources, headline: true });
   }
   /** Missing optional input: half the unfavourable adjustment, one confidence level lower, and say so. */
   assume(unfavourable: number, what: string, text: string, sources: ReasonSource[]) {
@@ -159,7 +166,7 @@ function soilCoverBar(st: Strategy, inputs: RotationInputs, firstYear: number): 
   const months = coveredMonths(st.seasons, firstYear);
   const base = (100 * (months.living + 0.5 * months.residue)) / months.total;
   const bar = new Bar('soilCover', 0, 'high');
-  bar.add(
+  bar.start(
     base,
     `Living plants cover the soil about ${months.living} of the ${months.total} months from ${firstYear} to ${firstYear + PLAN_YEARS - 1}${months.residue ? `, and winter-killed cover residue protects it ${months.residue} more` : ''}.`,
     [...cite('nass-dates'), { kind: 'history', text: 'Usual planting and harvest months for each crop in this strategy' }],
@@ -195,7 +202,7 @@ function diversityBar(st: Strategy, inputs: RotationInputs, knownSeasons: number
   const seasonsUsed = new Set(cash.map((id) => agronomyOf(id)?.season));
   const bar = new Bar('diversity', 20, unconfirmed ? 'medium' : 'high');
   const extraFamilies = Math.min(3, families.size - 1);
-  bar.note(`Starts at 20 for a single crop family.`, cite('nrcs-328'));
+  bar.start(20, 'Starts at 20 for a single crop family.', cite('nrcs-328'));
   if (extraFamilies > 0) bar.add(20 * extraFamilies, `${families.size} plant families (${[...families].join(', ')}) over ${PLAN_YEARS} years.`, cite('nrcs-328', 'davis-2012'));
   if (cash.length >= 3) bar.add(10, `${cash.length} different cash crops (${cash.map(cropName).join(', ')}).`, cite('davis-2012'));
   if (seasonsUsed.has('warm') && (seasonsUsed.has('cool') || seasonsUsed.has('perennial'))) {
@@ -217,6 +224,7 @@ function pestsBar(st: Strategy, inputs: RotationInputs, knownSeasons: number, un
   const current = inputs.seasons[inputs.seasons.length - 1].ids!;
   const seq: string[][] = [current, ...st.seasons.map(seasonIds)];
   const bar = new Bar('pests', 50, unconfirmed ? 'medium' : 'high');
+  bar.start(50, 'Starts at 50, then rises or falls with how often host crops repeat.', cite('nrcs-328'));
 
   // Longest run of the same crop that touches a planned season.
   let longest = 1;
@@ -311,7 +319,7 @@ function climateBar(st: Strategy, inputs: RotationInputs): BarScore {
   bar.note('Based on 30-year normals for a roughly 50 km NASA POWER grid cell, not your field’s own weather.', [climateSrc]);
 
   if (st.id === 'keep') {
-    bar.add(70, 'You already grow these crops here, which is good evidence they suit the climate.', [{ kind: 'history', text: 'Your crop history' }]);
+    bar.start(70, 'Starts at 70: you already grow these crops here, which is good evidence they suit the climate.', [{ kind: 'history', text: 'Your crop history' }]);
     const summerRain = sum([5, 6, 7, 8]);
     if (st.seasons.some((s) => s.ids.includes('corn')) && summerRain < 12) {
       if (irrigation === 'none') bar.add(-10, `Only about ${summerRain} in of normal May–August rain for rain-fed corn.`, [climateSrc, answer(iq, IRRIGATION_LABELS.none)]);
@@ -322,7 +330,7 @@ function climateBar(st: Strategy, inputs: RotationInputs): BarScore {
   }
 
   if (st.id === 'cover') {
-    bar.add(60, 'Starts at 60: a cover crop has to establish in the short window after harvest.', cite('sare-mccp'));
+    bar.start(60, 'Starts at 60: a cover crop has to establish in the short window after harvest.', cite('sare-mccp'));
     const gap = st.seasons.find((s) => s.cover);
     if (gap?.cover) {
       const sp = gap.cover.pick.species;
@@ -342,7 +350,7 @@ function climateBar(st: Strategy, inputs: RotationInputs): BarScore {
   }
 
   // small grains
-  bar.add(65, 'Starts at 65: small grains are widely adapted across the central and northern US.', cite('davis-2012'));
+  bar.start(65, 'Starts at 65: small grains are widely adapted across the central and northern US.', cite('davis-2012'));
   const june = c.monthlyMeanTempF[5];
   if (june >= 77) bar.add(-10, `June averages about ${Math.round(june)} °F, and heat during grain fill cuts small-grain yield.`, [climateSrc, ...cite('farooq-2011')]);
   else bar.note(`June averages about ${Math.round(june)} °F, mild enough for small-grain fill.`, [climateSrc, ...cite('farooq-2011')]);
