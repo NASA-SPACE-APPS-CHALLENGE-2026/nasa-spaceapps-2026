@@ -1,5 +1,43 @@
 @import "tailwindcss";
 
+/* Keep Google's language picker and attribution intact, across both layouts. */
+.translation-control {
+  position: fixed;
+  inset-inline-end: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 1200;
+  color: #203329;
+  font: 14px/1.5 Arial, sans-serif;
+}
+.translation-control > summary {
+  cursor: pointer;
+  list-style: none;
+  border: 1px solid #b8c9be;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: white;
+  box-shadow: 0 2px 12px #0002;
+}
+.translation-control > summary::-webkit-details-marker { display: none; }
+.translation-control > summary:focus-visible,
+.translation-control button:focus-visible { outline: 3px solid #2b7fd0; outline-offset: 3px; }
+.translation-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  inset-inline-end: 0;
+  width: min(300px, calc(100vw - 32px));
+  border: 1px solid #b8c9be;
+  border-radius: 12px;
+  padding: 16px;
+  background: white;
+  box-shadow: 0 4px 24px #0003;
+}
+.translation-panel p { margin-bottom: 10px; }
+[dir="rtl"] .translation-panel { right: auto; left: 0; }
+.translation-panel select { max-width: 100%; min-height: 44px; color: #203329; background: white; }
+.translation-note { margin-top: 12px; font-size: 12px; color: #52635a; }
+.translation-panel button { min-height: 44px; color: #1763a5; text-decoration: underline; cursor: pointer; }
+
 @theme {
   --color-paper: #f6f9f7;
   --color-panel: #ffffff;
