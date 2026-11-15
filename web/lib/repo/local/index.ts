@@ -1,3 +1,4 @@
+import { parseFinance } from '../../domain/finance/inputs';
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan } from '../../domain/types';
 import type { Repositories } from '../interfaces';
 import { FIELDS_MIGRATIONS, FIELDS_VERSION } from './migrations';
@@ -9,6 +10,7 @@ export const STORAGE_KEYS = {
   management: 'fieldshift.management',
   plans: 'fieldshift.plans',
   settings: 'fieldshift.settings',
+  finance: 'fieldshift.finance',
 } as const;
 
 export const DEFAULT_SETTINGS: FarmSettings = { externalLookups: true };
@@ -24,6 +26,7 @@ export function createLocalRepositories(storage: KeyValueStorage): Repositories 
   const management = new VersionedCollection<ManagementAnswers>(storage, STORAGE_KEYS.management);
   const plans = new VersionedCollection<Plan>(storage, STORAGE_KEYS.plans);
   const settings = new VersionedCollection<FarmSettings>(storage, STORAGE_KEYS.settings);
+  const finance = new VersionedCollection<unknown>(storage, STORAGE_KEYS.finance);
 
   return {
     fields: {
@@ -106,6 +109,14 @@ export function createLocalRepositories(storage: KeyValueStorage): Repositories 
         const all = plans.read();
         for (const [id, p] of Object.entries(all)) if (p.fieldId === fieldId) delete all[id];
         plans.write(all);
+      },
+    },
+    finance: {
+      async get() {
+        return parseFinance(finance.read().farm);
+      },
+      async save(inputs) {
+        finance.write({ farm: inputs });
       },
     },
     settings: {

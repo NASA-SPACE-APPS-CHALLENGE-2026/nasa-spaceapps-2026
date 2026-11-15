@@ -1,0 +1,102 @@
+import { cropIdsOf } from '../rotation/agronomy';
+import { COVER_SPECIES } from '../rotation/coverCrops';
+import { detectCycle } from '../rotation/strategies';
+import type { Field, Plan, PlanSeason } from '../types';
+import type { PlanCoverCrop, SeasonPlan } from './budget';
+
+/**
+ * Turn a field's crop history and its Planner plan into the season sequences the finance engine compares:
+ *   - "current": the rotation the farmer has been following, carried forward
+ *   - "proposed": the PlotTwist schedule from the Planner
+ */
+
+export function coverOf(planCover: PlanSeason['cover']): PlanCoverCrop | undefined {
+  if (!planCover) return undefined;
+  const sp = COVER_SPECIES.find((c) => c.id === planCover.species);
+  return { id: planCover.species, name: planCover.name, legume: sp?.family === 'legumes', winterKills: sp?.winterKills ?? false };
+}
+
+/** Known seasons oldest first, as crop-id arrays (unknown seasons skipped). */
+export function knownHistory(field: Field): Array<{ year: number; ids: string[] }> {
+  return [...field.crops.history]
+    .reverse()
+    .concat(field.crops.current)
+    .map((s) => ({ year: s.year, ids: cropIdsOf(s.crop) }))
+    .filter((s): s is { year: number; ids: string[] } => !!s.ids && s.ids.length > 0);
+}
+
+/** The repeating pattern of the farmer's own rotation, e.g. [["corn"],["soybeans"]]. Empty if nothing is known. */
+export function currentCycle(field: Field): string[][] {
+  const known = knownHistory(field);
+  return known.length ? detectCycle(known.map((k) => k.ids)) : [];
+}
+
+/** Carry a cycle forward from the season after `lastYear`, continuing where the known sequence left off. */
+function carryForward(cycle: string[][], lastIds: string[] | undefined, years: number[]): SeasonPlan[] {
+  if (!cycle.length) return years.map((year) => ({ year, crops: [] }));
+  const key = (ids: string[]) => ids.join('>');
+  const at = lastIds ? cycle.findIndex((c) => key(c) === key(lastIds)) : -1;
+  return years.map((year, i) => ({ year, crops: cycle[(at + 1 + i) % cycle.length] }));
+}
+
+export function horizonYears(field: Field, horizon: number): number[] {
+  const first = field.crops.current.year + 1;
+  return Array.from({ length: horizon }, (_, i) => first + i);
+}
+
+/** What the field is doing this year (the season before the plan starts). */
+export function thisSeason(field: Field): SeasonPlan {
+  return { year: field.crops.current.year, crops: cropIdsOf(field.crops.current.crop) ?? [] };
+}
+
+export function currentPlanSeasons(field: Field, horizon: number): SeasonPlan[] {
+  const known = knownHistory(field);
+  return carryForward(currentCycle(field), known[known.length - 1]?.ids, horizonYears(field, horizon));
+}
+
+/**
+ * The Planner plan for the horizon years. Years the plan does not cover continue the plan's own pattern;
+ * with no plan at all the field stays on its current rotation.
+ */
+export function proposedPlanSeasons(field: Field, plan: Plan | undefined, horizon: number): SeasonPlan[] {
+  const years = horizonYears(field, horizon);
+  if (!plan) return currentPlanSeasons(field, horizon);
+  const planned = plan.seasons
+    .filter((s) => s.year > field.crops.current.year)
+    .map((s) => ({ year: s.year, crops: cropIdsOf(s.crop) ?? [], cover: coverOf(s.cover) }))
+    .filter((s) => s.crops.length > 0);
+  if (!planned.length) return currentPlanSeasons(field, horizon);
+  const byYear = new Map(planned.map((s) => [s.year, s]));
+  const cycle = detectCycle(planned.map((s) => s.crops));
+  const covers = new Map(planned.map((s) => [s.crops.join('>'), s.cover]));
+  const lastPlanned = planned[planned.length - 1];
+  const extra = carryForward(cycle, lastPlanned.crops, years.filter((y) => y > lastPlanned.year));
+  return years.map((year) => {
+    const p = byYear.get(year);
+    if (p) return p;
+    const e = extra.find((x) => x.year === year);
+    if (e) return { ...e, cover: covers.get(e.crops.join('>')) };
+    return { year, crops: [] };
+  });
+}
+
+/** Months of the year with living cover (cash crop or cover crop), counting this season's cover into next spring. */
+export function coverMonths(season: SeasonPlan, plantMonth: (id: string) => number, harvestMonth: (id: string) => number): number {
+  const covered = new Set<number>();
+  for (const id of season.crops) {
+    if (id === 'fallow') continue;
+    const p = plantMonth(id);
+    const h = harvestMonth(id);
+    if (p <= h) for (let m = p; m <= h; m++) covered.add(m);
+    else {
+      for (let m = 1; m <= h; m++) covered.add(m);
+      for (let m = p; m <= 12; m++) covered.add(m);
+    }
+  }
+  if (season.cover) {
+    const lastHarvest = Math.max(0, ...season.crops.map(harvestMonth));
+    for (let m = Math.min(12, lastHarvest + 1); m <= 12; m++) covered.add(m);
+    if (!season.cover.winterKills) for (let m = 1; m <= 4; m++) covered.add(m);
+  }
+  return covered.size;
+}

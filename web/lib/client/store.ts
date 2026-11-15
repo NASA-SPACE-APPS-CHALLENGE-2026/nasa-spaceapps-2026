@@ -5,6 +5,9 @@ import type { CdlDetection, FarmSettings, Field, FieldProfile, ManagementAnswers
 import type { Repositories } from '../repo/interfaces';
 import { DEFAULT_SETTINGS } from '../repo/local';
 import type { CdlResponse } from '../sources/cdl';
+import { DEFAULT_FINANCE, type FinanceInputs } from '../domain/finance/inputs';
+import { classifyYears, type MonthlyWeather, type WeatherHistory } from '../domain/finance/weather';
+import { interiorPoint } from '../domain/acreage';
 
 export interface FarmState {
   loaded: boolean;
@@ -14,12 +17,19 @@ export interface FarmState {
   management: Record<string, ManagementAnswers>;
   /** Layer 4, oldest first. */
   plans: Plan[];
+  /** Layer 5: Finance tab and Simulator inputs. */
+  finance: FinanceInputs;
+  /** 40-year NASA POWER weather per field (not persisted; the server caches it). */
+  weather: Record<string, WeatherState>;
   settings: FarmSettings;
 }
+
+export type WeatherState = { status: 'loading' } | { status: 'ok'; history: WeatherHistory; fetchedAt: string } | { status: 'unavailable'; message: string };
 
 export interface StoreApi {
   fetchSource(source: SourceId, field: Field): Promise<SourceResult>;
   fetchCdl(field: Field, years: number[]): Promise<CdlResponse>;
+  fetchWeatherHistory?(field: Field): Promise<{ years: MonthlyWeather[]; fetchedAt: string } | { error: string }>;
 }
 
 /** Calls our own Next.js API routes; all third-party requests happen server-side. */
@@ -36,6 +46,17 @@ export const httpApi: StoreApi = {
       return (await res.json()) as SourceResult;
     } catch (err) {
       return { sourceId: source, sourceName: meta.provider, docsUrl: meta.docsUrl, status: 'unavailable', transient: true, values: [], message: `PlotTwist server could not be reached (${(err as Error).message}).` };
+    }
+  },
+  async fetchWeatherHistory(field) {
+    const [lon, lat] = interiorPoint(field.feature.geometry);
+    try {
+      const res = await fetch('/api/weather-history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lon, lat }) });
+      const body = (await res.json()) as { years?: MonthlyWeather[]; fetchedAt?: string; error?: string };
+      if (!res.ok || !body.years) return { error: body.error ?? `HTTP ${res.status}` };
+      return { years: body.years, fetchedAt: body.fetchedAt ?? new Date().toISOString() };
+    } catch (err) {
+      return { error: `PlotTwist server could not be reached (${(err as Error).message}).` };
     }
   },
   async fetchCdl(field, years) {
@@ -60,7 +81,7 @@ const FIELD_CONCURRENCY = 2;
  * Background work is queued (2 fields at a time); each field's sources run in parallel and land independently.
  */
 export class FarmStore {
-  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], settings: DEFAULT_SETTINGS };
+  private state: FarmState = { loaded: false, fields: [], profiles: {}, management: {}, plans: [], finance: DEFAULT_FINANCE, weather: {}, settings: DEFAULT_SETTINGS };
   private listeners = new Set<() => void>();
   private queue: Array<() => Promise<void>> = [];
   private running = 0;
@@ -84,11 +105,12 @@ export class FarmStore {
   }
 
   async load(): Promise<void> {
-    const [fields, profiles, management, plans, settings] = await Promise.all([
+    const [fields, profiles, management, plans, finance, settings] = await Promise.all([
       this.repos.fields.list(),
       this.repos.profiles.list(),
       this.repos.management.list(),
       this.repos.plans.list(),
+      this.repos.finance.get(),
       this.repos.settings.get(),
     ]);
     this.set({
@@ -97,6 +119,7 @@ export class FarmStore {
       profiles: Object.fromEntries(profiles.map((p) => [p.fieldId, p])),
       management: Object.fromEntries(management.map((m) => [m.fieldId, m])),
       plans,
+      finance,
       settings,
     });
     for (const f of fields) this.ensureLookups(f.id);
@@ -166,6 +189,27 @@ export class FarmStore {
   async deletePlan(id: string): Promise<void> {
     this.set({ plans: this.state.plans.filter((p) => p.id !== id) });
     await this.repos.plans.remove(id);
+  }
+
+  // ---------- Layer 5: finance ----------
+
+  async saveFinance(finance: FinanceInputs): Promise<void> {
+    const next = { ...finance, updatedAt: this.now().toISOString() };
+    this.set({ finance: next });
+    await this.repos.finance.save(next);
+  }
+
+  /** Load 40 years of weather for a field once per session (Finance risk view and Simulator scenarios). */
+  ensureWeather(fieldId: string): void {
+    const field = this.field(fieldId);
+    if (!field || !this.state.settings.externalLookups || !this.api.fetchWeatherHistory) return;
+    const cur = this.state.weather[fieldId];
+    if (cur && cur.status !== 'unavailable') return;
+    this.set({ weather: { ...this.state.weather, [fieldId]: { status: 'loading' } } });
+    void this.api.fetchWeatherHistory(field).then((res) => {
+      const state: WeatherState = 'error' in res ? { status: 'unavailable', message: res.error } : { status: 'ok', history: classifyYears(res.years), fetchedAt: res.fetchedAt };
+      this.set({ weather: { ...this.state.weather, [fieldId]: state } });
+    });
   }
 
   // ---------- background lookups ----------

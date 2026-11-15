@@ -1,3 +1,4 @@
+import type { FinanceInputs } from '../domain/finance/inputs';
 import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan } from '../domain/types';
 
 /**
@@ -37,6 +38,12 @@ export interface PlanRepository {
   removeForField(fieldId: string): Promise<void>;
 }
 
+/** Layer 5: the Finance tab's numbers and the Simulator's per-field inputs (one record per farm). */
+export interface FinanceRepository {
+  get(): Promise<FinanceInputs>;
+  save(inputs: FinanceInputs): Promise<void>;
+}
+
 export interface SettingsRepository {
   get(): Promise<FarmSettings>;
   save(settings: FarmSettings): Promise<void>;
@@ -47,5 +54,6 @@ export interface Repositories {
   profiles: ProfileRepository;
   management: ManagementRepository;
   plans: PlanRepository;
+  finance: FinanceRepository;
   settings: SettingsRepository;
 }
