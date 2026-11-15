@@ -30,7 +30,7 @@ export function FinanceScreen() {
       const k = cropKeyOf(id);
       if (k) keys.add(k);
     }
-    return (['corn', 'soybeans', 'oats', 'wheat'] as CropKey[]).filter((k) => keys.has(k));
+    return (['corn', 'soybeans', 'oats', 'wheat', 'rice', 'sorghum', 'cotton'] as CropKey[]).filter((k) => keys.has(k));
   }, [fields, plans, finance]);
 
   return (

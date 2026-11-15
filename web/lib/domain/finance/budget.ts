@@ -6,7 +6,7 @@ import { ACTUAL_CATS, type Params } from './assumptions';
  * Each cost is tagged with a category and the season of the year the money goes out, for the cash-flow view.
  */
 
-export type CropKey = 'corn' | 'soybeans' | 'oats' | 'wheat';
+export type CropKey = 'corn' | 'soybeans' | 'oats' | 'wheat' | 'rice' | 'sorghum' | 'cotton';
 export type CostCat = 'seed' | 'fertilizer' | 'chemicals' | 'insurance' | 'machinery' | 'labor' | 'interest' | 'land' | 'cover' | 'irrigation' | 'other';
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 
@@ -31,6 +31,9 @@ export function cropKeyOf(id: string): CropKey | null {
   if (id === 'soybeans') return 'soybeans';
   if (['oats', 'barley', 'rye', 'triticale'].includes(id)) return 'oats';
   if (['winter-wheat', 'spring-wheat', 'durum-wheat'].includes(id)) return 'wheat';
+  if (id === 'rice') return 'rice';
+  if (id === 'sorghum') return 'sorghum';
+  if (id === 'cotton') return 'cotton';
   return null;
 }
 
@@ -79,6 +82,7 @@ export interface CropYield {
   key: CropKey | null;
   bu: number;
   price: number;
+  unit: 'bu' | 'cwt' | 'lb';
 }
 
 export interface SeasonBudget {
@@ -96,7 +100,7 @@ export interface SeasonBudget {
   nLbs: number;
   yields: CropYield[];
   coverAcres: number;
-  /** Crops with no budget (kept at land cost only and flagged). */
+  /** Crops with no budget. Callers flag them and withhold incomplete financial totals. */
   unmodeled: string[];
 }
 
@@ -132,7 +136,7 @@ export function seasonBudget(season: SeasonPlan, prev: SeasonPlan | undefined, s
       return;
     }
     let yieldBu = 0;
-    let price = P.get(`${key}.price`) + basis;
+    let price = P.get(`${key}.price`) + (key === 'rice' || key === 'cotton' ? 0 : basis);
     const weatherFactor = weather ? (weather.stressed.has(key) ? 1 - P.get(key === 'corn' ? 'risk.cornLoss' : key === 'soybeans' ? 'risk.soybeansLoss' : 'risk.smallGrainLoss') / 100 : weather.good.has(key) ? 1 + P.get('risk.goodYearGain') / 100 : 1) : 1;
     let preInputs = 0;
 
@@ -169,7 +173,7 @@ export function seasonBudget(season: SeasonPlan, prev: SeasonPlan | undefined, s
       add('machinery', 'fall', P.get('soybeans.machineryHarvest'));
       add('labor', 'summer', P.get('soybeans.labor'));
       preInputs = seed + fert + P.get('soybeans.herbicide') + P.get('soybeans.insurance') + P.get('soybeans.misc') + P.get('soybeans.machineryPre') * tillageFactor * VARIABLE_SHARE_OF_PRE_MACHINERY;
-    } else {
+    } else if (key === 'oats' || key === 'wheat') {
       // Small grains: oats budget; wheat swaps in its own yield, price, seed and nitrogen.
       const wheat = key === 'wheat';
       yieldBu = P.get(wheat ? 'wheat.yield' : 'oats.yield');
@@ -193,6 +197,33 @@ export function seasonBudget(season: SeasonPlan, prev: SeasonPlan | undefined, s
         add('machinery', 'summer', P.get('oats.strawCost'));
       }
       preInputs = seed + fert + P.get('oats.herbicide') + P.get('oats.insurance') + P.get('oats.machineryPre') * tillageFactor * VARIABLE_SHARE_OF_PRE_MACHINERY;
+    } else {
+      // USDA ERS 2026F national budgets. Land opportunity cost is excluded because owned land is the default.
+      yieldBu = P.get(`${key}.yield`);
+      const seed = P.get(`${key}.seed`);
+      const n = P.get(`${key}.nLbs`);
+      const fert = n * P.get('n.price') + P.get(`${key}.fertilizerOther`);
+      const chemicals = P.get(`${key}.chemicals`);
+      const machinery = P.get(`${key}.machinery`) * tillageFactor;
+      nLbs += n;
+      add('seed', 'spring', seed);
+      add('fertilizer', 'spring', fert);
+      add('chemicals', 'spring', chemicals);
+      add('machinery', 'spring', machinery * 0.6);
+      add('machinery', 'fall', machinery * 0.4);
+      add('labor', 'summer', P.get(`${key}.labor`));
+      add('insurance', 'summer', P.get(`${key}.insurance`));
+      add('interest', 'fall', P.get(`${key}.interest`));
+      add('other', 'fall', P.get(`${key}.other`));
+      if (key === 'sorghum') {
+        revenueBy['Sorghum grazing and silage'] = P.get('sorghum.secondaryRevenue') * weatherFactor;
+        revenueSeason['Sorghum grazing and silage'] = 'fall';
+      } else if (key === 'cotton') {
+        revenueBy.Cottonseed = P.get('cotton.seedYield') * P.get('cotton.seedPrice') * weatherFactor;
+        revenueSeason.Cottonseed = 'fall';
+      }
+      // Interest is supplied directly by the ERS budget above.
+      preInputs = 0;
     }
 
     yieldBu *= weatherFactor * (1 + irrigatedGain);
@@ -201,7 +232,7 @@ export function seasonBudget(season: SeasonPlan, prev: SeasonPlan | undefined, s
     const name = cropName(id);
     revenueBy[name] = (revenueBy[name] ?? 0) + yieldBu * price;
     revenueSeason[name] = key === 'oats' || key === 'wheat' ? 'summer' : 'fall';
-    yields.push({ crop: id, key, bu: Math.round(yieldBu * 10) / 10, price });
+    yields.push({ crop: id, key, bu: Math.round(yieldBu * 10) / 10, price, unit: key === 'rice' ? 'cwt' : key === 'cotton' ? 'lb' : 'bu' });
   });
 
   // Cover crop seeded after this season's cash crop (ended next spring unless winter kills it).

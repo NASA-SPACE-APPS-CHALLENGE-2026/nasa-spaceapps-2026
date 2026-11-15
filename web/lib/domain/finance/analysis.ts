@@ -44,9 +44,9 @@ export interface PlanYear {
 }
 
 const SEASONS: Season[] = ['spring', 'summer', 'fall', 'winter'];
-const PRICE_IDS = ['corn.price', 'soybeans.price', 'oats.price', 'wheat.price', 'oats.strawPrice'];
-const YIELD_IDS = ['corn.yield', 'corn.yieldAfterCorn', 'soybeans.yield', 'oats.yield', 'wheat.yield', 'oats.strawTons'];
-const FERT_IDS = ['n.price', 'p.price', 'k.price'];
+const PRICE_IDS = ['corn.price', 'soybeans.price', 'oats.price', 'wheat.price', 'oats.strawPrice', 'rice.price', 'sorghum.price', 'cotton.price', 'cotton.seedPrice'];
+const YIELD_IDS = ['corn.yield', 'corn.yieldAfterCorn', 'soybeans.yield', 'oats.yield', 'wheat.yield', 'oats.strawTons', 'rice.yield', 'sorghum.yield', 'cotton.yield', 'cotton.seedYield'];
+const FERT_IDS = ['n.price', 'p.price', 'k.price', 'rice.fertilizerOther', 'sorghum.fertilizerOther', 'cotton.fertilizerOther'];
 
 function scaled(P: Params, ids: string[], factor: number): Params {
   return P.with(Object.fromEntries(ids.map((id) => [id, P.get(id) * factor])));
@@ -244,6 +244,7 @@ export interface BreakEven {
   breakEvenPrice: number;
   yieldBu: number;
   breakEvenYield: number;
+  unit: 'bu' | 'cwt' | 'lb';
 }
 
 export interface ProgramNote {
@@ -283,19 +284,21 @@ export interface FarmAnalysis {
 function breakEvens(fields: FarmFieldInput[], P: Params): BreakEven[] {
   const keys = new Set<string>();
   for (const f of fields) for (const s of [...f.current, ...f.proposed]) for (const id of s.crops) if (cropKeyOf(id)) keys.add(id);
-  const setup = fields[0]?.setup ?? { acres: 1, tenure: 'cash' as const, irrigated: false };
+  const setup = fields[0]?.setup ?? { acres: 1, tenure: 'own' as const, irrigated: false };
   return [...keys].map((id) => {
     const prev: SeasonPlan | undefined = id === 'corn' ? { year: 0, crops: ['soybeans'] } : id === 'soybeans' ? { year: 0, crops: ['corn'] } : undefined;
     const b = seasonBudget({ year: 0, crops: [id] }, prev, { ...setup, acres: 1 }, P);
     const y = b.yields[0];
-    const strawPerAcre = b.revenueBy['Oat straw'] ?? 0;
+    const cropRevenueName = cropName(id);
+    const secondaryRevenue = Object.entries(b.revenueBy).reduce((sum, [name, value]) => sum + (name === cropRevenueName ? 0 : value), 0);
     return {
       crop: cropName(id),
       costPerAcre: b.totalCost,
       price: y.price,
-      breakEvenPrice: y.bu > 0 ? (b.totalCost - strawPerAcre) / y.bu : 0,
+      breakEvenPrice: y.bu > 0 ? (b.totalCost - secondaryRevenue) / y.bu : 0,
       yieldBu: y.bu,
-      breakEvenYield: y.price > 0 ? (b.totalCost - strawPerAcre) / y.price : 0,
+      breakEvenYield: y.price > 0 ? (b.totalCost - secondaryRevenue) / y.price : 0,
+      unit: y.unit,
     };
   });
 }
@@ -347,7 +350,10 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
   const all = [...P.used];
   const pick = (prefixes: string[]) => all.filter((id) => prefixes.some((p) => id.startsWith(p)));
   const overall = confidenceOf(P, all.filter((id) => !id.startsWith('risk.') && !id.startsWith('practice.') && !id.startsWith('fsa.')));
-  const unmodeled = [...new Set(fields.flatMap((f) => [...f.current, ...f.proposed].flatMap((s) => s.crops.filter((id) => id !== 'fallow' && !cropKeyOf(id)).map(cropName))))];
+  const unmodeled = [...new Set(fields.flatMap((f) => [...f.current, ...f.proposed].flatMap((s) => {
+    if (s.crops.length === 0) return [`${f.name}, ${s.year}: crop not entered`];
+    return s.crops.filter((id) => id !== 'fallow' && !cropKeyOf(id)).map((id) => `${f.name}, ${s.year}: ${cropName(id)}`);
+  })))];
   const confidence = {
     headline: overall,
     comparison: overall,

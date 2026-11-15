@@ -13,6 +13,7 @@ export const TABS = [
   { href: '/simulator', label: 'Scenario Simulator' },
   { href: '/finance', label: 'Finance' },
   { href: '/imports', label: 'Imports' },
+  { href: '/export', label: 'Export' },
 ] as const;
 
 export function AppHeader() {

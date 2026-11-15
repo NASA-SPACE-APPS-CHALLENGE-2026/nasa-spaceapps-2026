@@ -19,7 +19,8 @@ export function fieldSetup(field: Field, finance: FinanceInputs, sim?: Simulator
   const f = finance.fields[field.id] ?? {};
   return {
     acres: sim?.acres && sim.acres > 0 ? sim.acres : fieldAcres(field, finance),
-    tenure: f.tenure ?? 'cash',
+    // PlotTwist assumes the farmer owns the land unless rent is explicitly entered.
+    tenure: f.tenure ?? 'own',
     rentPerAcre: f.rentPerAcre,
     sharePct: f.sharePct,
     irrigated: f.irrigated ?? false,
