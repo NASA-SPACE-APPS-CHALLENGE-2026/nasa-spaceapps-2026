@@ -1,33 +1,38 @@
 import Link from 'next/link';
 import { WheatRow } from '../art/Logo';
 
-export interface PageAction {
-  href: string;
-  label: string;
-}
+const LINK = 'inline-flex min-h-12 items-center rounded-[var(--radius-control)] px-5 font-semibold';
 
-const DEFAULT_ACTIONS: PageAction[] = [{ href: '/fields', label: 'Go to Fields' }];
-
-export function ComingSoon({ title, children, actions = DEFAULT_ACTIONS }: { title: string; children: React.ReactNode; actions?: PageAction[] }) {
+/** Placeholder for tabs that are planned but not built yet. It says what exists today and links there. */
+export function ComingSoon({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="h-full overflow-y-auto">
       <section className="mx-auto max-w-2xl px-4 py-12 lg:py-20">
         <WheatRow className="mb-6 h-20 w-40" />
         <h1 className="font-plate text-3xl">{title}</h1>
-        <p className="mt-2 text-lg text-ink-soft">Coming in a later milestone.</p>
+        <p className="mt-2 text-lg text-ink-soft">Not built yet. It is planned for a later milestone.</p>
         <div className="mt-6 space-y-3 text-[17px] leading-relaxed text-ink">{children}</div>
-        <div className="mt-8 flex flex-wrap gap-2">
-          {actions.map((a, i) => (
-            <Link
-              key={a.href}
-              href={a.href}
-              className={`inline-flex min-h-12 items-center rounded-[var(--radius-control)] px-5 font-semibold ${
-                i === 0 ? 'bg-sky text-white hover:bg-sky-deep' : 'border border-line-strong bg-panel text-sky-deep hover:border-sky'
-              }`}
-            >
-              {a.label}
+        <div className="mt-8 rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+          <p className="text-[15px] font-semibold">What you can use today</p>
+          <ul className="mt-2 space-y-1 text-[15px] text-ink-soft">
+            <li>
+              <strong className="text-ink">Fields</strong>: draw your fields and enter past crops. Weather, soil and terrain fill in automatically.
+            </li>
+            <li>
+              <strong className="text-ink">Rotation Explorer</strong>: answer a few questions and compare three rotation strategies for a field.
+            </li>
+            <li>
+              <strong className="text-ink">Planner</strong>: turn a strategy into an editable month-by-month schedule.
+            </li>
+          </ul>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/fields" className={`${LINK} bg-sky text-white hover:bg-sky-deep`}>
+              Go to Fields
             </Link>
-          ))}
+            <Link href="/rotation" className={`${LINK} border border-line-strong bg-panel text-ink hover:border-sky hover:text-sky-deep`}>
+              Open Rotation Explorer
+            </Link>
+          </div>
         </div>
       </section>
     </div>

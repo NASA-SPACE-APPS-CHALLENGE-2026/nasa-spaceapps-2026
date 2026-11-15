@@ -1,4 +1,4 @@
-import type { FarmSettings, Field, FieldProfile, ManagementAnswers } from '../domain/types';
+import type { FarmSettings, Field, FieldProfile, ManagementAnswers, Plan } from '../domain/types';
 
 /**
  * Persistence boundaries. Each layer has its own repository so they can move to a database
@@ -20,11 +20,21 @@ export interface ProfileRepository {
   remove(fieldId: string): Promise<void>;
 }
 
-/** Layer 3, filled by the questionnaire in a later milestone. */
+/** Layer 3: the Rotation Explorer questionnaire (how the farmer manages each field). */
 export interface ManagementRepository {
+  list(): Promise<ManagementAnswers[]>;
   get(fieldId: string): Promise<ManagementAnswers | undefined>;
   save(answers: ManagementAnswers): Promise<void>;
   remove(fieldId: string): Promise<void>;
+}
+
+/** Layer 4: season-by-season plans made in the Planner (several per field are allowed). */
+export interface PlanRepository {
+  list(): Promise<Plan[]>;
+  get(id: string): Promise<Plan | undefined>;
+  save(plan: Plan): Promise<void>;
+  remove(id: string): Promise<void>;
+  removeForField(fieldId: string): Promise<void>;
 }
 
 export interface SettingsRepository {
@@ -36,5 +46,6 @@ export interface Repositories {
   fields: FieldRepository;
   profiles: ProfileRepository;
   management: ManagementRepository;
+  plans: PlanRepository;
   settings: SettingsRepository;
 }

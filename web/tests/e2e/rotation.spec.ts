@@ -1,0 +1,113 @@
+import { expect, test } from '@playwright/test';
+import { drawSquare, mockSources } from './helpers';
+
+/**
+ * Milestone 2: Fields → Explore rotation → questionnaire (with soil test) → three scored strategies →
+ * strategy page with cover-crop suggestions → plan → edit a month → reload. Sources are mocked.
+ */
+test('explore rotation, make a plan, edit it, and come back to the same field', async ({ page, isMobile }) => {
+  await mockSources(page);
+  await page.goto('/fields');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+
+  // A field with soybeans this season; CDL (mocked) fills corn / soybeans / corn before it.
+  await page.getByRole('button', { name: 'Add field' }).click();
+  await page.getByRole('button', { name: 'Find by ZIP code' }).click();
+  await page.getByLabel('ZIP code').fill('50010');
+  await page.getByRole('button', { name: 'Find on map' }).click();
+  await expect(page.getByText('Near ZIP 50010')).toBeVisible();
+  await expect(page.getByText('Tap the map at each corner of your field.')).toBeVisible();
+  await drawSquare(page, isMobile);
+  await page.getByLabel('Field name').fill('Back forty');
+  await page.getByRole('button', { name: 'Save field' }).click();
+  await expect(page.getByTestId('season-2025')).toContainText('Check this info');
+  await page.getByRole('button', { name: /Crop in 2026/ }).click();
+  await page.getByRole('combobox').fill('soybeans');
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: /These look right/ }).click();
+
+  await page.getByRole('link', { name: 'Explore rotation' }).click();
+  await expect(page).toHaveURL(/\/rotation\?field=/);
+  await expect(page.getByRole('heading', { name: 'Rotation Explorer', level: 1 })).toBeVisible();
+
+  // Questionnaire
+  const q = page.getByTestId('questionnaire');
+  await expect(q.getByRole('heading', { name: 'How you farm it' })).toBeVisible();
+  await q.getByLabel('No-till').check();
+  await q.getByLabel('No irrigation (rain-fed)').check();
+  await q.getByRole('button', { name: 'Next' }).click();
+  await q.getByRole('group', { name: 'Have you grown cover crops before?' }).getByLabel('Never', { exact: true }).check();
+  await q.getByRole('group', { name: 'Do you keep livestock or need forage?' }).getByLabel('No', { exact: true }).check();
+  await q.getByRole('button', { name: 'Next' }).click();
+  await q.getByRole('group', { name: /grain drill/ }).getByLabel('Yes', { exact: true }).check();
+  await q.getByRole('group', { name: /local buyer/ }).getByLabel('Not sure').check();
+  await q.getByRole('button', { name: 'Next' }).click();
+  await q.getByLabel('Corn rootworm').check();
+  await q.getByLabel('Soybean cyst nematode (SCN)').check();
+  await q.getByRole('button', { name: 'Next' }).click();
+  await q.getByLabel(/When do you usually harvest soybeans/).selectOption('10');
+  await q.getByRole('button', { name: 'Next' }).click();
+  await q.getByText('Add results from a lab soil test').click();
+  await q.getByLabel('Organic matter (%)').fill('4.2');
+  await q.getByLabel('pH', { exact: true }).fill('6.4');
+  await q.getByRole('button', { name: 'See strategies' }).click();
+
+  // Three strategies, four labelled bars each, exactly one best fit.
+  for (const id of ['keep', 'cover', 'small-grains']) {
+    const card = page.getByTestId(`strategy-${id}`);
+    await expect(card).toBeVisible();
+    for (const bar of ['soilCover', 'diversity', 'pests', 'climate']) {
+      await expect(card.getByTestId(`bar-${bar}`)).not.toHaveAttribute('data-score', 'none');
+    }
+  }
+  await expect(page.getByTestId('best-fit')).toHaveCount(1);
+  await expect(page.getByTestId('best-fit-summary')).toContainText('Best fit:');
+  await expect(page.getByText('8 of 8 questions answered, soil test added.')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  // Strategy page with cover-crop suggestions and sources.
+  await page.getByRole('link', { name: 'See the details for Add a cover crop' }).click();
+  await expect(page).toHaveURL(/\/rotation\/cover\?field=/);
+  await expect(page.getByRole('heading', { name: 'Add a cover crop', level: 1 })).toBeVisible();
+  const covers = page.getByTestId('cover-suggestions');
+  await expect(covers.getByText('Cereal rye').first()).toBeVisible();
+  await expect(covers.getByText('In this strategy').first()).toBeVisible();
+  await expect(page.getByText('Organic matter (your soil test)').or(page.getByText('4.2 %')).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Managing Cover Crops Profitably/ }).first()).toHaveAttribute('href', /sare\.org/);
+
+  // Make it a plan, then move a task to another month.
+  await page.getByRole('button', { name: 'Make this my plan' }).click();
+  await expect(page).toHaveURL(/\/planner\?field=.*&plan=/);
+  await expect(page.locator('input[value="Cover crop plan for Back forty"]')).toBeVisible();
+  const plant = page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first();
+  await expect(plant).toHaveAttribute('data-month', '5');
+  await plant.click();
+  const dialog = page.getByRole('dialog', { name: 'Edit task' });
+  await dialog.getByLabel('Month').selectOption('6');
+  await dialog.getByRole('button', { name: 'Save task' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first()).toHaveAttribute('data-month', '6');
+
+  // Reload: the plan and the edit persist.
+  await page.reload();
+  await expect(page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first()).toHaveAttribute('data-month', '6');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  // Logo goes to Overview; Rotation Explorer reopens the last field with its answers.
+  await page.getByRole('link', { name: /FieldShift home/ }).click();
+  await expect(page).toHaveURL(/\/overview$/);
+  await page.goto('/rotation');
+  await expect(page.getByLabel('Field', { exact: true })).toHaveValue(/.+/);
+  await expect(page.getByLabel('Field', { exact: true }).locator('option:checked')).toContainText('Back forty');
+  await expect(page.getByTestId('strategy-cover')).toBeVisible();
+});
+
+test('Rotation Explorer and Planner explain what to do with no fields', async ({ page }) => {
+  await page.goto('/rotation');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Add a field first' })).toBeVisible();
+  await page.goto('/planner');
+  await expect(page.getByRole('heading', { name: 'Add a field first' })).toBeVisible();
+});

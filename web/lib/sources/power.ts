@@ -1,5 +1,5 @@
 import { SOURCE_META } from '../domain/sourceMeta';
-import type { ProfileValue, SourceResult } from '../domain/types';
+import type { ClimateNormals, ProfileValue, SourceResult } from '../domain/types';
 import { DAY, HOUR } from '../server/cache';
 import { fetchOkText, parseJson, SourceError } from '../server/http';
 import type { ProfileSource, SourceContext, SourceDeps } from './types';
@@ -138,6 +138,16 @@ function prettyDate(yyyymmdd: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
+const DAYS_IN_MONTH = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** Monthly normals in farmer units (°F, inches per month), January first. */
+export function climateNormals(n: MonthlyNormals): ClimateNormals {
+  return {
+    monthlyMeanTempF: MONTHS.map((m) => r1(cToF(n.t2m[m]))),
+    monthlyRainIn: MONTHS.map((m, i) => r2(mmToIn(n.precipPerDay[m] * DAYS_IN_MONTH[i]))),
+  };
+}
+
 export function summaryValues(s: PowerSummary): ProfileValue[] {
   const grid = 'NASA POWER model grid cell (about 50 km across), not a gauge on your field.';
   const diff = r1(s.meanTempF - s.normalMeanTempF);
@@ -166,10 +176,12 @@ export const powerSource: ProfileSource = {
         deps.cache.getOrFetch(`power:daily:${dailyUrl}`, 6 * HOUR, () => fetchOkText(deps.fetch, dailyUrl, { label: 'NASA POWER', timeoutMs: 30000 }), ctx.now),
         deps.cache.getOrFetch(`power:clim:${climUrl}`, 30 * DAY, () => fetchOkText(deps.fetch, climUrl, { label: 'NASA POWER climatology', timeoutMs: 30000 }), ctx.now),
       ]);
-      const summary = summarize(parseDaily(parseJson(daily.value, 'NASA POWER')), parseClimatology(parseJson(clim.value, 'NASA POWER climatology')));
+      const normals = parseClimatology(parseJson(clim.value, 'NASA POWER climatology'));
+      const summary = summarize(parseDaily(parseJson(daily.value, 'NASA POWER')), normals);
       return {
         ...base,
         status: 'ok',
+        climate: climateNormals(normals),
         fetchedAt: daily.fetchedAt,
         message: `${prettyDate(summary.start)} – ${prettyDate(summary.end)} (latest complete days POWER has published).`,
         values: summaryValues(summary),
