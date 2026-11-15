@@ -107,29 +107,55 @@ export function BoundaryImportCard() {
   }));
 
   return (
-    <section className="rounded-[var(--radius-panel)] border border-line bg-panel p-5 lg:col-span-2" aria-labelledby="boundaries-h">
-      <div className="flex items-start justify-between gap-3">
-        <h2 id="boundaries-h" className="font-plate text-xl">
-          Land boundaries
-        </h2>
-        <span className="shrink-0 rounded-full bg-field-tint px-2.5 py-1 text-[12.5px] font-semibold text-field">Available</span>
-      </div>
-      <p className="mt-1 max-w-[70ch] text-[15px] leading-relaxed text-ink-soft">
-        Bring in field outlines exported from another farm platform, your GIS, or Google Earth. You choose which shapes become fields, then FieldShift looks up crop history, weather and soil for each one. Crop columns in the file are not used.
-      </p>
-
-      {!parsed && (
-        <div className="mt-4 max-w-xl">
-          <DropZone accept={['.geojson', '.json', '.kml', '.zip']} acceptLabel="GeoJSON (.geojson, .json), KML (.kml), or a zipped shapefile (.zip with .shp, .shx, .dbf and .prj)" busy={busy} onFiles={onFiles} onReject={setError} testId="boundary-file" />
-          <p className="mt-2 text-[13px] text-ink-faint">The file is read in your browser. It is not uploaded anywhere.</p>
+    <section className="rounded-[var(--radius-panel)] border border-line bg-panel p-5 md:col-span-2 lg:p-6" aria-labelledby="boundaries-h">
+      <div className={parsed ? '' : 'grid gap-6 lg:grid-cols-2 lg:items-stretch'}>
+        <div className="min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <h2 id="boundaries-h" className="font-plate text-xl">
+              Land boundaries
+            </h2>
+            <span className="shrink-0 rounded-full bg-field-tint px-2.5 py-1 text-[12.5px] font-semibold text-field">Available</span>
+          </div>
+          <p className="mt-1 max-w-[62ch] text-[15px] leading-relaxed text-ink-soft">
+            Bring in field outlines exported from another farm platform, your GIS, or Google Earth. Crop columns in the file are not used.
+          </p>
+          {!parsed && (
+            <ol className="mt-4 space-y-2 text-[15px] leading-snug">
+              {[
+                'Export your field boundaries as GeoJSON, KML, or a zipped shapefile.',
+                'Drop the file here. It is read in your browser and not uploaded anywhere.',
+                'Pick which shapes become fields. FieldShift then looks up crop history, weather and soil for each one.',
+              ].map((step, i) => (
+                <li key={step} className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-tint text-[14px] font-semibold text-sky-deep" aria-hidden>
+                    {i + 1}
+                  </span>
+                  <span className="pt-0.5 text-ink-soft">{step}</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
-      )}
 
-      {error && (
-        <p className="mt-3 max-w-xl rounded-[var(--radius-control)] bg-alert-tint px-3 py-2 text-[14.5px] text-[#7a2c1d]" role="alert">
-          {error}
-        </p>
-      )}
+        {!parsed && (
+          <div className="flex min-w-0 flex-col">
+            <DropZone
+              className="flex-1"
+              accept={['.geojson', '.json', '.kml', '.zip']}
+              acceptLabel="GeoJSON (.geojson, .json), KML (.kml), or a zipped shapefile (.zip with .shp, .shx, .dbf and .prj)"
+              busy={busy}
+              onFiles={onFiles}
+              onReject={setError}
+              testId="boundary-file"
+            />
+            {error && (
+              <p className="mt-3 rounded-[var(--radius-control)] bg-alert-tint px-3 py-2 text-[14.5px] text-[#7a2c1d]" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       {parsed && result && (
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">

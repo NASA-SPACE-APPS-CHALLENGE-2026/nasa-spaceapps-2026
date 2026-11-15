@@ -26,17 +26,21 @@ export function StubImportCard({ title, description, accept, acceptLabel, note }
   const [error, setError] = useState<string | null>(null);
   const headingId = useId();
   return (
-    <section className="flex flex-col rounded-[var(--radius-panel)] border border-line bg-panel p-5" aria-labelledby={headingId}>
+    // Five rows shared with the neighbouring card through CSS subgrid, so the drop box and the button line up across a row.
+    <section className="row-span-5 grid grid-rows-subgrid gap-0 rounded-[var(--radius-panel)] border border-line bg-panel p-5 lg:p-6" aria-labelledby={headingId}>
       <div className="flex items-start justify-between gap-3">
         <h2 id={headingId} className="font-plate text-xl">
           {title}
         </h2>
         <span className="shrink-0 rounded-full border border-line bg-paper px-2.5 py-1 text-[12.5px] font-semibold text-ink-soft">Coming soon</span>
       </div>
-      <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">{description}</p>
-      {note && <div className="mt-2 text-[14px] leading-snug text-ink-soft">{note}</div>}
-      <div className="mt-4">
+      <div>
+        <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">{description}</p>
+        {note && <div className="mt-2 text-[14px] leading-snug text-ink-soft">{note}</div>}
+      </div>
+      <div className="mt-4 flex">
         <DropZone
+          className="flex-1"
           accept={accept}
           acceptLabel={acceptLabel}
           multiple
@@ -47,6 +51,7 @@ export function StubImportCard({ title, description, accept, acceptLabel, note }
           onReject={setError}
         />
       </div>
+      <div>
       {error && (
         <p className="mt-3 rounded-[var(--radius-control)] bg-alert-tint px-3 py-2 text-[14.5px] text-[#7a2c1d]" role="alert">
           {error}
@@ -67,7 +72,8 @@ export function StubImportCard({ title, description, accept, acceptLabel, note }
           ))}
         </ul>
       )}
-      <div className="mt-auto pt-4">
+      </div>
+      <div className="pt-4">
         <button type="button" disabled className="min-h-12 w-full cursor-not-allowed rounded-[var(--radius-control)] border border-line bg-paper text-[15px] font-semibold text-ink-faint">
           Processing comes in a later milestone
         </button>

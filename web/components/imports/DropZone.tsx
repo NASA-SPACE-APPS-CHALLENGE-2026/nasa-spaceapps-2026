@@ -12,6 +12,7 @@ interface Props {
   onFiles: (files: File[]) => void;
   onReject?: (message: string) => void;
   testId?: string;
+  className?: string;
 }
 
 function extOf(name: string) {
@@ -26,7 +27,7 @@ export function formatBytes(n: number): string {
 }
 
 /** Drag-and-drop file box with a real file input underneath (keyboard and screen-reader friendly). */
-export function DropZone({ accept, acceptLabel, multiple, busy, disabled, maxBytes = 50 * 1024 * 1024, onFiles, onReject, testId }: Props) {
+export function DropZone({ accept, acceptLabel, multiple, busy, disabled, maxBytes = 50 * 1024 * 1024, onFiles, onReject, testId, className = '' }: Props) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -63,11 +64,11 @@ export function DropZone({ accept, acceptLabel, multiple, busy, disabled, maxByt
         setOver(false);
         if (!disabled && !busy) take(e.dataTransfer.files);
       }}
-      className={`relative rounded-[var(--radius-panel)] border-2 border-dashed px-4 py-6 text-center transition-colors ${
+      className={`relative flex min-h-[220px] flex-col items-center justify-center rounded-[var(--radius-panel)] border-2 border-dashed px-4 py-6 text-center transition-colors ${className} ${
         over ? 'border-sky bg-sky-tint' : 'border-line-strong bg-paper'
       } ${disabled ? 'opacity-60' : ''}`}
     >
-      <svg viewBox="0 0 48 48" className="mx-auto h-10 w-10 text-sky" aria-hidden>
+      <svg viewBox="0 0 48 48" className="h-10 w-10 text-sky" aria-hidden>
         <path d="M24 31V11m0 0-8 8m8-8 8 8" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M9 30v6a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3v-6" fill="none" stroke="#2f6b3a" strokeWidth="3" strokeLinecap="round" />
       </svg>
@@ -93,7 +94,7 @@ export function DropZone({ accept, acceptLabel, multiple, busy, disabled, maxByt
         }}
         className="sr-only"
       />
-      <p className="mt-3 text-[13.5px] text-ink-faint">Accepts {acceptLabel}</p>
+      <p className="mt-3 max-w-[40ch] text-[13.5px] text-ink-faint">Accepts {acceptLabel}</p>
     </div>
   );
 }
