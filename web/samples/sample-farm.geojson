@@ -1,165 +1,37 @@
 {
   "type": "FeatureCollection",
+  "name": "FieldShift sample boundaries (traced on USGS imagery near Ames, Iowa; for testing imports)",
   "features": [
     {
       "type": "Feature",
-      "properties": {
-        "FIELD_NAME": "North 80",
-        "FARM": "Story Co. farm",
-        "CROP_2026": "Corn"
-      },
+      "properties": { "FIELD_NAME": "North strip", "FARM": "Sample farm", "CROP_2026": "Soybeans" },
       "geometry": {
         "type": "Polygon",
-        "coordinates": [
-          [
-            [
-              -93.53,
-              42.04
-            ],
-            [
-              -93.524,
-              42.04
-            ],
-            [
-              -93.524,
-              42.0445
-            ],
-            [
-              -93.53,
-              42.0445
-            ],
-            [
-              -93.53,
-              42.04
-            ]
-          ]
-        ]
+        "coordinates": [[[-93.505486, 42.048926], [-93.490119, 42.048926], [-93.490119, 42.045748], [-93.502633, 42.045748], [-93.505486, 42.048926]]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "FIELD_NAME": "Creek bottom",
-        "FARM": "Story Co. farm"
-      },
+      "properties": { "FIELD_NAME": "Ditch field", "FARM": "Sample farm" },
       "geometry": {
         "type": "Polygon",
-        "coordinates": [
-          [
-            [
-              -93.522,
-              42.04
-            ],
-            [
-              -93.516,
-              42.04
-            ],
-            [
-              -93.516,
-              42.0445
-            ],
-            [
-              -93.522,
-              42.0445
-            ],
-            [
-              -93.522,
-              42.04
-            ]
-          ]
-        ]
+        "coordinates": [[[-93.502244, 42.045555], [-93.490487, 42.045555], [-93.490444, 42.044464], [-93.491913, 42.043116], [-93.493642, 42.041671], [-93.495696, 42.040291], [-93.497749, 42.041157], [-93.500775, 42.042762], [-93.501769, 42.043437], [-93.502244, 42.045555]]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "FIELD_NAME": "Split quarter",
-        "FARM": "Story Co. farm"
-      },
+      "properties": { "FIELD_NAME": "Bend field", "FARM": "Sample farm" },
       "geometry": {
-        "type": "MultiPolygon",
-        "coordinates": [
-          [
-            [
-              [
-                -93.53,
-                42.034
-              ],
-              [
-                -93.526,
-                42.034
-              ],
-              [
-                -93.526,
-                42.037
-              ],
-              [
-                -93.53,
-                42.037
-              ],
-              [
-                -93.53,
-                42.034
-              ]
-            ]
-          ],
-          [
-            [
-              [
-                -93.524,
-                42.034
-              ],
-              [
-                -93.52,
-                42.034
-              ],
-              [
-                -93.52,
-                42.037
-              ],
-              [
-                -93.524,
-                42.037
-              ],
-              [
-                -93.524,
-                42.034
-              ]
-            ]
-          ]
-        ]
+        "type": "Polygon",
+        "coordinates": [[[-93.490789, 42.043822], [-93.487807, 42.044175], [-93.484824, 42.043629], [-93.484003, 42.042441], [-93.484003, 42.041992], [-93.491308, 42.04196], [-93.490789, 42.043822]]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "FIELD_NAME": "Well site"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          -93.512,
-          42.036
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "FIELD_NAME": "East fence"
-      },
+      "properties": { "FIELD_NAME": "Drainage ditch" },
       "geometry": {
         "type": "LineString",
-        "coordinates": [
-          [
-            -93.516,
-            42.034
-          ],
-          [
-            -93.516,
-            42.0445
-          ]
-        ]
+        "coordinates": [[-93.505746, 42.04899], [-93.501855, 42.043453], [-93.495696, 42.039841], [-93.490184, 42.044416], [-93.483268, 42.04273]]
       }
     }
   ]

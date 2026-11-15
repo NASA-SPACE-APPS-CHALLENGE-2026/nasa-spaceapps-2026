@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { buildDemoFarm, demoBlocker } from '@/lib/demo/demoFarm';
 import { createField, renamed, withGeometry } from '@/lib/domain/field';
 import type { Field, FieldGeometry, LonLat } from '@/lib/domain/types';
 import { overlapIssues, validateGeometry } from '@/lib/domain/validation';
@@ -157,6 +158,13 @@ export function FieldsScreen() {
               setSnap('half');
             }}
             onToggleLookups={(on) => void store.setSettings({ ...settings, externalLookups: on })}
+            demoBlocker={loaded ? demoBlocker(fields) : 'loading'}
+            onLoadDemo={async () => {
+              const demo = buildDemoFarm();
+              await store.addFields(demo);
+              setFocus({ key: `demo-${Date.now()}`, kind: 'geometry', geometry: demo.map((f) => f.feature.geometry) });
+              setToast('Loaded the demo farm: 6 example fields near Ames, Iowa. Their crop histories are made-up examples; weather and soil are real.');
+            }}
           />
         )}
         {view.kind === 'add' && (

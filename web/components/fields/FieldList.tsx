@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { formatAcres } from '@/lib/domain/acreage';
 import { needsCropReview } from '@/lib/domain/cropHistory';
 import { cropLabel } from '@/lib/domain/crops';
+import { isDemoField } from '@/lib/demo/demoFarm';
 import type { FarmSettings, Field } from '@/lib/domain/types';
 import { WheatRow } from '../art/Logo';
 import { Button } from '../ui/Button';
@@ -17,9 +18,12 @@ interface Props {
   onSelect: (id: string) => void;
   onAdd: () => void;
   onToggleLookups: (on: boolean) => void;
+  onLoadDemo: () => void;
+  /** Why the demo farm can't be loaded (already loaded, overlaps a field), or null. */
+  demoBlocker: string | null;
 }
 
-export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAdd, onToggleLookups }: Props) {
+export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAdd, onToggleLookups, onLoadDemo, demoBlocker }: Props) {
   const drawn = fields.filter((f) => f.boundary !== 'approximate');
   const totalM2 = drawn.reduce((s, f) => s + f.areaM2, 0);
   return (
@@ -29,8 +33,9 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
           <h1 className="font-plate text-2xl">Your fields</h1>
           {fields.length > 0 && (
             <p className="text-[15px] text-ink-soft">
-              {fields.length} field{fields.length === 1 ? '' : 's'}, {formatAcres(totalM2)}
-              {drawn.length < fields.length && ` (${fields.length - drawn.length} without a boundary)`}
+              {fields.length} field{fields.length === 1 ? '' : 's'}
+              {drawn.length > 0 && `, ${formatAcres(totalM2)}`}
+              {drawn.length < fields.length && (drawn.length === 0 ? ', no boundaries drawn yet' : ` (${fields.length - drawn.length} without a boundary)`)}
             </p>
           )}
         </div>
@@ -42,7 +47,7 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
           <WheatRow className="h-16 w-32" />
           <h2 className="mt-3 font-plate text-xl">Add your first field</h2>
           <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">
-            Draw it on the satellite map, drop a pin, or start from a ZIP code. Then tell us what you grew. We look up the weather, soil and terrain for you.
+Find it by address, ZIP code or on the map, then trace its edges. Tell us what you grew, and FieldShift looks up the weather, soil and terrain.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={onAdd}>Add field</Button>
@@ -50,6 +55,15 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
               Import boundary file
             </Link>
           </div>
+          {!demoBlocker && (
+            <p className="mt-4 border-t border-line pt-3 text-[14.5px] text-ink-soft">
+              Just exploring?{' '}
+              <button type="button" onClick={onLoadDemo} className="min-h-10 font-semibold text-sky-deep underline underline-offset-2">
+                Load the demo farm
+              </button>{' '}
+              (6 example fields near Ames, Iowa).
+            </p>
+          )}
         </div>
       )}
 
@@ -66,7 +80,10 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
                 className={`w-full rounded-[var(--radius-panel)] border bg-panel p-4 text-left transition-colors hover:border-sky ${selected ? 'border-sky ring-2 ring-sky/25' : 'border-line'}`}
               >
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 truncate text-[17px] font-semibold">{f.name}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-[17px] font-semibold">{f.name}</span>
+                    {isDemoField(f) && <span className="shrink-0 rounded-full border border-line bg-paper px-2 py-0.5 text-[12px] font-semibold text-ink-soft">Demo</span>}
+                  </span>
                   <span className="shrink-0 text-[15px] text-ink-soft">{f.boundary === 'approximate' ? 'No boundary' : formatAcres(f.areaM2)}</span>
                 </div>
                 <p className="mt-0.5 truncate text-[14.5px] text-ink-soft">
@@ -82,6 +99,15 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
           );
         })}
       </ul>
+
+      {fields.length > 0 && !demoBlocker && (
+        <p className="mt-4 text-[14px] text-ink-soft">
+          <button type="button" onClick={onLoadDemo} className="min-h-10 font-semibold text-sky-deep hover:underline">
+            Add the demo farm
+          </button>{' '}
+          (6 example fields near Ames, Iowa)
+        </p>
+      )}
 
       <div className="mt-auto pt-6">
         <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-panel)] border border-line bg-panel p-3">
