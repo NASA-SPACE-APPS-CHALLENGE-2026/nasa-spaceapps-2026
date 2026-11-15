@@ -33,7 +33,7 @@ export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: bo
   );
 }
 
-export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { a: FarmAnalysis; weather: WeatherState | undefined; planned: number; fieldCount: number; lastYear?: { totalRevenue?: number; totalCosts?: number } }) {
+export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { a: FarmAnalysis; weather: WeatherState | undefined; planned: number; fieldCount: number; lastYear?: { totalRevenue?: number; totalCosts?: number; fromRecords?: { revenue: boolean; costs: boolean } } }) {
   const [metric, setMetric] = useState<'net' | 'revenue'>('net');
   const cols = a.years.map((year, i) => ({
     label: String(year),
@@ -91,7 +91,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         </div>
         {lastYear?.totalRevenue !== undefined && lastYear.totalCosts !== undefined && a.current[0] && (
           <p className="mt-3 text-[14.5px] text-ink-soft" data-testid="last-year-check">
-            Check: last year you reported {money(lastYear.totalRevenue)} revenue and {money(lastYear.totalCosts)} costs (net {money(lastYear.totalRevenue - lastYear.totalCosts)}). PlotTwist models your current rotation in {a.current[0].year} at {money(a.current[0].revenue + a.current[0].programs)} revenue and {money(a.current[0].operating + a.current[0].land)} costs (net {money(a.current[0].net)}). If these are far apart, adjust your yields, prices or costs under Your numbers.
+            Check: last year {lastYear.fromRecords?.revenue || lastYear.fromRecords?.costs ? 'your imported books show' : 'you reported'} {money(lastYear.totalRevenue)} revenue and {money(lastYear.totalCosts)} costs (net {money(lastYear.totalRevenue - lastYear.totalCosts)}). PlotTwist models your current rotation in {a.current[0].year} at {money(a.current[0].revenue + a.current[0].programs)} revenue and {money(a.current[0].operating + a.current[0].land)} costs (net {money(a.current[0].net)}). If these are far apart, adjust your yields, prices or costs under Your numbers.
           </p>
         )}
       </Section>
