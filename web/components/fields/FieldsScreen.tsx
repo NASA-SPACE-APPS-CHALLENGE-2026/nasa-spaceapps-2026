@@ -10,6 +10,7 @@ import { useFarm, useStore } from '@/lib/client/StoreProvider';
 import type { MapFocus, MapMode, MapShape } from '../map/FieldMap';
 import { ResponsivePanel, sheetInset, type Snap, useIsDesktop } from '../ui/ResponsivePanel';
 import { AddFieldPanel, type AddStep, type Draft, type Located } from './AddFieldPanel';
+import { AddressSearch } from './AddressSearch';
 import { FieldEditor, type ShapeEdit } from './FieldEditor';
 import { FieldList } from './FieldList';
 
@@ -35,6 +36,7 @@ export function FieldsScreen() {
   const [snap, setSnap] = useState<Snap>('half');
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const desktop = useIsDesktop();
 
   // Arrival from Imports: show what happened, then clean the URL.
@@ -171,6 +173,7 @@ export function FieldsScreen() {
             onLocate={locate}
             onRedraw={() => setView({ ...view, step: 'draw', draft: null })}
             onSave={saveDraft}
+            addressStep={<AddressSearch lookupsOn={settings.externalLookups} autoFocus onPick={(center, label) => locate({ center, via: 'address', label })} />}
           />
         )}
         {view.kind === 'field' && selected && (
@@ -237,8 +240,39 @@ export function FieldsScreen() {
             if (view.kind === 'field' && view.edit?.kind === 'vertices') setView({ ...view, edit: { kind: 'vertices', geometry } });
           }}
         />
+        {mode === 'browse' && view.kind !== 'add' && (
+          <div className="absolute left-3 top-3 z-[1001] w-[min(360px,calc(100%-72px))]">
+            {desktop || searchOpen ? (
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <AddressSearch
+                    variant="toolbar"
+                    lookupsOn={settings.externalLookups}
+                    autoFocus={!desktop}
+                    onPick={(center) => {
+                      setFocus({ key: `search-${Date.now()}`, kind: 'point', center, zoom: 16 });
+                      if (!desktop) setSearchOpen(false);
+                    }}
+                  />
+                </div>
+                {!desktop && (
+                  <button type="button" onClick={() => setSearchOpen(false)} className="min-h-12 shrink-0 rounded-[var(--radius-control)] border border-line bg-panel px-3 text-[15px] font-semibold shadow-sm">
+                    Close
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search an address" className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-control)] border border-line bg-panel text-ink shadow-sm">
+                <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
+                  <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="2.2" />
+                  <path d="m13 13 4.5 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
         {toast && (
-          <div role="status" className="absolute left-1/2 top-3 z-[1002] w-[min(92vw,440px)] -translate-x-1/2 rounded-[var(--radius-panel)] border border-field/30 bg-panel px-4 py-3 text-[15px] shadow-[0_10px_30px_-12px_rgba(29,43,34,0.4)]">
+          <div role="status" className="absolute left-1/2 top-[4.5rem] z-[1002] w-[min(92vw,440px)] -translate-x-1/2 rounded-[var(--radius-panel)] lg:left-auto lg:right-16 lg:top-3 lg:translate-x-0 border border-field/30 bg-panel px-4 py-3 text-[15px] shadow-[0_10px_30px_-12px_rgba(29,43,34,0.4)]">
             {toast}
           </div>
         )}

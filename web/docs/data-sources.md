@@ -14,6 +14,7 @@ FieldShift asks the farmer only for a field's shape and its crop history. Everyt
 | Satellite rainfall (`earthdataStubs.ts`) | NASA GPM IMERG (Earthdata) | Nothing yet | — | — | Stub, same as SMAP. |
 | Crop greenness, NDVI (`earthdataStubs.ts`) | Landsat / MODIS (Earthdata) | Nothing yet | — | — | Stub, same as SMAP. |
 | ZIP code lookup (`lib/server/zip.ts`) | US Census Bureau 2024 Gazetteer ZCTA internal points (bundled in `data/zcta.json`, public domain) | Centres the map on the ZIP area. A ZIP is only an area, so the farmer then pins or draws the field. | — | Bundled | Works offline. PO-box-only ZIPs have no ZCTA and get a clear "not found" message. Rebuild with `node scripts/build-zcta.mjs <gazetteer .txt>`. |
+| Address search (`lib/server/geocode.ts`, `POST /api/geocode`) | US Census Bureau one-line address geocoder `geocoding.geo.census.gov/geocoder/locations/onelineaddress` (benchmark Public_AR_Current) | Moves the map to an address (Add a field, and the map search box). Up to 5 matches as a pick list. | — | 30 days | Works, ~1 s. No match is `addressMatches: []`; addresses over 100 characters get HTTP 400. Sent only after the farmer presses Find (no type-ahead), only when public data lookups are on, and in a POST body so it never appears in URLs. |
 | Satellite imagery | USGS The National Map `basemap.nationalmap.gov/.../USGSImageryOnly/MapServer/tile` | Map background | — | Browser | Works. If the first tiles fail, the map switches to OpenStreetMap tiles and says so. |
 
 ## Honesty labels
