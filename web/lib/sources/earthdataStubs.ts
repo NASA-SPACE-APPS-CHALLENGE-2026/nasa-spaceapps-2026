@@ -5,6 +5,14 @@ import { fetchText, SourceError } from '../server/http';
 import { messageOf } from './power';
 import type { ProfileSource, SourceContext, SourceDeps } from './types';
 
+const warned = new Set<string>();
+/** Developer-facing configuration hints go to the server console once, never to farmers. */
+export function devHint(message: string): void {
+  if (warned.has(message)) return;
+  warned.add(message);
+  console.warn(`[FieldShift] ${message}`);
+}
+
 /** A cheap authenticated request: CMR answers 401 "Token does not exist" for bad tokens. */
 const TOKEN_CHECK_URL = 'https://cmr.earthdata.nasa.gov/search/collections.json?page_size=1&short_name=SPL3SMP_E';
 
@@ -38,14 +46,16 @@ function earthdataStub(id: SourceId): ProfileSource {
       const base = { sourceId: id, sourceName: meta.provider, docsUrl: meta.docsUrl, values: [] };
       const token = deps.env.EARTHDATA_TOKEN?.trim();
       if (!token) {
-        return { ...base, status: 'needs_token', message: 'Needs an Earthdata token. Set EARTHDATA_TOKEN on the server (see .env.example).' };
+        devHint('EARTHDATA_TOKEN is not set, so SMAP, IMERG and NDVI are off. Add it to web/.env.local (see .env.example) and restart the server.');
+        return { ...base, status: 'needs_token', message: 'Not available yet.' };
       }
       try {
         const check = await checkEarthdataToken(token, deps, ctx.now);
         if (check === 'rejected') {
-          return { ...base, status: 'needs_token', message: 'The Earthdata token was rejected (expired or invalid). Generate a new one at urs.earthdata.nasa.gov.' };
+          devHint('NASA Earthdata rejected EARTHDATA_TOKEN (expired or invalid). Generate a new one at https://urs.earthdata.nasa.gov.');
+          return { ...base, status: 'needs_token', message: 'Not available right now.' };
         }
-        return { ...base, status: 'not_built', fetchedAt: ctx.now.toISOString(), message: 'Earthdata token OK. This data source is coming in a later milestone; no values are shown yet.' };
+        return { ...base, status: 'not_built', fetchedAt: ctx.now.toISOString(), message: 'Coming soon. No values are shown yet.' };
       } catch (err) {
         return { ...base, status: 'unavailable', message: messageOf(err) };
       }

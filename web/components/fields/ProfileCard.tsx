@@ -20,8 +20,8 @@ const STATUS: Record<SourceResult['status'], { label: string; cls: string }> = {
   loading: { label: 'Loading', cls: 'bg-sky-tint text-sky-deep' },
   ok: { label: 'Loaded', cls: 'bg-field-tint text-field' },
   unavailable: { label: 'Unavailable', cls: 'bg-alert-tint text-alert' },
-  needs_token: { label: 'Needs Earthdata token', cls: 'bg-paper text-ink-soft border border-line' },
-  not_built: { label: 'Coming later', cls: 'bg-paper text-ink-soft border border-line' },
+  needs_token: { label: 'Not available yet', cls: 'bg-paper text-ink-soft border border-line' },
+  not_built: { label: 'Coming soon', cls: 'bg-paper text-ink-soft border border-line' },
 };
 
 export function ProfileCard({ profile, lookupsOn, onRefresh, onTurnOnLookups }: Props) {

@@ -6,6 +6,7 @@ import { areaM2, DEFAULT_PIN_ACRES, formatAcres, MAX_PIN_ACRES, MIN_PIN_ACRES } 
 import type { DefinedBy, FieldGeometry, LonLat } from '@/lib/domain/types';
 import { type GeometryIssue, hasBlockingIssue } from '@/lib/domain/validation';
 import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
 import { IssueList } from './IssueList';
 
 export type AddStep = 'choose' | 'draw' | 'pin' | 'coords' | 'zip';
@@ -136,11 +137,18 @@ function ZipStep({ onLocate, back }: { onLocate: (c: LonLat, zip: string) => voi
   };
   return (
     <form onSubmit={submit} className="mt-3">
-      <label htmlFor="zip" className="text-[15px] font-semibold">
-        ZIP code
-      </label>
-      <div className="mt-1 flex gap-2">
-        <input id="zip" inputMode="numeric" autoComplete="postal-code" maxLength={5} value={zip} onChange={(e) => setZip(e.target.value.replace(/\D/g, ''))} className="min-h-12 w-36 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-lg tracking-wider" placeholder="50010" />
+      <div className="flex items-end gap-2">
+        <TextField
+          label="ZIP code"
+          inputMode="numeric"
+          autoComplete="postal-code"
+          maxLength={5}
+          value={zip}
+          onChange={(e) => setZip(e.target.value.replace(/\D/g, ''))}
+          placeholder="e.g. 50010"
+          className="w-40"
+          inputClassName="text-lg tracking-wider"
+        />
         <Button type="submit" disabled={busy}>
           {busy ? 'Finding…' : 'Find on map'}
         </Button>
@@ -179,18 +187,11 @@ function CoordsStep({ onLocate, back }: { onLocate: (c: LonLat) => void; back: R
     setError(null);
     onLocate([lo, la]);
   };
-  const input = 'min-h-12 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]';
   return (
     <form onSubmit={submit} className="mt-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-[15px] font-semibold">
-          Latitude
-          <input inputMode="decimal" value={lat} onPaste={onPaste} onChange={(e) => setLat(e.target.value)} placeholder="42.0308" className={`${input} mt-1 font-normal`} />
-        </label>
-        <label className="text-[15px] font-semibold">
-          Longitude
-          <input inputMode="decimal" value={lon} onPaste={onPaste} onChange={(e) => setLon(e.target.value)} placeholder="-93.5883" className={`${input} mt-1 font-normal`} />
-        </label>
+        <TextField label="Latitude" inputMode="decimal" value={lat} onPaste={onPaste} onChange={(e) => setLat(e.target.value)} placeholder="e.g. 42.0308" />
+        <TextField label="Longitude" inputMode="decimal" value={lon} onPaste={onPaste} onChange={(e) => setLon(e.target.value)} placeholder="e.g. -93.5883" />
       </div>
       <p className="text-[14px] text-ink-faint">Tip: paste &ldquo;42.0308, -93.5883&rdquo; into either box.</p>
       {error && <p className="text-[14.5px] text-alert" role="alert">{error}</p>}
@@ -221,23 +222,18 @@ function DraftForm(p: Props & { draft: Draft }) {
         </p>
         {p.draft.pin && (
           <div className="mt-3">
-            <label htmlFor="acres" className="text-[15px] font-semibold">
-              Field size in acres
-            </label>
-            <div className="mt-1 flex gap-2">
-              <input
-                id="acres"
-                inputMode="decimal"
-                value={acresText}
-                onChange={(e) => {
-                  setAcresText(e.target.value);
-                  const n = Number(e.target.value);
-                  if (Number.isFinite(n) && n >= MIN_PIN_ACRES && n <= MAX_PIN_ACRES) p.onAcres(n);
-                }}
-                className="min-h-12 w-32 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]"
-              />
-            </div>
-            {!acresValid && <p className="mt-1 text-[14px] text-alert">Enter a size between {MIN_PIN_ACRES} and {MAX_PIN_ACRES.toLocaleString('en-US')} acres.</p>}
+            <TextField
+              label="Field size in acres"
+              inputMode="decimal"
+              value={acresText}
+              className="w-40"
+              onChange={(e) => {
+                setAcresText(e.target.value);
+                const n = Number(e.target.value);
+                if (Number.isFinite(n) && n >= MIN_PIN_ACRES && n <= MAX_PIN_ACRES) p.onAcres(n);
+              }}
+              error={!acresValid ? `Enter a size between ${MIN_PIN_ACRES} and ${MAX_PIN_ACRES.toLocaleString('en-US')} acres.` : undefined}
+            />
             <p className="mt-2 text-[14px] text-ink-faint">Tap the map to move the pin. The square is an approximation; you can draw the exact boundary later.</p>
           </div>
         )}
@@ -248,12 +244,7 @@ function DraftForm(p: Props & { draft: Draft }) {
 
       <IssueList issues={p.issues} />
 
-      <div>
-        <label htmlFor="field-name" className="text-[15px] font-semibold">
-          Field name
-        </label>
-        <input id="field-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} className="mt-1 min-h-12 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]" />
-      </div>
+      <TextField label="Field name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
       <Button type="submit" disabled={blocking || !name.trim()} className="w-full">
         Save field
       </Button>

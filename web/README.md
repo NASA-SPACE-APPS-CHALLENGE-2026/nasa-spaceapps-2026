@@ -23,7 +23,7 @@ npm run dev
 
 Open http://localhost:3000. To try an import, use `samples/sample-farm.geojson` (fields near Ames, Iowa).
 
-Optional: copy `.env.example` to `.env.local` and set `EARTHDATA_TOKEN` to have the server check a NASA Earthdata token (the SMAP, IMERG and NDVI integrations themselves come in a later milestone).
+Optional: copy `.env.example` to `.env.local` and set `EARTHDATA_TOKEN` (a NASA Earthdata login token) for the SMAP, IMERG and NDVI sources, then restart `npm run dev`. Farmers only ever see "Not available yet" for these when the token is missing or rejected; the reason is printed once to the server console as a `[FieldShift]` warning.
 
 ## Test
 

@@ -11,7 +11,7 @@ async function mockSources(page: Page) {
     const earthdata = ['smap', 'imerg', 'ndvi'].includes(id);
     await route.fulfill({
       json: earthdata
-        ? { sourceId: id, sourceName: id, docsUrl: '', status: 'needs_token', values: [], message: 'Needs an Earthdata token.' }
+        ? { sourceId: id, sourceName: id, docsUrl: '', status: 'needs_token', values: [], message: 'Not available yet.' }
         : {
             sourceId: id,
             sourceName: id,

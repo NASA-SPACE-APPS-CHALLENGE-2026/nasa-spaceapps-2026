@@ -137,7 +137,8 @@ describe('Earthdata stubs (SMAP, IMERG, NDVI)', () => {
   it('needs a token when EARTHDATA_TOKEN is unset, without any network call', async () => {
     const f = mockFetch([]);
     const r = await smapSource.run(ctx, deps(f));
-    expect(r).toMatchObject({ status: 'needs_token', values: [] });
+    expect(r).toMatchObject({ status: 'needs_token', values: [], message: 'Not available yet.' });
+    expect(JSON.stringify(r)).not.toMatch(/EARTHDATA_TOKEN|env/);
     expect(f.calls).toHaveLength(0);
   });
 
@@ -145,10 +146,10 @@ describe('Earthdata stubs (SMAP, IMERG, NDVI)', () => {
     const f = mockFetch([[/cmr\.earthdata/, (_u, init) => text('{}', (init?.headers as Record<string, string>).Authorization === 'Bearer good' ? 200 : 401)]]);
     const ok = await imergSource.run(ctx, deps(f, { EARTHDATA_TOKEN: 'good' }));
     expect(ok).toMatchObject({ status: 'not_built', values: [] });
-    expect(ok.message).toMatch(/token OK/i);
+    expect(ok.message).toMatch(/Coming soon/);
     const bad = await imergSource.run(ctx, deps(f, { EARTHDATA_TOKEN: 'bad' }));
     expect(bad).toMatchObject({ status: 'needs_token' });
-    expect(bad.message).toMatch(/rejected/);
+    expect(bad.message).toBe('Not available right now.');
   });
 });
 

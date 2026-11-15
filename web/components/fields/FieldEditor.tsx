@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { areaM2, formatAcres, MAX_PIN_ACRES, MIN_PIN_ACRES } from '@/lib/domain/acreage';
 import type { Field, FieldCrops, FieldGeometry, FieldProfile, SourceId } from '@/lib/domain/types';
 import { type GeometryIssue, hasBlockingIssue } from '@/lib/domain/validation';
 import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
 import { CropsCard } from './CropsCard';
 import { IssueList } from './IssueList';
 import { ProfileCard } from './ProfileCard';
@@ -45,6 +46,7 @@ export function FieldEditor(p: Props) {
   const { field } = p;
   const [name, setName] = useState(field.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const renameId = useId();
   useEffect(() => setName(field.name), [field.id, field.name]);
   const isPin = !!field.pin;
 
@@ -63,11 +65,11 @@ export function FieldEditor(p: Props) {
       </button>
 
       <div>
-        <label htmlFor="rename" className="sr-only">
-          Field name
+        <label htmlFor={renameId} className="sr-only">
+          Field name (edit to rename)
         </label>
         <input
-          id="rename"
+          id={renameId}
           value={name}
           maxLength={80}
           onChange={(e) => setName(e.target.value)}
@@ -77,7 +79,6 @@ export function FieldEditor(p: Props) {
             if (e.key === 'Escape') setName(field.name);
           }}
           className="font-plate -mx-2 w-[calc(100%+1rem)] rounded-[var(--radius-control)] border border-transparent bg-transparent px-2 py-1 text-2xl hover:border-line focus:border-sky focus:bg-panel"
-          title="Rename field"
         />
         <p className="text-[15px] text-ink-soft">
           <span className="font-semibold text-ink" data-testid="field-acres">
@@ -145,19 +146,17 @@ function ShapeEditor(p: Props & { edit: ShapeEdit }) {
           : 'Drag the corners on the map. Drag a midpoint to add a corner; right-click or long-press a corner to remove it.'}
       </p>
       {p.edit.kind === 'pin' && (
-        <label className="mt-3 block text-[15px] font-semibold">
-          Size in acres
-          <input
-            inputMode="decimal"
-            value={acresText}
-            onChange={(e) => {
-              setAcresText(e.target.value);
-              const n = Number(e.target.value);
-              if (Number.isFinite(n) && n >= MIN_PIN_ACRES && n <= MAX_PIN_ACRES) p.onPinAcres(n);
-            }}
-            className="mt-1 block min-h-12 w-32 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 font-normal"
-          />
-        </label>
+        <TextField
+          label="Size in acres"
+          inputMode="decimal"
+          value={acresText}
+          className="mt-3 w-40"
+          onChange={(e) => {
+            setAcresText(e.target.value);
+            const n = Number(e.target.value);
+            if (Number.isFinite(n) && n >= MIN_PIN_ACRES && n <= MAX_PIN_ACRES) p.onPinAcres(n);
+          }}
+        />
       )}
       <p className="mt-3 font-plate text-2xl">{formatAcres(areaM2(p.edit.geometry))}</p>
       <div className="mt-2">
