@@ -114,7 +114,7 @@ Find it by address, ZIP code or on the map, then trace its edges. Tell us what y
           <input type="checkbox" checked={settings.externalLookups} onChange={(e) => onToggleLookups(e.target.checked)} className="mt-1 h-5 w-5 accent-[var(--color-sky)]" />
           <span className="text-[14px] leading-snug text-ink-soft">
             <span className="block font-semibold text-ink">Look up public data for my fields</span>
-            Sends each field&rsquo;s location to NASA, USDA and USGS to fetch weather, soil, terrain and crop history, and addresses you search for to the US Census Bureau. Fields stay saved in this browser only.
+            Sends each field&rsquo;s location to NASA, USDA and USGS to fetch weather, soil, terrain and crop history, and the addresses you type to address lookup services (Photon and the US Census Bureau). Fields stay saved in this browser only.
           </span>
         </label>
       </div>

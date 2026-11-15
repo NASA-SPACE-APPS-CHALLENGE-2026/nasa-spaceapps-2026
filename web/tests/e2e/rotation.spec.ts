@@ -23,7 +23,7 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await page.getByRole('button', { name: 'Save field' }).click();
   await expect(page.getByTestId('season-2025')).toContainText('Check this info');
   await page.getByRole('button', { name: /Crop in 2026/ }).click();
-  await page.getByRole('combobox').fill('soybeans');
+  await page.getByRole('combobox', { expanded: true }).fill('soybeans');
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: /These look right/ }).click();
 
@@ -62,6 +62,8 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
     }
   }
   await expect(page.getByTestId('best-fit')).toHaveCount(1);
+  // Cards stay simple: the only link is "See the details", no citation or data links.
+  await expect(page.getByTestId('strategy-cover').getByRole('link')).toHaveCount(1);
   await expect(page.getByTestId('best-fit-summary')).toContainText('Best fit:');
   await expect(page.getByText('8 of 8 questions answered, soil test added.')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -75,6 +77,13 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await expect(covers.getByText('In this strategy').first()).toBeVisible();
   await expect(page.getByText('Organic matter (your soil test)').or(page.getByText('4.2 %')).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Managing Cover Crops Profitably/ }).first()).toHaveAttribute('href', /sare\.org/);
+  // Scores are collapsed; opening one shows why.
+  const soil = page.getByTestId('score-soilCover');
+  const why = soil.getByRole('button', { name: /Why this score/ });
+  await expect(why).toHaveAttribute('aria-expanded', 'false');
+  await why.click();
+  await expect(soil.getByRole('button', { name: /Hide why/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(soil.getByRole('listitem').first()).toBeVisible();
 
   // Make it a plan, then move a task to another month.
   await page.getByRole('button', { name: 'Make this my plan' }).click();
@@ -88,6 +97,27 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await dialog.getByRole('button', { name: 'Save task' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first()).toHaveAttribute('data-month', '6');
+
+  // Desktop: drag "Plant corn" from June to April of the same year, then back with the dialog.
+  if (!isMobile) {
+    const chip = page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first();
+    const year = await chip.getAttribute('data-year');
+    const target = page.locator(`[data-testid="plan-cell"][data-year="${year}"][data-month="4"]`);
+    const from = (await chip.boundingBox())!;
+    const to = (await target.boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2, { steps: 3 });
+    await page.mouse.move(to.x + to.width / 2, to.y + 20, { steps: 12 });
+    await page.mouse.up();
+    const moved = page.getByTestId('plan-task').filter({ visible: true }).filter({ hasText: 'Plant corn' }).first();
+    await expect(moved).toHaveAttribute('data-month', '4');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await moved.click();
+    await page.getByRole('dialog', { name: 'Edit task' }).getByLabel('Month').selectOption('6');
+    await page.getByRole('button', { name: 'Save task' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
 
   // Reload: the plan and the edit persist.
   await page.reload();

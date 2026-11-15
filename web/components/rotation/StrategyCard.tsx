@@ -48,7 +48,7 @@ export function StrategyCard({ s, best, fieldId }: { s: StrategyScore; best: boo
       <div className="mt-4 border-t border-line pt-3">
         <h4 className="text-[14px] font-semibold text-ink-soft">Main reasons</h4>
         <div className="mt-2">
-          <ReasonList reasons={topReasons(s)} />
+          <ReasonList reasons={topReasons(s)} showSources={false} />
         </div>
         {s.caveats.length > 0 && (
           <ul className="mt-3 space-y-1 text-[14px] text-wheat-deep">
@@ -58,7 +58,6 @@ export function StrategyCard({ s, best, fieldId }: { s: StrategyScore; best: boo
           </ul>
         )}
       </div>
-      <p className="mt-3 text-[12.5px] text-ink-faint">Estimated with a placeholder rubric, not a yield or profit forecast.</p>
       <div className="mt-auto pt-4">
         <Link
           href={`/rotation/${s.strategy.id}?field=${fieldId}`}

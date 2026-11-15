@@ -28,12 +28,17 @@ test('add fields by ZIP then drawing, enter crops, import GeoJSON, reload', asyn
   await expect(page.getByTestId('field-acres')).toHaveText(/\d+\.\d ac/);
   await expect(page.getByTestId('season-2025')).toContainText('Check this info');
   await expect(page.getByTestId('source-power')).toHaveAttribute('data-status', 'ok');
-  await expect(page.getByTestId('source-smap')).toHaveAttribute('data-status', 'needs_token');
-  await expect(page.getByTestId('source-elevation')).toContainText('Measured');
+  await expect(page.getByTestId('source-smap')).toHaveAttribute('data-status', 'ok');
+  await expect(page.getByTestId('source-smap')).toContainText(/29 ?%/);
+  await expect(page.getByTestId('source-imerg')).toContainText('Not available yet');
+  // The profile is plain: values only, no provider names, fetch dates or honesty badges.
+  await expect(page.getByTestId('source-elevation')).toContainText('Mock elevation value');
+  await expect(page.getByTestId('source-elevation')).not.toContainText('Measured');
+  await expect(page.getByTestId('source-power')).not.toContainText('NASA POWER');
 
   // Crops: current season by search, then confirm the detections
   await page.getByRole('button', { name: /Crop in 2026/ }).click();
-  await page.getByRole('combobox').fill('oats');
+  await page.getByRole('combobox', { expanded: true }).fill('oats');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('season-2026')).toContainText('You entered this');
   await page.getByRole('button', { name: /These look right/ }).click();
@@ -98,4 +103,22 @@ test('every tab is routed and the app opens on Fields', async ({ page }) => {
     await page.goto(href);
     await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
   }
+});
+
+test('address suggestions appear as you type, and picking one finds the farm', async ({ page }) => {
+  await mockSources(page);
+  await page.route('**/api/geocode/suggest', (route) => route.fulfill({ json: { matches: [{ label: '2229 Lincoln Way, Ames, IA 50014', lat: 42.0238, lon: -93.6458 }] } }));
+  await page.goto('/fields');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Add field' }).click();
+  await page.getByRole('button', { name: /^Enter an address/ }).click();
+  await page.getByRole('combobox', { name: 'Address' }).pressSequentially('2229 linc', { delay: 30 });
+  const option = page.getByRole('option', { name: '2229 Lincoln Way, Ames, IA 50014' });
+  await expect(option).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await expect(option).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Enter');
+  await expect(option).toBeHidden();
+  await expect(page.getByText('2229 Lincoln Way, Ames, IA 50014').first()).toBeVisible();
 });

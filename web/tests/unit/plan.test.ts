@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { setSeasonCrop } from '@/lib/domain/cropHistory';
 import { createField } from '@/lib/domain/field';
-import { addSeason, addTask, planFromStrategy, removeLastSeason, removeTask, renamePlan, setPlanCrop, updateTask } from '@/lib/domain/plan';
+import { addSeason, addTask, planFromStrategy, moveTask, removeLastSeason, removeTask, renamePlan, setPlanCrop, updateTask } from '@/lib/domain/plan';
 import { buildInputs } from '@/lib/domain/rotation/inputs';
 import { buildStrategies } from '@/lib/domain/rotation/strategies';
 import type { Field } from '@/lib/domain/types';
@@ -69,6 +69,16 @@ describe('plans from strategies', () => {
     expect(addSeason(removed, NOW).seasons.map((s) => s.year)).toEqual([2027, 2028, 2029, 2030]);
     expect(removeLastSeason(removed, NOW).seasons).toHaveLength(2);
     expect(updateTask(plan, 'nope', { month: 1 }, NOW)).toBe(plan);
+  });
+
+  it('moves a task by drag and drop to another month and year, ignoring years outside the plan', () => {
+    const f = cornSoy();
+    const plan = planFromStrategy(strategies(f)[0], f, {}, { now: NOW, id: ids });
+    const plant = plan.seasons[0].tasks.find((t) => t.kind === 'plant')!;
+    const moved = moveTask(plan, plant.id, plan.seasons[1].year, 7, NOW);
+    expect(moved.seasons[0].tasks.some((t) => t.id === plant.id)).toBe(false);
+    expect(moved.seasons[1].tasks.find((t) => t.id === plant.id)).toMatchObject({ month: 7, label: plant.label });
+    expect(moveTask(plan, plant.id, 1999, 7, NOW)).toBe(plan);
   });
 });
 

@@ -125,6 +125,12 @@ export function updateTask(plan: Plan, taskId: string, patch: Partial<Omit<PlanT
   return touch(plan, seasons, now);
 }
 
+/** Drag and drop: move a task to another month and/or another year of the plan. */
+export function moveTask(plan: Plan, taskId: string, year: number, month: number, now = new Date()): Plan {
+  if (!plan.seasons.some((s) => s.year === year)) return plan;
+  return updateTask(plan, taskId, { year, month }, now);
+}
+
 export function removeTask(plan: Plan, taskId: string, now = new Date()): Plan {
   return touch(plan, plan.seasons.map((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== taskId) })), now);
 }

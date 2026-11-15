@@ -9,11 +9,17 @@ const AMES_CLIMATE = {
 export async function mockSources(page: Page) {
   await page.route('**/api/profile/*', async (route) => {
     const id = route.request().url().split('/').pop()!;
-    const earthdata = ['smap', 'imerg', 'ndvi'].includes(id);
+    const earthdata = ['imerg', 'ndvi'].includes(id);
+    const smap = [
+      { key: 'smapLatest', label: 'Topsoil moisture (Nov 11)', value: 29, unit: '%', honesty: 'Estimated' },
+      { key: 'smapCondition', label: 'Topsoil condition', value: 'Good', honesty: 'Estimated' },
+    ];
     await route.fulfill({
       json: earthdata
         ? { sourceId: id, sourceName: id, docsUrl: '', status: 'needs_token', values: [], message: 'Not available yet.' }
-        : {
+        : id === 'smap'
+          ? { sourceId: id, sourceName: id, docsUrl: '', status: 'ok', fetchedAt: '2026-11-14T12:00:00Z', values: smap }
+          : {
             sourceId: id,
             sourceName: id,
             docsUrl: '',
