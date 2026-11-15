@@ -41,7 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# FieldShift
+# PlotTwist
 /.cache/
 /test-results/
 /playwright-report/

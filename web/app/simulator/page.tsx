@@ -1,6 +1,6 @@
 import { ComingSoon } from '@/components/shell/ComingSoon';
 
-export const metadata = { title: 'Scenario Simulator | FieldShift' };
+export const metadata = { title: 'Scenario Simulator | PlotTwist' };
 
 export default function Page() {
   return (

@@ -1,4 +1,4 @@
-# FieldShift web app (Milestones 1–2)
+# PlotTwist web app (Milestones 1–2)
 
 Crop-rotation planning for farmers, built for NASA Space Apps 2026 ("Field Shift: Adapting Farms with NASA Data"). This folder is the Next.js app; the original vanilla-JS prototype lives at the repository root.
 
@@ -39,7 +39,7 @@ npm run dev
 
 Open http://localhost:3000. To try an import, use `samples/sample-farm.geojson` (fields near Ames, Iowa).
 
-Optional: copy `.env.example` to `.env.local` and set `EARTHDATA_TOKEN` (a NASA Earthdata login token) for the SMAP, IMERG and NDVI sources, then restart `npm run dev`. Farmers only ever see "Not available yet" for these when the token is missing or rejected; the reason is printed once to the server console as a `[FieldShift]` warning.
+Optional: copy `.env.example` to `.env.local` and set `EARTHDATA_TOKEN` (a NASA Earthdata login token) for the SMAP, IMERG and NDVI sources, then restart `npm run dev`. Farmers only ever see "Not available yet" for these when the token is missing or rejected; the reason is printed once to the server console as a `[PlotTwist]` warning.
 
 ## Test
 
@@ -52,7 +52,7 @@ npm run typecheck
 npm run lint
 ```
 
-The data-source tests run against responses recorded from the real endpoints (`tests/fixtures/`), so they need no network. The end-to-end tests mock FieldShift's own `/api/profile/*` and `/api/cdl` routes. They walk through two flows:
+The data-source tests run against responses recorded from the real endpoints (`tests/fixtures/`), so they need no network. The end-to-end tests mock PlotTwist's own `/api/profile/*` and `/api/cdl` routes. They walk through two flows:
 
 - ZIP then draw, draw in place, crops, GeoJSON import, reload (`fields.spec.ts`).
 - Explore rotation, the questionnaire with a soil test, three scored strategies, a strategy page with cover crops, make a plan, move a task, reload, the logo and the last-field memory (`rotation.spec.ts`).

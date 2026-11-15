@@ -11,7 +11,7 @@ export class SourceError extends Error {
   }
 }
 
-export const USER_AGENT = 'FieldShift/0.1 (NASA Space Apps 2026 prototype)';
+export const USER_AGENT = 'PlotTwist/0.1 (NASA Space Apps 2026 prototype)';
 
 /** fetch with a hard timeout; converts every failure into a SourceError with a plain-language message. */
 export async function fetchText(

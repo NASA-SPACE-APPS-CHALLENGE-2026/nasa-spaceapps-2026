@@ -10,7 +10,7 @@ const warned = new Set<string>();
 export function devHint(message: string): void {
   if (warned.has(message)) return;
   warned.add(message);
-  console.warn(`[FieldShift] ${message}`);
+  console.warn(`[PlotTwist] ${message}`);
 }
 
 /** A cheap authenticated request: CMR answers 401 "Token does not exist" for bad tokens. */

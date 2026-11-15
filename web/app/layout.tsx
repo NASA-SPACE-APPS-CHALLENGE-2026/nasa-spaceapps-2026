@@ -7,7 +7,7 @@ import './globals.css';
 const archivo = Archivo({ subsets: ['latin'], axes: ['wdth'], variable: '--font-archivo', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'FieldShift',
+  title: 'PlotTwist',
   description: 'Plan crop rotations for your fields with NASA and USDA data.',
   icons: { icon: '/fieldshift.svg' },
   manifest: '/manifest.webmanifest',

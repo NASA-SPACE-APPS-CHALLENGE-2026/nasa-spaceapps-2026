@@ -1,6 +1,6 @@
 {
-  "name": "FieldShift",
-  "short_name": "FieldShift",
+  "name": "PlotTwist",
+  "short_name": "PlotTwist",
   "description": "Plan crop rotations for your fields with NASA and USDA data.",
   "start_url": "/fields",
   "display": "standalone",

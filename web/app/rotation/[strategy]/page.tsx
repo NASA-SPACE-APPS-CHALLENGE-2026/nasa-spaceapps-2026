@@ -11,7 +11,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ strategy: string }> }) {
   const { strategy } = await params;
-  return { title: `${TITLES[strategy as StrategyId] ?? 'Strategy'} | Rotation Explorer | FieldShift` };
+  return { title: `${TITLES[strategy as StrategyId] ?? 'Strategy'} | Rotation Explorer | PlotTwist` };
 }
 
 export default async function Page({ params }: { params: Promise<{ strategy: string }> }) {

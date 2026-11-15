@@ -245,7 +245,7 @@ function InputsUsed({ inputs }: { inputs: RotationInputs }) {
           </div>
         ))}
       </dl>
-      <p className="mt-2 text-[13.5px] text-ink-faint">Missing values are shown as missing; FieldShift never fills them in.</p>
+      <p className="mt-2 text-[13.5px] text-ink-faint">Missing values are shown as missing; PlotTwist never fills them in.</p>
     </section>
   );
 }

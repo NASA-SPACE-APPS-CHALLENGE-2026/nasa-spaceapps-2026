@@ -123,7 +123,7 @@ export function BoundaryImportCard() {
               {[
                 'Export your field boundaries as GeoJSON, KML, or a zipped shapefile.',
                 'Drop the file here. It is read in your browser and not uploaded anywhere.',
-                'Pick which shapes become fields. FieldShift then looks up crop history, weather and soil for each one.',
+                'Pick which shapes become fields. PlotTwist then looks up crop history, weather and soil for each one.',
               ].map((step, i) => (
                 <li key={step} className="flex gap-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-tint text-[14px] font-semibold text-sky-deep" aria-hidden>

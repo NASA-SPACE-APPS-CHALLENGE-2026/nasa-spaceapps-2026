@@ -9,7 +9,7 @@ import type { CropRef, Field, FieldGeometry } from '../domain/types';
  * field edges, roads and the railroad, and do not overlap each other. Crop histories are made-up examples of
  * common Iowa rotations — they are labeled as demo data in the app and are not this land's real history.
  */
-export const DEMO_FILE_NAME = 'FieldShift demo farm (example data)';
+export const DEMO_FILE_NAME = 'PlotTwist demo farm (example data)';
 
 const C = (id: string): CropRef => ({ kind: 'catalog', id });
 

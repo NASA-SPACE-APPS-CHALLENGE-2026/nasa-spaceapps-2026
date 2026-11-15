@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Third-party data is mocked at FieldShift's own API boundary (/api/profile/*, /api/cdl), so tests are deterministic. */
+/** Third-party data is mocked at PlotTwist's own API boundary (/api/profile/*, /api/cdl), so tests are deterministic. */
 const AMES_CLIMATE = {
   monthlyMeanTempF: [19.5, 24.7, 36.7, 48.9, 60.8, 70.8, 74.9, 72.8, 64.7, 50.7, 36.3, 24.8],
   monthlyRainIn: [0.94, 1.05, 1.92, 3.54, 4.58, 5.19, 4.16, 4.29, 3.27, 2.62, 1.72, 1.33],

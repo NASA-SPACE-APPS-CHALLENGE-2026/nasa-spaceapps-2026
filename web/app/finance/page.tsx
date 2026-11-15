@@ -1,6 +1,6 @@
 import { ComingSoon } from '@/components/shell/ComingSoon';
 
-export const metadata = { title: 'Finance | FieldShift' };
+export const metadata = { title: 'Finance | PlotTwist' };
 
 export default function Page() {
   return (

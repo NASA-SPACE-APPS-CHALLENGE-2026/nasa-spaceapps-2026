@@ -126,10 +126,10 @@ describe('transient failures', () => {
     const storage = new MemoryStorage();
     const failing: StoreApi = {
       async fetchSource(source) {
-        return { sourceId: source, sourceName: 'x', docsUrl: '', status: 'unavailable', transient: true, values: [], message: 'FieldShift server could not be reached' };
+        return { sourceId: source, sourceName: 'x', docsUrl: '', status: 'unavailable', transient: true, values: [], message: 'PlotTwist server could not be reached' };
       },
       async fetchCdl() {
-        return { status: 'unavailable', transient: true, years: [], message: 'FieldShift server could not be reached' };
+        return { status: 'unavailable', transient: true, years: [], message: 'PlotTwist server could not be reached' };
       },
     };
     const first = new FarmStore(createLocalRepositories(storage), failing, NOW);

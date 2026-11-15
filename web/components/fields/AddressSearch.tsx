@@ -53,7 +53,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
       }
       setState({ kind: 'results', matches });
     } catch {
-      setState({ kind: 'error', message: 'FieldShift could not reach its server. Check that it is running and try again.' });
+      setState({ kind: 'error', message: 'PlotTwist could not reach its server. Check that it is running and try again.' });
     }
   };
 

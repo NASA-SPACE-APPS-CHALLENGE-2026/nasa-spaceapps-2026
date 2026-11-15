@@ -1,4 +1,4 @@
-/** FieldShift mark: a wheat sprout over field rows (from the prototype's fieldshift.svg, recoloured). */
+/** PlotTwist mark: a wheat sprout over field rows (from the prototype's fieldshift.svg, recoloured). */
 export function Logo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>

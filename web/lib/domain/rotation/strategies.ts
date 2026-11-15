@@ -161,7 +161,7 @@ export function buildStrategies(inputs: RotationInputs): StrategySet {
     summary: `Continue ${cycle.map(seasonLabel).join(', then ')}${cycle.length > 1 ? ' in turn' : ' every year'}, as you do now.`,
     practiceChanges: 0,
     seasons: keepAll.slice(0, PLAN_YEARS),
-    notes: knownSeq.length < 2 ? ['Only one season is known, so FieldShift assumed the same crop every year.'] : [],
+    notes: knownSeq.length < 2 ? ['Only one season is known, so PlotTwist assumed the same crop every year.'] : [],
   };
 
   // ---- cover ----
@@ -195,7 +195,7 @@ export function buildStrategies(inputs: RotationInputs): StrategySet {
     const wheatOk = k > 0 && coldest !== undefined && coldest >= 15 && prevHarvest <= 10;
     smallGrain = wheatOk ? 'winter-wheat' : 'oats';
     if (k === 0) sgNotes.push(`It is past the usual fall seeding time for ${inputs.currentYear + 1} winter wheat, so the first small grain is spring oats.`);
-    else if (!wheatOk && coldest === undefined) sgNotes.push('Climate data is missing, so FieldShift chose spring oats, which avoid any winter-survival risk.');
+    else if (!wheatOk && coldest === undefined) sgNotes.push('Climate data is missing, so PlotTwist chose spring oats, which avoid any winter-survival risk.');
     else if (!wheatOk) sgNotes.push('Winters here are cold for winter wheat after this crop, so the small grain is spring oats.');
     const ids = [...keepIds.slice(0, k), [smallGrain], ...keepIds.slice(k)].slice(0, PLAN_YEARS + 1);
     const all = ids.map((s, i) => season(s, years[i], inputs, currentIds, i === k));

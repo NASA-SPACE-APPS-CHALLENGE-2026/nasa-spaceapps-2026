@@ -183,7 +183,7 @@ function soilCoverBar(st: Strategy, inputs: RotationInputs, firstYear: number): 
   if (tillage === 'no-till') bar.add(5, 'No-till leaves crop residue on the surface through the bare months.', [answer(tq, TILLAGE_LABELS['no-till']), ...cite('nrcs-329')]);
   else if (tillage === 'reduced') bar.note('Reduced tillage leaves some residue on the surface.', [answer(tq, TILLAGE_LABELS.reduced), ...cite('nrcs-329')]);
   else if (tillage === 'conventional') bar.add(-10, 'Full tillage buries most residue, so bare months are fully exposed to wind and rain.', [answer(tq, TILLAGE_LABELS.conventional), ...cite('nrcs-329')]);
-  else bar.assume(-10, 'tillage', 'Tillage is unknown, so FieldShift assumed some residue is buried (half the full-tillage penalty).', [answer(tq, 'Not answered'), ...cite('nrcs-329')]);
+  else bar.assume(-10, 'tillage', 'Tillage is unknown, so PlotTwist assumed some residue is buried (half the full-tillage penalty).', [answer(tq, 'Not answered'), ...cite('nrcs-329')]);
   if (known(inputs.answers.harvestMonth) === undefined) {
     bar.confidence = lower(bar.confidence);
     bar.missing.push('harvest month');
@@ -219,7 +219,7 @@ const PEST_CITES: Record<'rootworm' | 'scn' | 'white-mold', CitationId> = { root
 
 function pestsBar(st: Strategy, inputs: RotationInputs, knownSeasons: number, unconfirmed: boolean): BarScore {
   if (knownSeasons < 2) {
-    return unscored('pests', ['an earlier season'], 'Not enough info: enter at least one earlier season on the Fields tab so FieldShift can see what follows what.', [{ kind: 'history', text: 'Crop history on the Fields tab' }]);
+    return unscored('pests', ['an earlier season'], 'Not enough info: enter at least one earlier season on the Fields tab so PlotTwist can see what follows what.', [{ kind: 'history', text: 'Crop history on the Fields tab' }]);
   }
   const current = inputs.seasons[inputs.seasons.length - 1].ids!;
   const seq: string[][] = [current, ...st.seasons.map(seasonIds)];
@@ -246,7 +246,7 @@ function pestsBar(st: Strategy, inputs: RotationInputs, knownSeasons: number, un
   const problems = inputs.answers.problems;
   const pq = 'Which problems have you had on this field?';
   if (problems === undefined || problems === 'unsure') {
-    bar.assume(-10, 'pest history', 'Pest history is unknown, so FieldShift assumed some pressure (half of a repeated-host penalty).', [answer(pq, problems === 'unsure' ? 'Not sure' : 'Not answered')]);
+    bar.assume(-10, 'pest history', 'Pest history is unknown, so PlotTwist assumed some pressure (half of a repeated-host penalty).', [answer(pq, problems === 'unsure' ? 'Not sure' : 'Not answered')]);
   } else if (problems.length === 0) {
     bar.note('You reported none of the listed pest problems.', [answer(pq, 'None of these')]);
   } else {

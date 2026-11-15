@@ -20,9 +20,9 @@ export function AppHeader() {
   return (
     <header className="z-[1100] border-b border-line bg-panel">
       <div className="flex items-center gap-3 px-4 pt-2 lg:gap-6 lg:py-0">
-        <Link href="/overview" className="flex shrink-0 items-center gap-2 rounded-lg py-1 lg:py-3" aria-label="FieldShift home (Overview)">
+        <Link href="/overview" className="flex shrink-0 items-center gap-2 rounded-lg py-1 lg:py-3" aria-label="PlotTwist home (Overview)">
           <Logo className="h-8 w-8" />
-          <span className="font-plate text-xl">FieldShift</span>
+          <span className="font-plate text-xl">PlotTwist</span>
         </Link>
         <nav aria-label="Main" className="hidden min-w-0 flex-1 lg:block">
           <TabList path={path} />

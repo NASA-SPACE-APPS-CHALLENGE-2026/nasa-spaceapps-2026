@@ -47,7 +47,7 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
           <WheatRow className="h-16 w-32" />
           <h2 className="mt-3 font-plate text-xl">Add your first field</h2>
           <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">
-Find it by address, ZIP code or on the map, then trace its edges. Tell us what you grew, and FieldShift looks up the weather, soil and terrain.
+Find it by address, ZIP code or on the map, then trace its edges. Tell us what you grew, and PlotTwist looks up the weather, soil and terrain.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={onAdd}>Add field</Button>

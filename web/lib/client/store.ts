@@ -35,7 +35,7 @@ export const httpApi: StoreApi = {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as SourceResult;
     } catch (err) {
-      return { sourceId: source, sourceName: meta.provider, docsUrl: meta.docsUrl, status: 'unavailable', transient: true, values: [], message: `FieldShift server could not be reached (${(err as Error).message}).` };
+      return { sourceId: source, sourceName: meta.provider, docsUrl: meta.docsUrl, status: 'unavailable', transient: true, values: [], message: `PlotTwist server could not be reached (${(err as Error).message}).` };
     }
   },
   async fetchCdl(field, years) {
@@ -48,7 +48,7 @@ export const httpApi: StoreApi = {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as CdlResponse;
     } catch (err) {
-      return { status: 'unavailable', transient: true, message: `FieldShift server could not be reached (${(err as Error).message}). Enter past crops by hand.`, years: [] };
+      return { status: 'unavailable', transient: true, message: `PlotTwist server could not be reached (${(err as Error).message}). Enter past crops by hand.`, years: [] };
     }
   },
 };

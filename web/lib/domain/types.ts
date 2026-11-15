@@ -1,7 +1,7 @@
 import type { Feature, MultiPolygon, Polygon } from 'geojson';
 
 /**
- * FieldShift keeps three per-field layers in separate stores, all keyed by `fieldId`:
+ * PlotTwist keeps three per-field layers in separate stores, all keyed by `fieldId`:
  *   1. Field            – shape + crop history (what the farmer draws / enters)
  *   2. FieldProfile     – automatically fetched public data (never typed by the farmer)
  *   3. ManagementAnswers – later farmer questionnaire answers (Milestone 2+)

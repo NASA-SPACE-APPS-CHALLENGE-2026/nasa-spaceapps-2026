@@ -95,7 +95,7 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   // Logo goes to Overview; Rotation Explorer reopens the last field with its answers.
-  await page.getByRole('link', { name: /FieldShift home/ }).click();
+  await page.getByRole('link', { name: /PlotTwist home/ }).click();
   await expect(page).toHaveURL(/\/overview$/);
   await page.goto('/rotation');
   await expect(page.getByLabel('Field', { exact: true })).toHaveValue(/.+/);
