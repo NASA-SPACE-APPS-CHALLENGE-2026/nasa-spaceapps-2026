@@ -106,7 +106,7 @@ export function OverviewScreen() {
                 <h2 id="fields-h" className="font-plate text-xl">
                   Your fields
                 </h2>
-                <Link href="/fields" className="inline-flex min-h-11 items-center font-semibold text-sky-deep hover:underline">
+                <Link href="/fields" className="inline-flex min-h-11 items-center font-semibold text-field hover:underline">
                   Manage fields
                 </Link>
               </div>
@@ -117,7 +117,7 @@ export function OverviewScreen() {
                   const rain = num(p, 'imerg', 'imergRain30') ?? num(p, 'power', 'rain30');
                   return (
                     <li key={f.id}>
-                      <Link href="/fields" className="flex gap-3 rounded-[var(--radius-control)] border border-line p-3 hover:border-sky">
+                      <Link href="/fields" className="flex gap-3 rounded-parcel border border-line p-3 hover:border-field">
                         <Outline field={f} />
                         <span className="min-w-0">
                           <span className="block truncate text-[16px] font-semibold">{f.name}</span>
@@ -140,7 +140,7 @@ export function OverviewScreen() {
                 <h2 id="rot-h" className="font-plate text-xl">
                   Current rotation
                 </h2>
-                <Link href="/planner" className="inline-flex min-h-11 items-center font-semibold text-sky-deep hover:underline">
+                <Link href="/planner" className="inline-flex min-h-11 items-center font-semibold text-field hover:underline">
                   Open the Planner
                 </Link>
               </div>
@@ -179,7 +179,7 @@ export function OverviewScreen() {
                   <h2 id="money-h" className="font-plate text-xl">
                     Money
                   </h2>
-                  <Link href="/finance" className="inline-flex min-h-11 items-center font-semibold text-sky-deep hover:underline">
+                  <Link href="/finance" className="inline-flex min-h-11 items-center font-semibold text-field hover:underline">
                     Open Finance
                   </Link>
                 </div>
@@ -205,9 +205,9 @@ function moistureWord(pct: number): string {
 
 function Metric({ title, main, sub, foot, icon }: { title: string; main: string; sub: string; foot?: string; icon: 'drop' | 'rain' | 'sun' }) {
   return (
-    <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+    <div className="rounded-parcel border border-line bg-panel p-4">
       <p className="flex items-center gap-2 text-[14.5px] font-semibold text-ink-soft">
-        <svg viewBox="0 0 20 20" className="h-4 w-4 text-sky-deep" aria-hidden>
+        <svg viewBox="0 0 20 20" className="h-4 w-4 text-field" aria-hidden>
           {icon === 'drop' && <path d="M10 2.5S4.5 8.6 4.5 12a5.5 5.5 0 0 0 11 0C15.5 8.6 10 2.5 10 2.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" />}
           {icon === 'rain' && <path d="M5.5 11a3.5 3.5 0 0 1 .4-7 4.5 4.5 0 0 1 8.6 1.5 3 3 0 0 1-.5 5.5M7 14l-1 2.5M10.5 14l-1 2.5M14 14l-1 2.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />}
           {icon === 'sun' && <><circle cx="10" cy="10" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.8" /><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></>}
@@ -238,7 +238,7 @@ function Outline({ field }: { field: Field }) {
 
 function Chip({ year, crop, cover, kind }: { year: number; crop: CropRef | null; cover?: string; kind: 'past' | 'now' | 'planned' }) {
   return (
-    <li className={`min-w-[7.5rem] rounded-[var(--radius-control)] border px-2.5 py-1.5 ${kind === 'now' ? 'border-sky bg-sky-tint' : kind === 'planned' ? 'border-dashed border-line-strong bg-panel' : 'border-line bg-paper'}`}>
+    <li className={`min-w-[7.5rem] rounded-parcel border px-2.5 py-1.5 ${kind === 'now' ? 'border-field bg-field-tint' : kind === 'planned' ? 'border-dashed border-line-strong bg-panel' : 'border-line bg-paper'}`}>
       <span className="block text-[12.5px] font-semibold text-ink-soft">
         {year}
         {kind === 'now' ? ' · now' : kind === 'planned' ? ' · plan' : ''}

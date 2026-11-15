@@ -21,7 +21,7 @@ import { ScoreAccordion } from './ScoreAccordion';
 import { SeasonTable } from './SeasonPreview';
 import { InputBadge, ReasonList, SourceList } from './Sources';
 
-const SECTION = 'rounded-[var(--radius-panel)] border border-line bg-panel p-4 lg:p-5';
+const SECTION = 'rounded-parcel border border-line bg-panel p-4 lg:p-5';
 
 export function StrategyDetail({ strategyId }: { strategyId: StrategyId }) {
   const store = useStore();
@@ -73,7 +73,7 @@ export function StrategyDetail({ strategyId }: { strategyId: StrategyId }) {
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={() => void makePlan()}>Make this my plan</Button>
           {existing.length > 0 && (
-            <Link href={`/planner?field=${field.id}&plan=${existing[existing.length - 1].id}`} className="inline-flex min-h-12 items-center rounded-[var(--radius-control)] border border-line-strong bg-panel px-4 text-[15px] font-semibold hover:border-sky hover:text-sky-deep">
+            <Link href={`/planner?field=${field.id}&plan=${existing[existing.length - 1].id}`} className="inline-flex min-h-12 items-center rounded-parcel border border-line-strong bg-panel px-4 text-[15px] font-semibold hover:border-field hover:text-field">
               Open the plan you made
             </Link>
           )}
@@ -134,7 +134,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function BackLink({ href }: { href: string }) {
   return (
-    <Link href={href} className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-[var(--radius-control)] px-2 font-semibold text-sky-deep hover:bg-sky-tint">
+    <Link href={href} className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-parcel px-2 font-semibold text-field hover:bg-field-tint">
       <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
         <path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
       </svg>
@@ -169,10 +169,10 @@ function CoverSuggestions({ strategy, inputs }: { strategy: Strategy; inputs: Ro
             <h3 className="text-[16px] font-semibold">{g.title}</h3>
             <ol className="mt-2 space-y-3">
               {g.picks.map((p) => (
-                <li key={p.species.id} className="rounded-[var(--radius-control)] border border-line p-3">
+                <li key={p.species.id} className="rounded-parcel border border-line p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[16px] font-semibold">{p.species.name}</p>
-                    {g.scheduled === p.species.id && <span className="rounded-full bg-sky-tint px-2 py-0.5 text-[12.5px] font-semibold text-sky-deep">In this strategy</span>}
+                    {g.scheduled === p.species.id && <span className="rounded-full bg-field-tint px-2 py-0.5 text-[12.5px] font-semibold text-field">In this strategy</span>}
                     <FitBadge fits={p.fits} />
                   </div>
                   <ul className="mt-1 space-y-0.5 text-[14.5px] text-ink-soft">
@@ -268,8 +268,8 @@ function GroundChecks({ s, inputs }: { s: StrategyScore; inputs: RotationInputs 
         ))}
       </ul>
       <p className="mt-3 text-[13.5px] text-ink-faint">
-        Sources: <a className="text-sky-deep underline underline-offset-2" href={CITATIONS['nrcs-340'].url} target="_blank" rel="noopener noreferrer">NRCS cover crop standard</a>,{' '}
-        <a className="text-sky-deep underline underline-offset-2" href={CITATIONS['scn-coalition'].url} target="_blank" rel="noopener noreferrer">The SCN Coalition</a>.
+        Sources: <a className="text-field underline underline-offset-2" href={CITATIONS['nrcs-340'].url} target="_blank" rel="noopener noreferrer">NRCS cover crop standard</a>,{' '}
+        <a className="text-field underline underline-offset-2" href={CITATIONS['scn-coalition'].url} target="_blank" rel="noopener noreferrer">The SCN Coalition</a>.
       </p>
     </section>
   );

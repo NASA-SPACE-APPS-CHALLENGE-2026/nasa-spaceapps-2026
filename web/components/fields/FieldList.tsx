@@ -43,7 +43,7 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onAd
       </div>
 
       {loaded && fields.length === 0 && (
-        <div className="mt-6 rounded-[var(--radius-panel)] border border-line bg-panel p-5">
+        <div className="mt-6 rounded-parcel border border-line bg-panel p-5">
           <WheatRow className="h-16 w-32" />
           <h2 className="mt-3 font-plate text-xl">Add your first field</h2>
           <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">
@@ -51,14 +51,14 @@ Find it by address, ZIP code or on the map, then trace its edges. Tell us what y
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={onAdd}>Add field</Button>
-            <Link href="/imports" className="inline-flex min-h-12 items-center rounded-[var(--radius-control)] px-4 text-[15px] font-semibold text-sky-deep hover:bg-sky-tint">
+            <Link href="/imports" className="inline-flex min-h-12 items-center rounded-parcel px-4 text-[15px] font-semibold text-field hover:bg-field-tint">
               Import boundary file
             </Link>
           </div>
           {!demoBlocker && (
             <p className="mt-4 border-t border-line pt-3 text-[14.5px] text-ink-soft">
               Just exploring?{' '}
-              <button type="button" onClick={onLoadDemo} className="min-h-10 font-semibold text-sky-deep underline underline-offset-2">
+              <button type="button" onClick={onLoadDemo} className="min-h-10 font-semibold text-field underline underline-offset-2">
                 Load the demo farm
               </button>{' '}
               (6 example fields near Ames, Iowa).
@@ -77,7 +77,7 @@ Find it by address, ZIP code or on the map, then trace its edges. Tell us what y
                 type="button"
                 onClick={() => onSelect(f.id)}
                 aria-current={selected ? 'true' : undefined}
-                className={`w-full rounded-[var(--radius-panel)] border bg-panel p-4 text-left transition-colors hover:border-sky ${selected ? 'border-sky ring-2 ring-sky/25' : 'border-line'}`}
+                className={`w-full rounded-parcel border bg-panel p-4 text-left transition-colors hover:border-field ${selected ? 'border-field ring-2 ring-field/25' : 'border-line'}`}
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2">
@@ -102,7 +102,7 @@ Find it by address, ZIP code or on the map, then trace its edges. Tell us what y
 
       {fields.length > 0 && !demoBlocker && (
         <p className="mt-4 text-[14px] text-ink-soft">
-          <button type="button" onClick={onLoadDemo} className="min-h-10 font-semibold text-sky-deep hover:underline">
+          <button type="button" onClick={onLoadDemo} className="min-h-10 font-semibold text-field hover:underline">
             Add the demo farm
           </button>{' '}
           (6 example fields near Ames, Iowa)
@@ -110,8 +110,8 @@ Find it by address, ZIP code or on the map, then trace its edges. Tell us what y
       )}
 
       <div className="mt-auto pt-6">
-        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-panel)] border border-line bg-panel p-3">
-          <input type="checkbox" checked={settings.externalLookups} onChange={(e) => onToggleLookups(e.target.checked)} className="mt-1 h-5 w-5 accent-[var(--color-sky)]" />
+        <label className="flex cursor-pointer items-start gap-3 rounded-parcel border border-line bg-panel p-3">
+          <input type="checkbox" checked={settings.externalLookups} onChange={(e) => onToggleLookups(e.target.checked)} className="mt-1 h-5 w-5 accent-[var(--color-field)]" />
           <span className="text-[14px] leading-snug text-ink-soft">
             <span className="block font-semibold text-ink">Look up public data for my fields</span>
             Sends each field&rsquo;s location to NASA, USDA and USGS to fetch weather, soil, terrain and crop history, and the addresses you type to address lookup services (Photon and the US Census Bureau). Fields stay saved in this browser only.

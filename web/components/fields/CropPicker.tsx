@@ -78,7 +78,7 @@ export function CropPicker({ value, onChange, label }: { value: CropRef | null; 
         aria-expanded={open}
         aria-label={`${label}: ${value ? cropLabel(value) : 'not entered'}`}
         onClick={() => setOpen((o) => !o)}
-        className="flex min-h-12 w-full items-center gap-2 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-left text-[15px] hover:border-sky"
+        className="flex min-h-12 w-full items-center gap-2 rounded-parcel border border-line-strong bg-panel px-3 text-left text-[15px] hover:border-field"
       >
         {value && <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: cropColor(value) }} aria-hidden />}
         <span className={`min-w-0 flex-1 truncate ${value ? 'font-medium' : 'text-ink-faint'}`}>{value ? cropLabel(value) : 'Choose crop'}</span>
@@ -87,7 +87,7 @@ export function CropPicker({ value, onChange, label }: { value: CropRef | null; 
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 min-w-[260px] overflow-hidden rounded-[var(--radius-panel)] border border-line-strong bg-panel shadow-[0_12px_32px_-12px_rgba(29,43,34,0.35)]">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 min-w-[260px] overflow-hidden rounded-parcel border border-line-strong bg-panel shadow-[0_12px_32px_-12px_rgba(29,43,34,0.35)]">
           <input
             ref={inputRef}
             role="combobox"
@@ -126,7 +126,7 @@ export function CropPicker({ value, onChange, label }: { value: CropRef | null; 
                     aria-selected={i === active}
                     onPointerEnter={() => setActive(i)}
                     onClick={() => choose(o.ref)}
-                    className={`flex min-h-11 cursor-pointer items-center gap-2 px-3 text-[15px] ${i === active ? 'bg-sky-tint' : ''}`}
+                    className={`flex min-h-11 cursor-pointer items-center gap-2 px-3 text-[15px] ${i === active ? 'bg-field-tint' : ''}`}
                   >
                     <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: cropColor(o.ref) }} aria-hidden />
                     {o.label}
@@ -142,7 +142,7 @@ export function CropPicker({ value, onChange, label }: { value: CropRef | null; 
                   aria-selected={active === matches.length}
                   onPointerEnter={() => setActive(matches.length)}
                   onClick={() => choose({ kind: 'other', text: query.trim().slice(0, 60) })}
-                  className={`flex min-h-11 cursor-pointer items-center px-3 text-[15px] ${active === matches.length ? 'bg-sky-tint' : ''}`}
+                  className={`flex min-h-11 cursor-pointer items-center px-3 text-[15px] ${active === matches.length ? 'bg-field-tint' : ''}`}
                 >
                   Use &ldquo;{query.trim()}&rdquo; (other crop)
                 </div>

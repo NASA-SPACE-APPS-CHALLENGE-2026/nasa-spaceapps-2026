@@ -48,13 +48,13 @@ export function Questionnaire({ field, answers, onChange, onDone }: Props) {
   const last = step === STEPS.length - 1;
 
   return (
-    <section aria-labelledby="q-heading" className="rounded-[var(--radius-panel)] border border-line bg-panel p-4 lg:p-6" data-testid="questionnaire">
+    <section aria-labelledby="q-heading" className="rounded-parcel border border-line bg-panel p-4 lg:p-6" data-testid="questionnaire">
       <p className="text-[14px] font-semibold text-ink-soft">
         Step {step + 1} of {STEPS.length}
       </p>
       <ol className="mt-2 flex gap-1" aria-hidden>
         {STEPS.map((s, i) => (
-          <li key={s} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-sky' : 'bg-line'}`} />
+          <li key={s} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-field' : 'bg-line'}`} />
         ))}
       </ol>
       <h2 id="q-heading" ref={headingRef} tabIndex={-1} className="font-plate mt-4 text-2xl outline-none">
@@ -114,8 +114,8 @@ function Choice<T extends string>({ legend, hint, name, options, labels, value, 
       {hint && <p className="text-[14px] text-ink-faint">{hint}</p>}
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         {options.map((o) => (
-          <label key={o} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-[15.5px] ${value === o ? 'border-sky bg-sky-tint font-semibold' : 'border-line-strong bg-panel hover:border-sky'}`}>
-            <input type="radio" name={`${id}-${name}`} value={o} checked={value === o} onChange={() => onChange(o)} className="h-5 w-5 accent-[var(--color-sky)]" />
+          <label key={o} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-parcel border px-3 py-2 text-[15.5px] ${value === o ? 'border-field bg-field-tint font-semibold' : 'border-line-strong bg-panel hover:border-field'}`}>
+            <input type="radio" name={`${id}-${name}`} value={o} checked={value === o} onChange={() => onChange(o)} className="h-5 w-5 accent-[var(--color-field)]" />
             {labels[o]}
           </label>
         ))}
@@ -127,7 +127,7 @@ function Choice<T extends string>({ legend, hint, name, options, labels, value, 
 function Problems({ value, onChange }: { value: RotationAnswers['problems']; onChange: (v: RotationAnswers['problems']) => void }) {
   const picked = Array.isArray(value) ? value : [];
   const toggle = (p: Problem) => onChange(picked.includes(p) ? picked.filter((x) => x !== p) : [...picked, p]);
-  const box = (checked: boolean) => `flex min-h-12 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-[15.5px] ${checked ? 'border-sky bg-sky-tint font-semibold' : 'border-line-strong bg-panel hover:border-sky'}`;
+  const box = (checked: boolean) => `flex min-h-12 cursor-pointer items-center gap-3 rounded-parcel border px-3 py-2 text-[15.5px] ${checked ? 'border-field bg-field-tint font-semibold' : 'border-line-strong bg-panel hover:border-field'}`;
   return (
     <fieldset>
       <legend className="text-[16.5px] font-semibold">Which problems have you had on this field?</legend>
@@ -135,16 +135,16 @@ function Problems({ value, onChange }: { value: RotationAnswers['problems']; onC
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         {PROBLEMS.map((p) => (
           <label key={p} className={box(picked.includes(p))}>
-            <input type="checkbox" checked={picked.includes(p)} onChange={() => toggle(p)} className="h-5 w-5 accent-[var(--color-sky)]" />
+            <input type="checkbox" checked={picked.includes(p)} onChange={() => toggle(p)} className="h-5 w-5 accent-[var(--color-field)]" />
             {PROBLEM_LABELS[p]}
           </label>
         ))}
         <label className={box(Array.isArray(value) && value.length === 0)}>
-          <input type="checkbox" checked={Array.isArray(value) && value.length === 0} onChange={(e) => onChange(e.target.checked ? [] : undefined)} className="h-5 w-5 accent-[var(--color-sky)]" />
+          <input type="checkbox" checked={Array.isArray(value) && value.length === 0} onChange={(e) => onChange(e.target.checked ? [] : undefined)} className="h-5 w-5 accent-[var(--color-field)]" />
           None of these
         </label>
         <label className={box(value === 'unsure')}>
-          <input type="checkbox" checked={value === 'unsure'} onChange={(e) => onChange(e.target.checked ? 'unsure' : undefined)} className="h-5 w-5 accent-[var(--color-sky)]" />
+          <input type="checkbox" checked={value === 'unsure'} onChange={(e) => onChange(e.target.checked ? 'unsure' : undefined)} className="h-5 w-5 accent-[var(--color-field)]" />
           Not sure
         </label>
       </div>
@@ -165,7 +165,7 @@ function HarvestMonth({ field, value, onChange }: { field: Field; value: Rotatio
         id={id}
         value={value === undefined ? '' : String(value)}
         onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value === 'unsure' ? 'unsure' : Number(e.target.value))}
-        className="mt-2 block min-h-12 w-full max-w-xs rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]"
+        className="mt-2 block min-h-12 w-full max-w-xs rounded-parcel border border-line-strong bg-panel px-3 text-[16px]"
       >
         <option value="">Choose a month</option>
         {MONTH_NAMES.map((m, i) => (
@@ -193,7 +193,7 @@ function SoilTestForm({ value, onChange }: { value: SoilTest | undefined; onChan
     onChange(Object.keys(next).length ? next : undefined);
   };
   return (
-    <details open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)} className="rounded-[var(--radius-control)] border border-line bg-paper p-3">
+    <details open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)} className="rounded-parcel border border-line bg-paper p-3">
       <summary className="min-h-11 cursor-pointer content-center text-[16px] font-semibold">Add results from a lab soil test</summary>
       <p className="mt-1 text-[14px] text-ink-soft">Optional. Your organic matter replaces the soil-survey estimate and is labelled “You entered”. pH, P and K are kept with the plan for reference.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">

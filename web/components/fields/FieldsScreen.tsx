@@ -230,7 +230,7 @@ export function FieldsScreen() {
                 <div className="flex flex-wrap gap-2">
                   <Link
                     href={`/rotation?field=${selected.id}`}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-field px-4 text-[15px] font-semibold text-white hover:bg-[#245530]"
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-parcel bg-field px-4 text-[15px] font-semibold text-white hover:bg-field-deep"
                   >
                     Explore rotation
                     <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
@@ -240,7 +240,7 @@ export function FieldsScreen() {
                   {plans.some((pl) => pl.fieldId === selected.id) && (
                     <Link
                       href={`/planner?field=${selected.id}`}
-                      className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-control)] border border-line-strong bg-panel px-4 text-[15px] font-semibold text-ink hover:border-sky hover:text-sky-deep"
+                      className="inline-flex min-h-12 items-center justify-center rounded-parcel border border-line-strong bg-panel px-4 text-[15px] font-semibold text-ink hover:border-field hover:text-field"
                     >
                       Open plan
                     </Link>
@@ -290,13 +290,13 @@ export function FieldsScreen() {
                   />
                 </div>
                 {!desktop && (
-                  <button type="button" onClick={() => setSearchOpen(false)} className="min-h-12 shrink-0 rounded-[var(--radius-control)] border border-line bg-panel px-3 text-[15px] font-semibold shadow-sm">
+                  <button type="button" onClick={() => setSearchOpen(false)} className="min-h-12 shrink-0 rounded-parcel border border-line bg-panel px-3 text-[15px] font-semibold shadow-sm">
                     Close
                   </button>
                 )}
               </div>
             ) : (
-              <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search an address" className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-control)] border border-line bg-panel text-ink shadow-sm">
+              <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search an address" className="flex h-12 w-12 items-center justify-center rounded-parcel border border-line bg-panel text-ink shadow-sm">
                 <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
                   <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="2.2" />
                   <path d="m13 13 4.5 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -306,7 +306,7 @@ export function FieldsScreen() {
           </div>
         )}
         {toast && (
-          <div role="status" className="absolute left-1/2 top-[4.5rem] z-[1002] w-[min(92vw,440px)] -translate-x-1/2 rounded-[var(--radius-panel)] lg:left-auto lg:right-16 lg:top-3 lg:translate-x-0 border border-field/30 bg-panel px-4 py-3 text-[15px] shadow-[0_10px_30px_-12px_rgba(29,43,34,0.4)]">
+          <div role="status" className="absolute left-1/2 top-[4.5rem] z-[1002] w-[min(92vw,440px)] -translate-x-1/2 rounded-parcel lg:left-auto lg:right-16 lg:top-3 lg:translate-x-0 border border-field/30 bg-panel px-4 py-3 text-[15px] shadow-[0_10px_30px_-12px_rgba(29,43,34,0.4)]">
             {toast}
           </div>
         )}

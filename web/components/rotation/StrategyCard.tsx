@@ -18,7 +18,7 @@ export function StrategyCard({ s, best, fieldId }: { s: StrategyScore; best: boo
     <article
       aria-labelledby={headingId}
       data-testid={`strategy-${s.strategy.id}`}
-      className={`flex flex-col rounded-[var(--radius-panel)] border bg-panel p-4 ${best ? 'border-field shadow-[0_0_0_2px_var(--color-field)]' : 'border-line'}`}
+      className={`flex flex-col rounded-parcel border bg-panel p-4 ${best ? 'border-field shadow-[0_0_0_2px_var(--color-field)]' : 'border-line'}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 id={headingId} className="font-plate text-xl">
@@ -61,7 +61,7 @@ export function StrategyCard({ s, best, fieldId }: { s: StrategyScore; best: boo
       <div className="mt-auto pt-4">
         <Link
           href={`/rotation/${s.strategy.id}?field=${fieldId}`}
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-[var(--radius-control)] border border-line-strong bg-panel px-4 text-[15px] font-semibold text-ink hover:border-sky hover:text-sky-deep"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-parcel border border-line-strong bg-panel px-4 text-[15px] font-semibold text-ink hover:border-field hover:text-field"
         >
           See the details<span className="sr-only"> for {s.strategy.title}</span>
         </Link>

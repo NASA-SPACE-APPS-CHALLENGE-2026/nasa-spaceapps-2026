@@ -25,7 +25,7 @@ const CROP_NAMES: Record<CropKey, string> = { corn: 'Corn', soybeans: 'Soybeans'
 
 function Group({ title, children, open = false, intro }: { title: string; children: React.ReactNode; open?: boolean; intro?: string }) {
   return (
-    <details open={open} className="group rounded-[var(--radius-panel)] border border-line bg-panel">
+    <details open={open} className="group rounded-parcel border border-line bg-panel">
       <summary className="flex min-h-14 cursor-pointer items-center justify-between gap-2 px-4 font-plate text-lg [&::-webkit-details-marker]:hidden">
         {title}
         <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-ink-faint transition-transform group-open:rotate-90 motion-reduce:transition-none" aria-hidden>
@@ -85,7 +85,7 @@ export function FinanceInputsForm({ inputs, fields, crops, weather, onChange }: 
             </div>
           </div>
           <label className="flex items-start gap-3 text-[15px]">
-            <input type="checkbox" checked={inputs.beginningFarmer} onChange={(e) => onChange({ ...inputs, beginningFarmer: e.target.checked })} className="mt-1 h-5 w-5 accent-[var(--color-sky)]" />
+            <input type="checkbox" checked={inputs.beginningFarmer} onChange={(e) => onChange({ ...inputs, beginningFarmer: e.target.checked })} className="mt-1 h-5 w-5 accent-[var(--color-field)]" />
             <span>
               <strong>I am a beginning farmer</strong> (10 years or less). Uses the higher EQIP cost-share rate.
             </span>
@@ -184,7 +184,7 @@ function TextInput({ label, value, onChange }: { label: string; value?: string; 
       <label htmlFor={id} className="block text-[14.5px] font-semibold">
         {label}
       </label>
-      <input id={id} defaultValue={value ?? ''} maxLength={120} onBlur={(e) => onChange(e.target.value.trim() || undefined)} className="mt-1 min-h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]" />
+      <input id={id} defaultValue={value ?? ''} maxLength={120} onBlur={(e) => onChange(e.target.value.trim() || undefined)} className="mt-1 min-h-11 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[16px]" />
     </div>
   );
 }
@@ -199,7 +199,7 @@ function FieldRow({ field, ff, acresDefault, onPatch }: { field: Field; ff: Fiel
       <p className="text-[14px] text-ink-soft">Rotation: {cycle.length ? cycle.map(seasonLabel).join(' → ') : 'not known yet (enter past crops on the Fields tab)'}</p>
       {cycle.length > 0 && (
         <label className="mt-1 flex items-center gap-2 text-[14.5px]">
-          <input type="checkbox" checked={!!ff.rotationConfirmed} onChange={(e) => onPatch({ rotationConfirmed: e.target.checked })} className="h-5 w-5 accent-[var(--color-sky)]" />
+          <input type="checkbox" checked={!!ff.rotationConfirmed} onChange={(e) => onPatch({ rotationConfirmed: e.target.checked })} className="h-5 w-5 accent-[var(--color-field)]" />
           This is my current rotation
         </label>
       )}
@@ -209,7 +209,7 @@ function FieldRow({ field, ff, acresDefault, onPatch }: { field: Field; ff: Fiel
           <label htmlFor={tenureId} className="block text-[14.5px] font-semibold">
             Own or rent
           </label>
-          <select id={tenureId} value={tenure} onChange={(e) => onPatch({ tenure: e.target.value as Tenure })} className="mt-1 min-h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]">
+          <select id={tenureId} value={tenure} onChange={(e) => onPatch({ tenure: e.target.value as Tenure })} className="mt-1 min-h-11 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[16px]">
             <option value="own">Own</option>
             <option value="cash">Cash rent</option>
             <option value="share">Crop-share rent</option>
@@ -218,7 +218,7 @@ function FieldRow({ field, ff, acresDefault, onPatch }: { field: Field; ff: Fiel
         {tenure === 'cash' && <NumberField label="Rent" unit="$/ac" min={0} value={ff.rentPerAcre} placeholder={270} onCommit={(v) => onPatch({ rentPerAcre: v })} />}
         {tenure === 'share' && <NumberField label="Landlord’s share" unit="%" min={0} value={ff.sharePct} placeholder={50} onCommit={(v) => onPatch({ sharePct: v })} />}
         <label className="flex items-center gap-2 self-end pb-2 text-[15px]">
-          <input type="checkbox" checked={!!ff.irrigated} onChange={(e) => onPatch({ irrigated: e.target.checked })} className="h-5 w-5 accent-[var(--color-sky)]" />
+          <input type="checkbox" checked={!!ff.irrigated} onChange={(e) => onPatch({ irrigated: e.target.checked })} className="h-5 w-5 accent-[var(--color-field)]" />
           Irrigated
         </label>
       </div>

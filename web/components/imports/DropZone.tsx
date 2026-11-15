@@ -64,11 +64,11 @@ export function DropZone({ accept, acceptLabel, multiple, busy, disabled, maxByt
         setOver(false);
         if (!disabled && !busy) take(e.dataTransfer.files);
       }}
-      className={`relative flex min-h-[220px] flex-col items-center justify-center rounded-[var(--radius-panel)] border-2 border-dashed px-4 py-6 text-center transition-colors ${className} ${
-        over ? 'border-sky bg-sky-tint' : 'border-line-strong bg-paper'
+      className={`relative flex min-h-[220px] flex-col items-center justify-center rounded-parcel border-2 border-dashed px-4 py-6 text-center transition-colors ${className} ${
+        over ? 'border-field bg-field-tint' : 'border-line-strong bg-paper'
       } ${disabled ? 'opacity-60' : ''}`}
     >
-      <svg viewBox="0 0 48 48" className="h-10 w-10 text-sky" aria-hidden>
+      <svg viewBox="0 0 48 48" className="h-10 w-10 text-field" aria-hidden>
         <path d="M24 31V11m0 0-8 8m8-8 8 8" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M9 30v6a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3v-6" fill="none" stroke="#2f6b3a" strokeWidth="3" strokeLinecap="round" />
       </svg>
@@ -76,7 +76,7 @@ export function DropZone({ accept, acceptLabel, multiple, busy, disabled, maxByt
       <p className="text-[14px] text-ink-soft">or</p>
       <label
         htmlFor={id}
-        className={`mt-1 inline-flex min-h-12 cursor-pointer items-center rounded-[var(--radius-control)] border border-line-strong bg-panel px-4 text-[15px] font-semibold text-sky-deep hover:border-sky ${busy || disabled ? 'pointer-events-none' : ''}`}
+        className={`mt-1 inline-flex min-h-12 cursor-pointer items-center rounded-parcel border border-line-strong bg-panel px-4 text-[15px] font-semibold text-field hover:border-field ${busy || disabled ? 'pointer-events-none' : ''}`}
       >
         Choose file{multiple ? 's' : ''}
       </label>

@@ -15,14 +15,14 @@ export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: bo
   const tone = mid > 0.5 ? 'text-field' : mid < -0.5 ? 'text-alert' : 'text-ink';
   return (
     <div className={`grid gap-3 ${compact ? '' : 'sm:grid-cols-2'}`} data-testid="finance-headline">
-      <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+      <div className="rounded-parcel border border-line bg-panel p-4">
         <p className="text-[14.5px] font-semibold text-ink-soft">Change in net return per acre, per year</p>
         <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>
           {money(low, { sign: true })} to {money(high, { sign: true })}
         </p>
         <p className="mt-1 text-[14px] text-ink-soft">Most likely {money(mid, { sign: true })} per acre per year with the PlotTwist plan.</p>
       </div>
-      <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+      <div className="rounded-parcel border border-line bg-panel p-4">
         <p className="text-[14.5px] font-semibold text-ink-soft">Whole farm over {horizon} years</p>
         <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>{money(wholeFarm, { sign: true })}</p>
         <p className="mt-1 text-[14px] text-ink-soft">
@@ -46,7 +46,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
   return (
     <div className="space-y-5">
       {planned === 0 && (
-        <p className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint px-4 py-3 text-[15px] text-wheat-deep">
+        <p className="rounded-parcel border border-wheat/40 bg-wheat-tint px-4 py-3 text-[15px] text-wheat-deep">
           None of your fields has a plan yet, so both columns show your current rotation. <Link href="/rotation" className="font-semibold underline underline-offset-2">Make a plan in Rotation Explorer</Link>.
         </p>
       )}
@@ -111,11 +111,11 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
 
       <Section id="cash" title="Cash flow" confidence={a.confidence.cash}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-[var(--radius-control)] bg-paper p-3">
+          <div className="rounded-parcel bg-paper p-3">
             <p className="text-[13.5px] font-semibold text-ink-soft">Break-even</p>
             <p className="text-[17px] font-semibold">{be === 'start' ? 'Never behind your current rotation' : be ? `${be.label}` : `Not within ${a.years.length} years`}</p>
           </div>
-          <div className="rounded-[var(--radius-control)] bg-paper p-3">
+          <div className="rounded-parcel bg-paper p-3">
             <p className="text-[13.5px] font-semibold text-ink-soft">Deepest dip</p>
             <p className="text-[17px] font-semibold tabular-nums">{a.cash.deepestDip < -0.5 ? `${money(a.cash.deepestDip)} (${a.cash.deepestDipLabel})` : 'No dip'}</p>
           </div>
@@ -126,7 +126,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         </div>
         <PairLines data={cum} title="Cumulative profit by season" marker={be && be !== 'start' ? be.label : undefined} />
         <details className="mt-3">
-          <summary className="min-h-11 cursor-pointer py-2 text-[14.5px] font-semibold text-sky-deep">Money in and out by season</summary>
+          <summary className="min-h-11 cursor-pointer py-2 text-[14.5px] font-semibold text-field">Money in and out by season</summary>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-[13.5px] tabular-nums">
               <thead>
@@ -167,7 +167,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {(['proposed', 'current'] as const).map((k) => (
-                <div key={k} className="rounded-[var(--radius-control)] bg-paper p-3 text-[14.5px]">
+                <div key={k} className="rounded-parcel bg-paper p-3 text-[14.5px]">
                   <p className="flex items-center gap-2 font-semibold">
                     <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: SERIES[k].color }} aria-hidden />
                     {SERIES[k].label}
@@ -190,13 +190,13 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
 
       <Section id="savings" title="Savings and support" confidence={a.confidence.savings}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-[var(--radius-control)] bg-paper p-3">
+          <div className="rounded-parcel bg-paper p-3">
             <p className="text-[13.5px] font-semibold text-ink-soft">Nitrogen fertilizer saved</p>
             <p className="text-[17px] font-semibold tabular-nums">
               {Math.round(a.savings.nLbs).toLocaleString('en-US')} lb N ({money(a.savings.nDollars, { sign: true })})
             </p>
           </div>
-          <div className="rounded-[var(--radius-control)] bg-paper p-3">
+          <div className="rounded-parcel bg-paper p-3">
             <p className="text-[13.5px] font-semibold text-ink-soft">Cost share available</p>
             <p className="text-[17px] font-semibold tabular-nums">{money(a.savings.costShare)}</p>
             <p className="text-[13.5px] text-ink-soft">{a.savings.costShareTiming}</p>
@@ -281,7 +281,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
           ))}
         </ul>
         <details className="mt-3">
-          <summary className="min-h-11 cursor-pointer py-2 text-[14.5px] font-semibold text-sky-deep">Show all {a.transparency.length} values, their sources and dates</summary>
+          <summary className="min-h-11 cursor-pointer py-2 text-[14.5px] font-semibold text-field">Show all {a.transparency.length} values, their sources and dates</summary>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-[13.5px]">
               <thead>
@@ -305,7 +305,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
                     </td>
                     <td className="px-2 text-ink-soft">
                       {t.source.url ? (
-                        <a href={t.source.url} target="_blank" rel="noopener noreferrer" className="text-sky-deep underline underline-offset-2">
+                        <a href={t.source.url} target="_blank" rel="noopener noreferrer" className="text-field underline underline-offset-2">
                           {t.source.name}
                         </a>
                       ) : (
@@ -364,7 +364,7 @@ function YearRows({ year, c, p }: { year: number; c: PlanYear; p: PlanYear }) {
 
 function PartialBox({ title, lines, sign }: { title: string; lines: PartialLine[]; sign: 1 | -1 }) {
   return (
-    <div className="rounded-[var(--radius-control)] border border-line p-3">
+    <div className="rounded-parcel border border-line p-3">
       <h3 className="flex justify-between text-[15px] font-semibold">
         {title}
         <span className="tabular-nums">{money(sign * sum(lines), { sign: true })}</span>

@@ -27,7 +27,7 @@ export function SeasonTable({ strategy }: { strategy: Strategy }) {
   return (
     <ol className="space-y-3">
       {strategy.seasons.map((s) => (
-        <li key={s.year} className="rounded-[var(--radius-control)] border border-line p-3">
+        <li key={s.year} className="rounded-parcel border border-line p-3">
           <div className="flex items-center gap-2">
             <span className="h-4 w-4 shrink-0 rounded-[3px]" style={{ background: cropColor({ kind: 'catalog', id: s.ids[s.ids.length - 1] }) }} aria-hidden />
             <p className="text-[16px] font-semibold">

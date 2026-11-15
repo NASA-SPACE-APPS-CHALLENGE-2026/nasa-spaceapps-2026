@@ -49,7 +49,7 @@ interface TipPayload {
 function ChartTip({ active, payload, label, format }: { active?: boolean; payload?: TipPayload[]; label?: string | number; format: (v: number) => string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-[var(--radius-control)] border border-line bg-panel px-3 py-2 text-[13.5px] shadow-md">
+    <div className="rounded-parcel border border-line bg-panel px-3 py-2 text-[13.5px] shadow-md">
       <p className="font-semibold text-ink">{label}</p>
       {payload.map((p) => {
         const s = SERIES[p.dataKey as keyof typeof SERIES];

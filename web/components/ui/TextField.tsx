@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef, type InputHTMLAttributes, type ReactNode, useId } from 'react';
+import { ERROR, HINT, INPUT, LABEL } from './styles';
 
 interface Props extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
   label: ReactNode;
@@ -25,7 +26,7 @@ export const TextField = forwardRef<HTMLInputElement, Props>(function TextField(
   const errorId = error ? `${id}-error` : undefined;
   return (
     <div className={className}>
-      <label htmlFor={id} className={hideLabel ? 'sr-only' : 'block text-[15px] font-semibold'}>
+      <label htmlFor={id} className={hideLabel ? 'sr-only' : LABEL}>
         {label}
       </label>
       <input
@@ -34,15 +35,15 @@ export const TextField = forwardRef<HTMLInputElement, Props>(function TextField(
         aria-describedby={[hintId, errorId].filter(Boolean).join(' ') || undefined}
         aria-invalid={error ? true : undefined}
         {...input}
-        className={`${hideLabel ? '' : 'mt-1'} block min-h-12 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px] ${inputClassName}`}
+        className={`${hideLabel ? '' : 'mt-1'} ${INPUT} ${inputClassName}`}
       />
       {hint && (
-        <p id={hintId} className="mt-1 text-[14px] text-ink-faint">
+        <p id={hintId} className={HINT}>
           {hint}
         </p>
       )}
       {error && (
-        <p id={errorId} className="mt-1 text-[14.5px] text-alert" role="alert">
+        <p id={errorId} className={ERROR} role="alert">
           {error}
         </p>
       )}

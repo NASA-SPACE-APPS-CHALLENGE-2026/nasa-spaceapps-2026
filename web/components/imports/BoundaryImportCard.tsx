@@ -106,7 +106,7 @@ export function BoundaryImportCard() {
   }));
 
   return (
-    <section className="rounded-[var(--radius-panel)] border border-line bg-panel p-5 md:col-span-2 lg:p-6" aria-labelledby="boundaries-h">
+    <section className="rounded-parcel border border-line bg-panel p-5 md:col-span-2 lg:p-6" aria-labelledby="boundaries-h">
       <div className={parsed ? '' : 'grid gap-6 lg:grid-cols-2 lg:items-stretch'}>
         <div className="min-w-0">
           <div className="flex items-start justify-between gap-3">
@@ -126,7 +126,7 @@ export function BoundaryImportCard() {
                 'Pick which shapes become fields. PlotTwist then looks up crop history, weather and soil for each one.',
               ].map((step, i) => (
                 <li key={step} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-tint text-[14px] font-semibold text-sky-deep" aria-hidden>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-field-tint text-[14px] font-semibold text-field" aria-hidden>
                     {i + 1}
                   </span>
                   <span className="pt-0.5 text-ink-soft">{step}</span>
@@ -148,7 +148,7 @@ export function BoundaryImportCard() {
               testId="boundary-file"
             />
             {error && (
-              <p className="mt-3 rounded-[var(--radius-control)] bg-alert-tint px-3 py-2 text-[14.5px] text-[#7a2c1d]" role="alert">
+              <p className="mt-3 rounded-parcel bg-alert-tint px-3 py-2 text-[14.5px] text-[#7a2c1d]" role="alert">
                 {error}
               </p>
             )}
@@ -158,7 +158,7 @@ export function BoundaryImportCard() {
 
       {parsed && result && (
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="relative h-[320px] overflow-hidden rounded-[var(--radius-panel)] border border-line lg:h-[460px]">
+          <div className="relative h-[320px] overflow-hidden rounded-parcel border border-line lg:h-[460px]">
             <FieldMap className="absolute inset-0" shapes={shapes} onSelect={toggle} focus={{ key: `${parsed.fileName}-${split}`, kind: 'geometry', geometry: shapes.map((s) => s.geometry) }} />
           </div>
           <div className="min-w-0">
@@ -173,7 +173,7 @@ export function BoundaryImportCard() {
               {columns.columns.length > 0 && (
                 <label className="block text-[15px] font-semibold">
                   Name fields from
-                  <select value={column ?? ''} onChange={(e) => setColumn(e.target.value || null)} className="mt-1 block min-h-12 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 font-normal">
+                  <select value={column ?? ''} onChange={(e) => setColumn(e.target.value || null)} className="mt-1 block min-h-12 w-full rounded-parcel border border-line-strong bg-panel px-3 font-normal">
                     <option value="">Number them (Imported field 1, 2…)</option>
                     {columns.columns.map((c) => (
                       <option key={c} value={c}>
@@ -194,7 +194,7 @@ export function BoundaryImportCard() {
                       const n = normalizeFeatures(parsed.features, { splitMultiPolygons: next });
                       setPicked(new Set(n.candidates.filter((c) => !hasBlockingIssue(c.issues)).map((c) => c.key)));
                     }}
-                    className="mt-1 h-5 w-5 accent-[var(--color-sky)]"
+                    className="mt-1 h-5 w-5 accent-[var(--color-field)]"
                   />
                   <span>
                     <span className="font-semibold">Split multi-part shapes</span>
@@ -244,8 +244,8 @@ function CandidateRow({ c, name, checked, onToggle }: { c: BoundaryCandidate; na
   const blocking = hasBlockingIssue(c.issues);
   return (
     <li>
-      <label className={`flex items-start gap-3 rounded-[var(--radius-control)] border px-3 py-2 ${blocking ? 'border-alert/30 bg-alert-tint/50' : checked ? 'border-sky/50 bg-sky-tint/50' : 'border-line bg-paper'}`}>
-        <input type="checkbox" checked={checked} disabled={blocking} onChange={onToggle} className="mt-1 h-5 w-5 shrink-0 accent-[var(--color-sky)]" />
+      <label className={`flex items-start gap-3 rounded-parcel border px-3 py-2 ${blocking ? 'border-alert/30 bg-alert-tint/50' : checked ? 'border-field/50 bg-field-tint/50' : 'border-line bg-paper'}`}>
+        <input type="checkbox" checked={checked} disabled={blocking} onChange={onToggle} className="mt-1 h-5 w-5 shrink-0 accent-[var(--color-field)]" />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2">
             <span className="truncate text-[15px] font-semibold">{name}</span>

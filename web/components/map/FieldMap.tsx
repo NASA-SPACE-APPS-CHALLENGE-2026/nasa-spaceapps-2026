@@ -278,16 +278,16 @@ export default function FieldMap(props: FieldMapProps) {
             USGS satellite imagery is not loading right now, so this is the OpenStreetMap street map.
           </p>
         )}
-        <div className="pointer-events-auto flex overflow-hidden rounded-[var(--radius-control)] border border-line bg-panel text-sm font-semibold shadow-sm" role="group" aria-label="Map background">
+        <div className="pointer-events-auto flex overflow-hidden rounded-parcel border border-line bg-panel text-sm font-semibold shadow-sm" role="group" aria-label="Map background">
           {(['imagery', 'osm'] as const).map((b) => (
-            <button key={b} type="button" onClick={() => setBase(b)} aria-pressed={base === b} className={`min-h-11 px-4 ${base === b ? 'bg-sky text-white' : 'text-ink-soft hover:bg-sky-tint'}`}>
+            <button key={b} type="button" onClick={() => setBase(b)} aria-pressed={base === b} className={`min-h-11 px-4 ${base === b ? 'bg-field text-white' : 'text-ink-soft hover:bg-field-tint'}`}>
               {b === 'imagery' ? 'Satellite' : 'Street map'}
             </button>
           ))}
         </div>
       </div>
       {mode === 'draw' && (
-        <div className="absolute inset-x-3 top-3 z-[1000] flex flex-wrap items-center gap-2 rounded-[var(--radius-panel)] border border-line bg-panel/95 p-2 pl-4 shadow-sm lg:right-auto lg:max-w-xl">
+        <div className="absolute inset-x-3 top-3 z-[1000] flex flex-wrap items-center gap-2 rounded-parcel border border-line bg-panel/95 p-2 pl-4 shadow-sm lg:right-auto lg:max-w-xl">
           <div className="min-w-0 flex-1" role="status" aria-live="polite">
             <p className="text-[15px]">
               {drawPoints === 0
@@ -297,21 +297,21 @@ export default function FieldMap(props: FieldMapProps) {
                   : 'Tap the first corner, or Finish shape, to close it.'}
             </p>
             {drawAcres !== null && (
-              <p className="text-[14px] font-semibold text-sky-deep" data-testid="live-acres">
+              <p className="text-[14px] font-semibold text-field" data-testid="live-acres">
                 About {drawAcres < 10 ? drawAcres.toFixed(1) : Math.round(drawAcres).toLocaleString('en-US')} acres so far
               </p>
             )}
           </div>
-          <button type="button" disabled={drawPoints === 0} onClick={() => { pm?.Draw?.Polygon?._removeLastVertex?.(); syncDrawing(); }} className="min-h-11 rounded-[var(--radius-control)] border border-line px-3 font-semibold disabled:opacity-40">
+          <button type="button" disabled={drawPoints === 0} onClick={() => { pm?.Draw?.Polygon?._removeLastVertex?.(); syncDrawing(); }} className="min-h-11 rounded-parcel border border-line px-3 font-semibold disabled:opacity-40">
             Undo corner
           </button>
-          <button type="button" disabled={drawPoints < 3} onClick={() => pm?.Draw?.Polygon?._finishShape?.()} className="min-h-11 rounded-[var(--radius-control)] bg-sky px-4 font-semibold text-white disabled:opacity-40">
+          <button type="button" disabled={drawPoints < 3} onClick={() => pm?.Draw?.Polygon?._finishShape?.()} className="min-h-11 rounded-parcel bg-field px-4 font-semibold text-white disabled:opacity-40">
             Finish shape
           </button>
         </div>
       )}
       {mode === 'pin' && (
-        <p className="absolute inset-x-3 top-3 z-[1000] rounded-[var(--radius-panel)] border border-line bg-panel/95 px-4 py-3 text-[15px] shadow-sm lg:right-auto lg:max-w-md">
+        <p className="absolute inset-x-3 top-3 z-[1000] rounded-parcel border border-line bg-panel/95 px-4 py-3 text-[15px] shadow-sm lg:right-auto lg:max-w-md">
           Tap the middle of your field. Then you&rsquo;ll trace its edges.
         </p>
       )}

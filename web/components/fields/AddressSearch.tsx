@@ -139,7 +139,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
     }
   };
 
-  const bubble = compact ? 'rounded-[var(--radius-control)] bg-panel/95 px-3 py-2' : '';
+  const bubble = compact ? 'rounded-parcel bg-panel/95 px-3 py-2' : '';
   const showList = open && suggestions.length > 0;
 
   return (
@@ -171,7 +171,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
             onKeyDown={onKeyDown}
             placeholder={compact ? 'Search an address' : 'Start typing, e.g. 2229 Lincoln Way, Ames'}
             aria-describedby={!lookupsOn ? `${id}-off` : undefined}
-            className={`min-h-12 w-full min-w-0 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px] disabled:bg-paper ${compact ? 'shadow-sm' : ''}`}
+            className={`min-h-12 w-full min-w-0 rounded-parcel border border-line-strong bg-panel px-3 text-[16px] disabled:bg-paper ${compact ? 'shadow-sm' : ''}`}
           />
           <Button type="submit" disabled={!lookupsOn || state.kind === 'loading'} className={compact ? 'shrink-0 px-3' : 'shrink-0'} aria-label={compact ? 'Search address' : undefined}>
             {state.kind === 'loading' ? (compact ? <span className="spinner !border-white/40 !border-t-white" aria-hidden /> : 'Searching…') : compact ? (
@@ -189,7 +189,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
             aria-label="Address suggestions"
             hidden={!showList}
             data-testid="address-suggestions"
-            className="absolute left-0 right-0 top-full z-[1300] mt-1 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-panel p-1 shadow-lg"
+            className="absolute left-0 right-0 top-full z-[1300] mt-1 overflow-hidden rounded-parcel border border-line bg-panel p-1 shadow-lg"
           >
             {suggestions.map((m, i) => (
               <li
@@ -200,7 +200,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
                 onPointerDown={(e) => e.preventDefault()}
                 onClick={() => pick(m)}
                 onPointerEnter={() => setActive(i)}
-                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] px-3 text-[15px] ${i === active ? 'bg-sky-tint text-sky-deep' : ''}`}
+                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-parcel px-3 text-[15px] ${i === active ? 'bg-field-tint text-field' : ''}`}
               >
                 <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden>
                   <path d="M10 18s5.5-5.2 5.5-9.5a5.5 5.5 0 1 0-11 0C4.5 12.8 10 18 10 18Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
@@ -221,7 +221,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
 
       <div aria-live="polite">
         {state.kind === 'loading' && !compact && (
-          <p className="mt-2 flex items-center gap-2 text-[14.5px] text-sky-deep">
+          <p className="mt-2 flex items-center gap-2 text-[14.5px] text-field">
             <span className="spinner" aria-hidden /> Looking up the address…
           </p>
         )}
@@ -234,12 +234,12 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
           <p className={`mt-2 text-[14.5px] text-ink-soft ${bubble}`}>No matching address found. Check the spelling and include the town and state, or use a ZIP code instead.</p>
         )}
         {state.kind === 'results' && state.matches.length > 1 && (
-          <div className={`mt-2 ${compact ? 'rounded-[var(--radius-panel)] border border-line bg-panel p-1 shadow-sm' : ''}`}>
+          <div className={`mt-2 ${compact ? 'rounded-parcel border border-line bg-panel p-1 shadow-sm' : ''}`}>
             <p className="px-2 pt-1 text-[14px] text-ink-soft">{state.matches.length} matches. Pick one:</p>
             <ul className="mt-1 space-y-1">
               {state.matches.map((m) => (
                 <li key={`${m.lat},${m.lon},${m.label}`}>
-                  <button type="button" onClick={() => pick(m)} className="flex min-h-11 w-full items-center rounded-[var(--radius-control)] px-3 text-left text-[15px] hover:bg-sky-tint">
+                  <button type="button" onClick={() => pick(m)} className="flex min-h-11 w-full items-center rounded-parcel px-3 text-left text-[15px] hover:bg-field-tint">
                     {m.label}
                   </button>
                 </li>

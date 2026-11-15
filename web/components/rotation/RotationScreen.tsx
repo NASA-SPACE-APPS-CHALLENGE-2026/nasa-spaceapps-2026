@@ -79,9 +79,9 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
 
   if (result.problem) {
     return (
-      <div className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint p-5" data-testid="rotation-problem">
+      <div className="rounded-parcel border border-wheat/40 bg-wheat-tint p-5" data-testid="rotation-problem">
         <p className="text-[16px] font-semibold text-wheat-deep">{result.problem}</p>
-        <Link href="/fields" className="mt-3 inline-flex min-h-12 items-center rounded-[var(--radius-control)] bg-sky px-5 font-semibold text-white hover:bg-sky-deep">
+        <Link href="/fields" className="mt-3 inline-flex min-h-12 items-center rounded-parcel bg-field px-5 font-semibold text-white hover:bg-field-deep">
           Go to Fields
         </Link>
       </div>
@@ -105,7 +105,7 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
         </Button>
       </div>
 
-      <div className={`rounded-[var(--radius-panel)] border p-4 ${best ? 'border-field/40 bg-field-tint' : 'border-wheat/40 bg-wheat-tint'}`} role="status" data-testid="best-fit-summary">
+      <div className={`rounded-parcel border p-4 ${best ? 'border-field/40 bg-field-tint' : 'border-wheat/40 bg-wheat-tint'}`} role="status" data-testid="best-fit-summary">
         <p className={`text-[16px] font-semibold ${best ? 'text-field' : 'text-wheat-deep'}`}>{best ? `Best fit: ${best.strategy.title}` : 'No best fit yet'}</p>
         <p className="mt-0.5 text-[15px]">{result.bestFitReason}</p>
         {result.weightReasons.length > 0 && (
@@ -115,7 +115,7 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
         )}
       </div>
 
-      {!lookupsOn && <p className="rounded-[var(--radius-control)] bg-paper px-3 py-2 text-[14.5px] text-ink-soft">Public data lookups are off, so climate and soil data are missing and those parts are marked “Not enough info”.</p>}
+      {!lookupsOn && <p className="rounded-parcel bg-paper px-3 py-2 text-[14.5px] text-ink-soft">Public data lookups are off, so climate and soil data are missing and those parts are marked “Not enough info”.</p>}
       {loading && (
         <p className="text-[14.5px] text-ink-soft" role="status">
           Some field data is still loading. Scores update when it arrives.
@@ -128,7 +128,7 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
         ))}
       </div>
 
-      <details className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+      <details className="rounded-parcel border border-line bg-panel p-4">
         <summary className="min-h-11 cursor-pointer content-center text-[16px] font-semibold">How the four bars are scored</summary>
         <ul className="mt-2 space-y-1 text-[15px] text-ink-soft">
           {BARS.map((b) => (

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { WheatRow } from '../art/Logo';
 
-const LINK = 'inline-flex min-h-12 items-center rounded-[var(--radius-control)] px-5 font-semibold';
+const LINK = 'inline-flex min-h-12 items-center rounded-parcel px-5 font-semibold';
 
 /** Placeholder for tabs that are planned but not built yet. It says what exists today and links there. */
 export function ComingSoon({ title, children }: { title: string; children: React.ReactNode }) {
@@ -12,7 +12,7 @@ export function ComingSoon({ title, children }: { title: string; children: React
         <h1 className="font-plate text-3xl">{title}</h1>
         <p className="mt-2 text-lg text-ink-soft">Not built yet. It is planned for a later milestone.</p>
         <div className="mt-6 space-y-3 text-[17px] leading-relaxed text-ink">{children}</div>
-        <div className="mt-8 rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+        <div className="mt-8 rounded-parcel border border-line bg-panel p-4">
           <p className="text-[15px] font-semibold">What you can use today</p>
           <ul className="mt-2 space-y-1 text-[15px] text-ink-soft">
             <li>
@@ -26,10 +26,10 @@ export function ComingSoon({ title, children }: { title: string; children: React
             </li>
           </ul>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/fields" className={`${LINK} bg-sky text-white hover:bg-sky-deep`}>
+            <Link href="/fields" className={`${LINK} bg-field text-white hover:bg-field-deep`}>
               Go to Fields
             </Link>
-            <Link href="/rotation" className={`${LINK} border border-line-strong bg-panel text-ink hover:border-sky hover:text-sky-deep`}>
+            <Link href="/rotation" className={`${LINK} border border-line-strong bg-panel text-ink hover:border-field hover:text-field`}>
               Open Rotation Explorer
             </Link>
           </div>

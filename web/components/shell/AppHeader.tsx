@@ -52,11 +52,11 @@ function TabList({ path, scrollActive }: { path: string; scrollActive?: boolean 
               href={t.href}
               aria-current={active ? 'page' : undefined}
               className={`relative inline-flex min-h-12 items-center rounded-t-lg px-3 text-[15px] font-medium transition-colors ${
-                active ? 'text-sky-deep' : 'text-ink-soft hover:text-ink'
+                active ? 'text-field' : 'text-ink-soft hover:text-ink'
               }`}
             >
               {t.label}
-              {active && <span className="absolute inset-x-2 bottom-0 h-[3px] rounded-full bg-sky" aria-hidden />}
+              {active && <span className="absolute inset-x-2 bottom-0 h-[3px] rounded-full bg-field" aria-hidden />}
             </Link>
           </li>
         );
