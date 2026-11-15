@@ -27,6 +27,29 @@
 
   --radius-control: 10px;
   --radius-panel: 16px;
+
+  /* Marketing site (app/(site)) — only used there */
+  --color-soil: #1a1510;
+  --color-loam: #2a231b;
+  --color-loam-line: #3d3329;
+  --color-sprout: #8fbf4a;
+  --color-sprout-deep: #46701a;
+  --color-straw: #d9b65a;
+  --color-chalk: #f4f2ec;
+  --color-husk: #e8e4d9;
+  --color-chalk-soft: #bdb5a6;
+  --color-soil-soft: #5a5044;
+}
+
+/* inline: the font variables are set on the (site) layout element, not :root, so resolve them where used. */
+@theme inline {
+  --font-grotesk: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-label: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* Marketing pages use proportional figures in running text. */
+.site {
+  font-feature-settings: normal;
 }
 
 html,
