@@ -7,7 +7,7 @@ import { cropFromText, text, toNumber, yearOf, type ColumnMapping } from '../map
 import type { Finding, Table, YieldRow } from '../types';
 
 /** Plausible yields (bu/ac). Rows outside are reported and left out of averages. */
-const PLAUSIBLE: Record<CropKey, [number, number]> = { corn: [20, 350], soybeans: [5, 120], oats: [15, 220], wheat: [10, 160] };
+const PLAUSIBLE: Record<CropKey, [number, number]> = { corn: [20, 350], soybeans: [5, 120], oats: [15, 220], wheat: [10, 160], rice: [20, 150], sorghum: [10, 250], cotton: [100, 2000] };
 
 export function yieldRowsFromTable(t: Table, m: ColumnMapping, ctx: ImportContext): { rows: YieldRow[]; warnings: string[] } {
   const rows: YieldRow[] = [];

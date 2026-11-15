@@ -2,7 +2,7 @@ import { calendarFor, cropName } from '../rotation/agronomy';
 import type { Field, Plan } from '../types';
 import { cashFlow, projectPlan, type CashFlow, type FarmFieldInput, type PlanYear } from './analysis';
 import type { Params } from './assumptions';
-import { cropKeyOf, type SeasonPlan, type Tillage, type WeatherYear } from './budget';
+import { cropKeyOf, type CropKey, type SeasonPlan, type Tillage, type WeatherYear } from './budget';
 import { fieldSetup } from './farm';
 import { buildParams, type FinanceInputs, type SimulatorInputs, type WeatherScenario } from './inputs';
 import { coverMonths, currentPlanSeasons, firstPlanYear, proposedPlanSeasons, thisSeason } from './plans';
@@ -24,7 +24,7 @@ export interface SimSide {
   nDollarsPerAcre: number;
   erosion: Erosion;
   costShare: number;
-  yields: Array<{ crop: string; bu: number }>;
+  yields: Array<{ crop: string; bu: number; unit: 'bu' | 'cwt' | 'lb' }>;
 }
 
 export interface Simulation {
@@ -33,6 +33,7 @@ export interface Simulation {
   current: SimSide;
   proposed: SimSide;
   cash: CashFlow;
+  unmodeled: string[];
   pros: string[];
   cons: string[];
 }
@@ -44,8 +45,8 @@ export const SCENARIO_TEXT: Record<WeatherScenario, string> = {
 };
 
 function scenarioWeather(s: WeatherScenario | undefined): WeatherYear | undefined {
-  if (s === 'dry') return { stressed: new Set(['corn', 'soybeans']), good: new Set(['oats', 'wheat']) };
-  if (s === 'wet') return { stressed: new Set(['oats', 'wheat']), good: new Set(['corn', 'soybeans']) };
+  if (s === 'dry') return { stressed: new Set<CropKey>(['corn', 'soybeans', 'rice', 'sorghum', 'cotton']), good: new Set<CropKey>(['oats', 'wheat']) };
+  if (s === 'wet') return { stressed: new Set<CropKey>(['oats', 'wheat']), good: new Set<CropKey>(['corn', 'soybeans', 'rice', 'sorghum', 'cotton']) };
   return undefined;
 }
 
@@ -98,13 +99,17 @@ export function simulate(field: Field, plan: Plan | undefined, finance: FinanceI
         const key = cropKeyOf(id)!;
         const base = key === 'corn' ? P.get('corn.yield') : P.get(`${key}.yield`);
         const w = weather?.stressed.has(key) ? 1 - P.get(key === 'corn' ? 'risk.cornLoss' : key === 'soybeans' ? 'risk.soybeansLoss' : 'risk.smallGrainLoss') / 100 : weather?.good.has(key) ? 1 + P.get('risk.goodYearGain') / 100 : 1;
-        return { crop: cropName(id), bu: Math.round(base * w) };
+        return { crop: cropName(id), bu: Math.round(base * w), unit: key === 'rice' ? 'cwt' : key === 'cotton' ? 'lb' : 'bu' };
       }),
     };
   };
   const c = side(current, yc);
   const p = side(proposed, yp);
   const cash = cashFlow(yc, yp);
+  const unmodeled = [...new Set([...current, ...proposed].flatMap((s) => {
+    if (s.crops.length === 0) return [`${s.year}: crop not entered`];
+    return s.crops.filter((id) => id !== 'fallow' && !cropKeyOf(id)).map((id) => `${s.year}: ${cropName(id)}`);
+  }))];
 
   const pros: string[] = [];
   const cons: string[] = [];
@@ -130,5 +135,5 @@ export function simulate(field: Field, plan: Plan | undefined, finance: FinanceI
   if (grainsNew) cons.push('Needs a buyer for the small grain and a way to harvest it (drill, combine head, straw baling).');
   if (proposed.some((s) => s.cover) && !current.some((s) => s.cover)) cons.push('Adds a fall seeding pass and, for covers that survive winter, a spring termination pass.');
 
-  return { result: { startYear, acres, current: c, proposed: p, cash, pros, cons }, params: P };
+  return { result: { startYear, acres, current: c, proposed: p, cash, unmodeled, pros, cons }, params: P };
 }

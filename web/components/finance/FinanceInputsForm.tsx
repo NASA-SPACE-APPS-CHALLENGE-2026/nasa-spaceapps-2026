@@ -22,7 +22,9 @@ const SHORT_SOURCE = new Map<string, string>([
   [SOURCES.plottwist.name, 'PlotTwist estimate, please check'],
 ]);
 
-const CROP_NAMES: Record<CropKey, string> = { corn: 'Corn', soybeans: 'Soybeans', oats: 'Oats', wheat: 'Wheat' };
+const CROP_NAMES: Record<CropKey, string> = { corn: 'Corn', soybeans: 'Soybeans', oats: 'Oats', wheat: 'Wheat', rice: 'Rice', sorghum: 'Sorghum', cotton: 'Cotton' };
+const YIELD_UNITS: Record<CropKey, string> = { corn: 'bu/ac', soybeans: 'bu/ac', oats: 'bu/ac', wheat: 'bu/ac', rice: 'cwt/ac', sorghum: 'bu/ac', cotton: 'lb/ac' };
+const PRICE_UNITS: Record<CropKey, string> = { corn: '$/bu', soybeans: '$/bu', oats: '$/bu', wheat: '$/bu', rice: '$/cwt', sorghum: '$/bu', cotton: '$/lb' };
 
 function Group({ title, children, open = false, intro }: { title: string; children: React.ReactNode; open?: boolean; intro?: string }) {
   return (
@@ -78,7 +80,7 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
   );
   const cropFilter = (id: string) => {
     const head = id.split('.')[0];
-    return !['corn', 'soybeans', 'oats', 'wheat'].includes(head) || crops.includes(head as CropKey) || (head === 'oats' && crops.includes('wheat'));
+    return !['corn', 'soybeans', 'oats', 'wheat', 'rice', 'sorghum', 'cotton'].includes(head) || crops.includes(head as CropKey) || (head === 'oats' && crops.includes('wheat'));
   };
 
   return (
@@ -115,7 +117,7 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
         </div>
       </Group>
 
-      <Group title="Fields" open intro="Acres come from the boundary you drew. The rotation was read from the crops you entered.">
+      <Group title="Fields" open intro="Acres come from the boundary you drew. Land is treated as fully owned unless you explicitly choose a rental arrangement. The rotation was read from the crops you entered.">
         <ul className="divide-y divide-line">
           {fields.map((f) => (
             <FieldRow key={f.id} field={f} acresDefault={fieldAcres(f, { ...inputs, fields: {} })} rentDefault={inputs.overrides.rent ?? imported.overrides.rent ?? ASSUMPTION_BY_ID.rent.value} ff={inputs.fields[f.id] ?? {}} onPatch={(p) => setField(f.id, p)} />
@@ -127,8 +129,8 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
         <div className="space-y-4">
           {crops.map((k) => (
             <div key={k} className={GRID}>
-              <NumberField label={`${CROP_NAMES[k]}: last year’s yield`} unit="bu/ac" value={inputs.lastYear.crops[k]?.yield} min={0} hint="Also used as your expected yield unless you enter one below." onCommit={(v) => onChange({ ...inputs, lastYear: { ...inputs.lastYear, crops: { ...inputs.lastYear.crops, [k]: { ...inputs.lastYear.crops[k], yield: v } } } })} />
-              <NumberField label={`${CROP_NAMES[k]}: last year’s price received`} unit="$/bu" value={inputs.lastYear.crops[k]?.price} min={0} onCommit={(v) => onChange({ ...inputs, lastYear: { ...inputs.lastYear, crops: { ...inputs.lastYear.crops, [k]: { ...inputs.lastYear.crops[k], price: v } } } })} />
+              <NumberField label={`${CROP_NAMES[k]}: last year’s yield`} unit={YIELD_UNITS[k]} value={inputs.lastYear.crops[k]?.yield} min={0} hint="Also used as your expected yield unless you enter one below." onCommit={(v) => onChange({ ...inputs, lastYear: { ...inputs.lastYear, crops: { ...inputs.lastYear.crops, [k]: { ...inputs.lastYear.crops[k], yield: v } } } })} />
+              <NumberField label={`${CROP_NAMES[k]}: last year’s price received`} unit={PRICE_UNITS[k]} value={inputs.lastYear.crops[k]?.price} min={0} onCommit={(v) => onChange({ ...inputs, lastYear: { ...inputs.lastYear, crops: { ...inputs.lastYear.crops, [k]: { ...inputs.lastYear.crops[k], price: v } } } })} />
             </div>
           ))}
         </div>
@@ -142,7 +144,7 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
             <NumberField
               key={k}
               label={`${CROP_NAMES[k]} contract price`}
-              unit="$/bu"
+              unit={PRICE_UNITS[k]}
               min={0}
               value={inputs.forward[k]}
               onCommit={(v) => {
@@ -156,10 +158,10 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
         </div>
       </Group>
 
-      <Group title="Costs" intro="Per acre, from the Iowa State 2026 budgets unless marked as a PlotTwist estimate.">
+      <Group title="Costs" intro="Per acre, from Iowa State 2026 budgets for Midwest crops and USDA ERS 2026 national budgets for rice, sorghum and cotton.">
         <div className="space-y-5">
-          {(['Fertilizer prices', 'Corn costs', 'Soybean costs', 'Small grain costs', 'Cover crops', 'Land and money'] as Group[])
-            .filter((g) => (g === 'Corn costs' ? crops.includes('corn') : g === 'Soybean costs' ? crops.includes('soybeans') : g === 'Small grain costs' ? crops.includes('oats') || crops.includes('wheat') : true))
+          {(['Fertilizer prices', 'Corn costs', 'Soybean costs', 'Small grain costs', 'Rice costs', 'Sorghum costs', 'Cotton costs', 'Cover crops', 'Land and money'] as Group[])
+            .filter((g) => (g === 'Corn costs' ? crops.includes('corn') : g === 'Soybean costs' ? crops.includes('soybeans') : g === 'Small grain costs' ? crops.includes('oats') || crops.includes('wheat') : g === 'Rice costs' ? crops.includes('rice') : g === 'Sorghum costs' ? crops.includes('sorghum') : g === 'Cotton costs' ? crops.includes('cotton') : true))
             .map((g) => (
               <div key={g}>
                 <h3 className="mb-2 text-[15px] font-semibold">{g}</h3>
@@ -216,7 +218,7 @@ function TextInput({ label, value, onChange }: { label: string; value?: string; 
 function FieldRow({ field, ff, acresDefault, rentDefault, onPatch }: { field: Field; ff: FieldFinance; acresDefault: number; rentDefault: number; onPatch: (p: Partial<FieldFinance>) => void }) {
   const tenureId = useId();
   const cycle = currentCycle(field);
-  const tenure: Tenure = ff.tenure ?? 'cash';
+  const tenure: Tenure = ff.tenure ?? 'own';
   return (
     <li className="py-3" data-testid={`finance-field-${field.id}`}>
       <p className="text-[16px] font-semibold">{field.name}</p>

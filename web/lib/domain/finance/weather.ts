@@ -34,8 +34,8 @@ export function classifyYears(years: MonthlyWeather[]): WeatherHistory {
     const n = months.reduce((s, m) => s + normal[m], 0);
     return n > 0 ? months.reduce((s, m) => s + y.rainMm[m], 0) / n : 1;
   };
-  const stressYears: Record<CropKey, number[]> = { corn: [], soybeans: [], oats: [], wheat: [] };
-  const goodYears: Record<CropKey, number[]> = { corn: [], soybeans: [], oats: [], wheat: [] };
+  const stressYears: Record<CropKey, number[]> = { corn: [], soybeans: [], oats: [], wheat: [], rice: [], sorghum: [], cotton: [] };
+  const goodYears: Record<CropKey, number[]> = { corn: [], soybeans: [], oats: [], wheat: [], rice: [], sorghum: [], cotton: [] };
   const classes = years.map((y) => {
     const stressed = new Set<CropKey>();
     const good = new Set<CropKey>();
@@ -44,6 +44,12 @@ export function classifyYears(years: MonthlyWeather[]): WeatherHistory {
     else if (pct(y, JUL, AUG) >= 0.8 && pct(y, JUL, AUG) <= 1.4 && y.maxTempC[JUL] < 35) good.add('corn');
     if (pct(y, AUG) < 0.5 || pct(y, JUL, AUG) < 0.6 || y.maxTempC[AUG] >= 38 || flood) stressed.add('soybeans');
     else if (pct(y, AUG) >= 0.8 && pct(y, AUG) <= 1.4 && y.maxTempC[AUG] < 35) good.add('soybeans');
+    if (stressed.has('corn')) stressed.add('sorghum');
+    else if (good.has('corn')) good.add('sorghum');
+    for (const k of ['rice', 'cotton'] as const) {
+      if (stressed.has('soybeans')) stressed.add(k);
+      else if (good.has('soybeans')) good.add(k);
+    }
     const sg = pct(y, MAY, JUN);
     for (const k of ['oats', 'wheat'] as const) {
       if (sg < 0.5 || sg > 1.7 || y.maxTempC[JUN] >= 35) stressed.add(k);

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Logo } from '../art/Logo';
 
-type Icon = 'overview' | 'fields' | 'rotation' | 'planner' | 'simulator' | 'finance' | 'imports' | 'more';
+type Icon = 'overview' | 'fields' | 'rotation' | 'planner' | 'simulator' | 'finance' | 'imports' | 'export' | 'more';
 
 export const TABS = [
   { href: '/overview', label: 'Overview', short: 'Overview', icon: 'overview', blurb: 'Your whole farm at a glance' },
@@ -15,6 +15,7 @@ export const TABS = [
   { href: '/simulator', label: 'Scenario Simulator', short: 'Simulator', icon: 'simulator', blurb: 'Try other crops, prices and weather' },
   { href: '/finance', label: 'Finance', short: 'Finance', icon: 'finance', blurb: '' },
   { href: '/imports', label: 'Imports', short: 'Imports', icon: 'imports', blurb: 'Bring in boundary files' },
+  { href: '/export', label: 'Export', short: 'Export', icon: 'export', blurb: 'Download Excel or PDF reports' },
 ] as const satisfies ReadonlyArray<{ href: string; label: string; short: string; icon: Icon; blurb: string }>;
 
 /** On phones these four sit in the bottom bar; the rest live under More. */
@@ -43,6 +44,7 @@ function TabIcon({ icon, className = 'h-6 w-6' }: { icon: Icon; className?: stri
       {icon === 'overview' && <path {...p} d="M3.5 3.5h7v7h-7zM13.5 3.5h7v4h-7zM13.5 10.5h7v10h-7zM3.5 13.5h7v7h-7z" />}
       {icon === 'simulator' && <path {...p} d="M5 4v16M12 4v16M19 4v16M3 8h4M10 15h4M17 10h4" />}
       {icon === 'imports' && <path {...p} d="M12 3v11m0 0-4-4m4 4 4-4M4 15v4.5h16V15" />}
+      {icon === 'export' && <path {...p} d="M12 15V4m0 0-4 4m4-4 4 4M4 14v5.5h16V14" />}
       {icon === 'more' && (
         <>
           <circle cx="5" cy="12" r="1.6" fill="currentColor" />

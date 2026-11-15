@@ -11,6 +11,7 @@ const perAcre = (y: PlanYear, v: number) => (y.acres ? v / y.acres : 0);
 const sum = (l: PartialLine[]) => l.reduce((s, x) => s + x.amount, 0);
 
 export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: boolean }) {
+  if (a.unmodeled.length > 0) return <IncompleteFinance a={a} compact={compact} />;
   const { low, high, mid, wholeFarm, horizon } = a.headline;
   const tone = mid > 0.5 ? 'text-field' : mid < -0.5 ? 'text-alert' : 'text-ink';
   return (
@@ -43,6 +44,10 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
   const cum = a.cash.points.map((p) => ({ label: p.label, current: p.current.cumulative, proposed: p.proposed.cumulative }));
   const be = a.cash.breakEven;
 
+  if (a.unmodeled.length > 0) {
+    return <IncompleteFinance a={a} />;
+  }
+
   return (
     <div className="space-y-5">
       {planned === 0 && (
@@ -51,8 +56,6 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         </p>
       )}
       {planned > 0 && planned < fieldCount && <p className="text-[14.5px] text-ink-soft">{fieldCount - planned} of {fieldCount} fields have no plan yet; they stay on their current rotation in both columns.</p>}
-      {a.unmodeled.length > 0 && <p className="text-[14.5px] text-ink-soft">No budget yet for {a.unmodeled.join(', ')}; those seasons count rent only, in both plans.</p>}
-
       <Headline a={a} />
 
       <Section id="projection" title="Projection" confidence={a.confidence.comparison} aside={<Segmented label="Show" value={metric} onChange={setMetric} options={[{ value: 'net', label: 'Net return' }, { value: 'revenue', label: 'Revenue' }]} />}>
@@ -252,10 +255,10 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
                   <th scope="row" className="py-1.5 pr-2 text-left font-normal">{b.crop}</th>
                   <td className="px-2 text-right">{money(b.costPerAcre)}</td>
                   <td className="px-2 text-right">
-                    {money(b.breakEvenPrice, { cents: true })}/bu <span className="text-ink-faint">(expecting {money(b.price, { cents: true })})</span>
+                    {money(b.breakEvenPrice, { cents: true })}/{b.unit} <span className="text-ink-faint">(expecting {money(b.price, { cents: true })})</span>
                   </td>
                   <td className="pl-2 text-right">
-                    {Math.round(b.breakEvenYield)} bu <span className="text-ink-faint">(expecting {Math.round(b.yieldBu)})</span>
+                    {Math.round(b.breakEvenYield)} {b.unit} <span className="text-ink-faint">(expecting {Math.round(b.yieldBu)})</span>
                   </td>
                 </tr>
               ))}
@@ -323,6 +326,22 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
           </div>
         </details>
       </Section>
+    </div>
+  );
+}
+
+function IncompleteFinance({ a, compact = false }: { a: FarmAnalysis; compact?: boolean }) {
+  return (
+    <div className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint p-4" data-testid="finance-incomplete">
+      <p className="font-semibold text-wheat-deep">Financial projection needs complete crop data</p>
+      <p className="mt-1 text-[14.5px] text-ink-soft">
+        No estimate is shown for {a.unmodeled.join('; ')}. Add a supported crop budget before using the profit graphs; missing seasons are never replaced with rent or a placeholder value.
+      </p>
+      {!compact && (
+        <Link href="/fields" className="mt-2 inline-flex min-h-10 items-center font-semibold text-sky-deep underline underline-offset-2">
+          Review crop history
+        </Link>
+      )}
     </div>
   );
 }

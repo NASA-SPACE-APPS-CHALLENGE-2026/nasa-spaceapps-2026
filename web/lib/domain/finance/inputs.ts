@@ -82,7 +82,7 @@ export const DEFAULT_FINANCE: FinanceInputs = { horizon: 5, overrides: {}, field
 const num = z.number().finite();
 const optNum = num.optional().catch(undefined);
 const optStr = z.string().max(120).optional().catch(undefined);
-const cropKey = z.enum(['corn', 'soybeans', 'oats', 'wheat']);
+const cropKey = z.enum(['corn', 'soybeans', 'oats', 'wheat', 'rice', 'sorghum', 'cotton']);
 
 export const financeSchema = z.object({
   horizon: z.union([z.literal(3), z.literal(5)]).catch(5),

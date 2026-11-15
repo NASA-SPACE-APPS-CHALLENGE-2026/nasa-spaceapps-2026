@@ -16,6 +16,8 @@ export interface SourceRef {
 export const SOURCES = {
   isu: { name: 'Iowa State University, Ag Decision Maker A1-20 "Estimated Costs of Crop Production in Iowa – 2026"', url: 'https://www.extension.iastate.edu/agdm/crops/pdf/a1-20.pdf', date: 'Jan 2026' },
   wasde: { name: 'USDA World Agricultural Supply and Demand Estimates (WASDE), 2026/27 season-average farm price', url: 'https://www.usda.gov/oce/commodity/wasde/wasde1126.pdf', date: 'Nov 10, 2026' },
+  ersCosts: { name: 'USDA ERS Cost-of-Production Forecasts for Major U.S. Field Crops, 2026F', url: 'https://www.ers.usda.gov/data-products/commodity-costs-and-returns', date: 'Nov 10, 2026' },
+  ersReturns: { name: 'USDA ERS Commodity Costs and Returns, U.S. total', url: 'https://www.ers.usda.gov/data-products/commodity-costs-and-returns', date: 'Oct 1, 2026' },
   rent: { name: 'Iowa State University "Cash Rental Rates for Iowa 2026 Survey" (FM 1851), state average', url: 'https://shop.iastate.edu/extension/fm1851.html', date: 'May 2026' },
   eqip: { name: 'Iowa NRCS FY2026 EQIP payment schedule, Cover Crop (340) single species (as summarised by hellogravel.com)', url: 'https://hellogravel.com/incentives/iowa/iowa-nrcs-fy2026-payment-schedule/', date: '2026' },
   oatsPrice: { name: 'USDA NASS Agricultural Prices via Wisconsin Farm Reporter: Wisconsin May 2026 oat price (stand-in; no Iowa price found)', url: 'https://datcp.wi.gov/Documents2/WisconsinFarmReporter202607.pdf', date: 'Jul 2026' },
@@ -29,7 +31,7 @@ export const ACTUAL_CATS = ['seed', 'fertilizer', 'chemicals', 'insurance', 'mac
 export type ActualCat = (typeof ACTUAL_CATS)[number];
 const ACTUAL_LABELS: Record<ActualCat, string> = { seed: 'seed', fertilizer: 'fertilizer and lime', chemicals: 'herbicide and insecticide', insurance: 'crop insurance', machinery: 'machinery, fuel and repairs', labor: 'labor', other: 'miscellaneous costs' };
 
-export type Group = 'Yields and prices' | 'Corn costs' | 'Soybean costs' | 'Small grain costs' | 'Fertilizer prices' | 'Cover crops' | 'Land and money' | 'Programs' | 'Risk' | 'Practices' | 'Your records';
+export type Group = 'Yields and prices' | 'Corn costs' | 'Soybean costs' | 'Small grain costs' | 'Rice costs' | 'Sorghum costs' | 'Cotton costs' | 'Fertilizer prices' | 'Cover crops' | 'Land and money' | 'Programs' | 'Risk' | 'Practices' | 'Your records';
 
 export interface Assumption {
   id: string;
@@ -44,6 +46,7 @@ export interface Assumption {
 
 const isu = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.isu, confidence: 'high', note });
 const guess = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.plottwist, confidence: 'low', note });
+const ers = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.ersCosts, confidence: 'high', note });
 
 export const ASSUMPTIONS: Assumption[] = [
   // ---- Yields and prices ----
@@ -58,6 +61,15 @@ export const ASSUMPTIONS: Assumption[] = [
   guess('oats.strawPrice', 'Oat straw price', 'Yields and prices', 80, '$/ton'),
   guess('wheat.yield', 'Wheat yield', 'Yields and prices', 70, 'bu/ac'),
   { id: 'wheat.price', label: 'Wheat price', group: 'Yields and prices', value: 6.2, unit: '$/bu', source: SOURCES.wasde, confidence: 'medium', note: 'All-wheat season-average farm price.' },
+  { id: 'rice.yield', label: 'Rice yield', group: 'Yields and prices', value: 76.64, unit: 'cwt/ac', source: SOURCES.wasde, confidence: 'medium', note: '7,664 pounds per harvested acre, converted to hundredweight.' },
+  { id: 'rice.price', label: 'Rice price', group: 'Yields and prices', value: 15.1, unit: '$/cwt', source: SOURCES.wasde, confidence: 'medium', note: 'All-rice season-average farm price.' },
+  { id: 'sorghum.yield', label: 'Sorghum yield', group: 'Yields and prices', value: 52.4, unit: 'bu/ac', source: SOURCES.wasde, confidence: 'medium' },
+  { id: 'sorghum.price', label: 'Sorghum price', group: 'Yields and prices', value: 4.45, unit: '$/bu', source: SOURCES.wasde, confidence: 'medium' },
+  { id: 'sorghum.secondaryRevenue', label: 'Sorghum grazing and silage value', group: 'Yields and prices', value: 7.5, unit: '$/ac', source: SOURCES.ersReturns, confidence: 'medium' },
+  { id: 'cotton.yield', label: 'Cotton lint yield', group: 'Yields and prices', value: 775, unit: 'lb/ac', source: SOURCES.wasde, confidence: 'medium' },
+  { id: 'cotton.price', label: 'Cotton lint price', group: 'Yields and prices', value: 0.76, unit: '$/lb', source: SOURCES.wasde, confidence: 'medium' },
+  { id: 'cotton.seedYield', label: 'Cottonseed yield', group: 'Yields and prices', value: 1492, unit: 'lb/ac', source: SOURCES.ersReturns, confidence: 'medium' },
+  { id: 'cotton.seedPrice', label: 'Cottonseed price', group: 'Yields and prices', value: 0.12, unit: '$/lb', source: SOURCES.ersReturns, confidence: 'medium' },
   { id: 'basis', label: 'Local basis adjustment', group: 'Yields and prices', value: 0, unit: '$/bu', source: SOURCES.wasde, confidence: 'medium', note: 'Zero because the USDA price is already a farm price. Enter your elevator’s difference from it.' },
 
   // ---- Fertilizer prices (ISU 2026) ----
@@ -110,6 +122,37 @@ export const ASSUMPTIONS: Assumption[] = [
   guess('oats.labor', 'Small grain labor', 'Small grain costs', 40.8, '$/ac', '2 hours at $20.40.'),
   guess('wheat.seed', 'Wheat seed', 'Small grain costs', 45, '$/ac'),
   guess('wheat.nLbs', 'Nitrogen for wheat', 'Small grain costs', 90, 'lb N/ac'),
+
+  // ---- Rice, sorghum and cotton (USDA ERS 2026F U.S. budgets, excluding opportunity cost of land) ----
+  ers('rice.seed', 'Rice seed', 'Rice costs', 119.14, '$/ac'),
+  guess('rice.nLbs', 'Nitrogen for rice', 'Rice costs', 130, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
+  ers('rice.fertilizerOther', 'Rice fertilizer other than nitrogen', 'Rice costs', 156.11, '$/ac', 'Residual that makes fertilizer total $225.01/ac at the default nitrogen price.'),
+  ers('rice.chemicals', 'Rice chemicals', 'Rice costs', 121.69, '$/ac'),
+  ers('rice.machinery', 'Rice machinery, fuel, repairs and custom work', 'Rice costs', 576.46, '$/ac'),
+  ers('rice.labor', 'Rice paid and unpaid labor', 'Rice costs', 77.92, '$/ac'),
+  ers('rice.insurance', 'Rice taxes and insurance', 'Rice costs', 27.16, '$/ac'),
+  ers('rice.interest', 'Rice operating interest', 'Rice costs', 15.84, '$/ac'),
+  ers('rice.other', 'Rice other variable and farm overhead', 'Rice costs', 73.2, '$/ac'),
+
+  ers('sorghum.seed', 'Sorghum seed', 'Sorghum costs', 16.6, '$/ac'),
+  guess('sorghum.nLbs', 'Nitrogen for sorghum', 'Sorghum costs', 80, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
+  ers('sorghum.fertilizerOther', 'Sorghum fertilizer other than nitrogen', 'Sorghum costs', 28.67, '$/ac', 'Residual that makes fertilizer total $71.07/ac at the default nitrogen price.'),
+  ers('sorghum.chemicals', 'Sorghum chemicals', 'Sorghum costs', 30.87, '$/ac'),
+  ers('sorghum.machinery', 'Sorghum machinery, fuel, repairs and custom work', 'Sorghum costs', 222.27, '$/ac'),
+  ers('sorghum.labor', 'Sorghum paid and unpaid labor', 'Sorghum costs', 27.63, '$/ac'),
+  ers('sorghum.insurance', 'Sorghum taxes and insurance', 'Sorghum costs', 14.11, '$/ac'),
+  ers('sorghum.interest', 'Sorghum operating interest', 'Sorghum costs', 3.63, '$/ac'),
+  ers('sorghum.other', 'Sorghum other variable and farm overhead', 'Sorghum costs', 19.45, '$/ac'),
+
+  ers('cotton.seed', 'Cotton seed', 'Cotton costs', 100.06, '$/ac'),
+  guess('cotton.nLbs', 'Nitrogen for cotton', 'Cotton costs', 90, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
+  ers('cotton.fertilizerOther', 'Cotton fertilizer other than nitrogen', 'Cotton costs', 76.17, '$/ac', 'Residual that makes fertilizer total $123.87/ac at the default nitrogen price.'),
+  ers('cotton.chemicals', 'Cotton chemicals', 'Cotton costs', 80.81, '$/ac'),
+  ers('cotton.machinery', 'Cotton machinery, fuel, repairs and custom work', 'Cotton costs', 352.39, '$/ac'),
+  ers('cotton.labor', 'Cotton paid and unpaid labor', 'Cotton costs', 55.45, '$/ac'),
+  ers('cotton.insurance', 'Cotton taxes and insurance', 'Cotton costs', 12.62, '$/ac'),
+  ers('cotton.interest', 'Cotton operating interest', 'Cotton costs', 10.76, '$/ac'),
+  ers('cotton.other', 'Cotton ginning, other variable and farm overhead', 'Cotton costs', 137.58, '$/ac'),
 
   // ---- Cover crops ----
   guess('cover.seed', 'Cover crop seed (cereal rye)', 'Cover crops', 18, '$/ac', 'About 1 bushel of rye seed.'),

@@ -19,7 +19,7 @@ import { NumberField, SECTION, Segmented } from '../finance/ui';
 import { useEffectiveFinance } from '@/lib/client/useEffectiveFinance';
 import { FieldPicker, NoFieldsYet } from '../ui/FieldPicker';
 
-const CROP_CHOICES = ['corn', 'soybeans', 'oats', 'winter-wheat', 'fallow'];
+const CROP_CHOICES = ['corn', 'soybeans', 'oats', 'winter-wheat', 'rice', 'sorghum', 'cotton', 'fallow'];
 const SELECT = 'mt-1 block min-h-11 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[16px]';
 
 export function SimulatorScreen() {
@@ -223,6 +223,16 @@ function SimInputs({ field, sim, finance, fieldId, onUpdate, onOverride, onFinan
 }
 
 function Results({ run, years }: { run: ReturnType<typeof simulate>['result']; years: number }) {
+  if (run.unmodeled.length > 0) {
+    return (
+      <section className={SECTION} aria-labelledby="sim-incomplete-h" data-testid="sim-incomplete">
+        <h2 id="sim-incomplete-h" className="font-plate text-xl">Financial projection needs complete crop data</h2>
+        <p className="mt-2 text-[15px] text-ink-soft">
+          No profit estimate is shown for {run.unmodeled.join('; ')}. Choose a supported crop for every year so missing data is not displayed as rent, zero, or a placeholder.
+        </p>
+      </section>
+    );
+  }
   const c = run.current;
   const p = run.proposed;
   const cols = p.years.map((y, i) => ({ label: String(y.year), proposed: run.acres ? y.net / run.acres : 0, current: run.acres && c.years[i] ? c.years[i].net / run.acres : 0 }));
@@ -297,8 +307,8 @@ function Results({ run, years }: { run: ReturnType<typeof simulate>['result']; y
               ))}
               <tr className="border-t border-line align-top">
                 <th scope="row" className="py-2 pr-2 text-left font-normal">Expected yields</th>
-                <td className="px-2 text-right">{p.yields.map((y) => `${y.crop} ${y.bu}`).join(', ') || '–'}</td>
-                <td className="pl-2 text-right">{c.yields.map((y) => `${y.crop} ${y.bu}`).join(', ') || '–'}</td>
+                <td className="px-2 text-right">{p.yields.map((y) => `${y.crop} ${y.bu} ${y.unit}/ac`).join(', ') || '–'}</td>
+                <td className="pl-2 text-right">{c.yields.map((y) => `${y.crop} ${y.bu} ${y.unit}/ac`).join(', ') || '–'}</td>
               </tr>
             </tbody>
           </table>

@@ -8,7 +8,7 @@ import { coverMonths, currentPlanSeasons, proposedPlanSeasons } from '@/lib/doma
 import { buildParams, DEFAULT_FINANCE, parseFinance } from '@/lib/domain/finance/inputs';
 import { classifyYears } from '@/lib/domain/finance/weather';
 import { simulate } from '@/lib/domain/finance/simulate';
-import { upcomingTasks } from '@/lib/domain/finance/farm';
+import { fieldSetup, upcomingTasks } from '@/lib/domain/finance/farm';
 import { FarmStore } from '@/lib/client/store';
 import { createLocalRepositories } from '@/lib/repo/local';
 import { MemoryStorage } from '@/lib/repo/local/storage';
@@ -52,6 +52,26 @@ describe('crop budgets reproduce the ISU 2026 totals', () => {
     const b = seasonBudget(soy(), corn(2026), ISU_RENT, new Params());
     expect(b.totalCost).toBeCloseTo(679.11, 0);
     expect(b.nLbs).toBe(0);
+  });
+
+  it('models rice, sorghum and cotton with USDA revenue and owned-land production costs', () => {
+    const own: FieldSetup = { acres: 1, tenure: 'own', irrigated: false };
+    const P = new Params();
+    const rice = seasonBudget({ year: 2027, crops: ['rice'] }, undefined, own, P);
+    expect(rice.revenue).toBeCloseTo(76.64 * 15.1, 6);
+    expect(rice.totalCost).toBeCloseTo(1236.42, 2);
+    expect(rice.nLbs).toBe(130);
+    expect(rice.unmodeled).toEqual([]);
+
+    const sorghum = seasonBudget({ year: 2027, crops: ['sorghum'] }, undefined, own, P);
+    expect(sorghum.revenue).toBeCloseTo(52.4 * 4.45 + 7.5, 6);
+    expect(sorghum.totalCost).toBeCloseTo(405.63, 2);
+    expect(sorghum.unmodeled).toEqual([]);
+
+    const cotton = seasonBudget({ year: 2027, crops: ['cotton'] }, undefined, own, P);
+    expect(cotton.revenue).toBeCloseTo(775 * 0.76 + 1492 * 0.12, 6);
+    expect(cotton.totalCost).toBeCloseTo(873.54, 2);
+    expect(cotton.unmodeled).toEqual([]);
   });
 
   it('applies farmer overrides, share rent, cover crops and their effect on the next corn crop', () => {
@@ -172,6 +192,15 @@ describe('whole-farm analysis', () => {
 });
 
 describe('finance inputs (layer 5)', () => {
+  it('treats land as fully owned unless rent is explicitly selected', () => {
+    const f = cornSoyField();
+    expect(fieldSetup(f, DEFAULT_FINANCE).tenure).toBe('own');
+    expect(fieldSetup(f, { ...DEFAULT_FINANCE, fields: { [f.id]: { tenure: 'cash' } } }).tenure).toBe('cash');
+    const owned = seasonBudget(corn(), soy(2026), fieldSetup(f, DEFAULT_FINANCE), new Params());
+    expect(owned.costs.land).toBe(0);
+    expect(owned.net).toBeCloseTo(211 * 4.6 - (911.98 - 274), 0);
+  });
+
   it('derive prices from last year and supplier quotes, but direct entries win', () => {
     const inputs = { ...DEFAULT_FINANCE, overrides: { 'soybeans.yield': 58 }, lastYear: { crops: { corn: { yield: 200 }, soybeans: { yield: 65 } } }, suppliers: { cornSeedPerBag: 300, anhydrousPerTon: 820 } };
     const P = buildParams(inputs);
