@@ -11,7 +11,7 @@ export function ScoreAccordion({ bar }: { bar: BarScore }) {
   const panelId = useId();
   const count = bar.reasons.length;
   return (
-    <div className="rounded-[var(--radius-control)] border border-line" data-testid={`score-${bar.id}`}>
+    <div className="rounded-parcel border border-line" data-testid={`score-${bar.id}`}>
       <div className="px-3 pt-3">
         <ScoreBar bar={bar} />
       </div>
@@ -20,7 +20,7 @@ export function ScoreAccordion({ bar }: { bar: BarScore }) {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((o) => !o)}
-        className="flex min-h-11 w-full items-center gap-1.5 rounded-b-[var(--radius-control)] px-3 text-left text-[14.5px] font-semibold text-sky-deep hover:bg-sky-tint"
+        className="flex min-h-11 w-full items-center gap-1.5 rounded-b-[var(--radius-parcel)] px-3 text-left text-[14.5px] font-semibold text-field hover:bg-field-tint"
       >
         <svg viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-90' : ''}`} aria-hidden>
           <path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />

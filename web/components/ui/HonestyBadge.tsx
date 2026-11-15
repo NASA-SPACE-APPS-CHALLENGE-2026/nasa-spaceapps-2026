@@ -1,9 +1,10 @@
 import type { Honesty } from '@/lib/domain/types';
+import { Badge, type BadgeIcon, type BadgeTone } from './Badge';
 
-const STYLE: Record<Honesty, string> = {
-  Measured: 'bg-field-tint text-field border-field/25',
-  Estimated: 'bg-sky-tint text-sky-deep border-sky/25',
-  'Check this info': 'bg-wheat-tint text-wheat-deep border-wheat/35',
+const STYLE: Record<Honesty, { tone: BadgeTone; icon: BadgeIcon }> = {
+  Measured: { tone: 'positive', icon: 'check' },
+  Estimated: { tone: 'info', icon: 'dot' },
+  'Check this info': { tone: 'caution', icon: 'caution' },
 };
 
 const MEANING: Record<Honesty, string> = {
@@ -14,8 +15,8 @@ const MEANING: Record<Honesty, string> = {
 
 export function HonestyBadge({ honesty, className = '' }: { honesty: Honesty; className?: string }) {
   return (
-    <span title={MEANING[honesty]} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[12.5px] font-semibold ${STYLE[honesty]} ${className}`}>
+    <Badge tone={STYLE[honesty].tone} icon={STYLE[honesty].icon} title={MEANING[honesty]} className={className}>
       {honesty}
-    </span>
+    </Badge>
   );
 }

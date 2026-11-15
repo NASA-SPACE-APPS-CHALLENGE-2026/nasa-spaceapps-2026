@@ -63,11 +63,11 @@ export function FindingList({ findings, picked, onToggle, finance, others, field
       {groups.map(({ g, items }) => (
         <fieldset key={g}>
           <legend className="text-[14px] font-semibold uppercase tracking-wide text-ink-soft">{g}</legend>
-          <ul className="mt-1 divide-y divide-line rounded-[var(--radius-control)] border border-line">
+          <ul className="mt-1 divide-y divide-line rounded-parcel border border-line">
             {items.map((f) => (
               <li key={f.target} className="px-3 py-2.5">
                 <label className="flex items-start gap-3">
-                  <input type="checkbox" checked={picked.has(f.target)} onChange={(e) => onToggle(f.target, e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[var(--color-sky)]" data-testid={`finding-${f.target}`} />
+                  <input type="checkbox" checked={picked.has(f.target)} onChange={(e) => onToggle(f.target, e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[var(--color-field)]" data-testid={`finding-${f.target}`} />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-baseline justify-between gap-x-3">
                       <span className="text-[15px] font-semibold">{f.label}</span>
@@ -115,14 +115,14 @@ export function ImportReview({ draft, ctx, others, onApply, onCancel }: { draft:
   };
 
   return (
-    <div className="mt-4 space-y-5 rounded-[var(--radius-panel)] border border-sky/40 bg-sky-tint/40 p-4" data-testid="import-review">
+    <div className="mt-4 space-y-5 rounded-parcel border border-field/40 bg-field-tint/40 p-4" data-testid="import-review">
       <div>
         <p className="text-[16px] font-semibold">{d.fileName}</p>
         <p className="text-[14.5px] text-ink-soft">{ev.summary}</p>
       </div>
 
       {ev.warnings.length > 0 && (
-        <ul className="space-y-1 rounded-[var(--radius-control)] border border-wheat/40 bg-wheat-tint px-3 py-2 text-[14px] text-wheat-deep" aria-label="Notes about this file">
+        <ul className="space-y-1 rounded-parcel border border-wheat/40 bg-wheat-tint px-3 py-2 text-[14px] text-wheat-deep" aria-label="Notes about this file">
           {ev.warnings.map((w, i) => (
             <li key={i}>{w}</li>
           ))}
@@ -137,7 +137,7 @@ export function ImportReview({ draft, ctx, others, onApply, onCancel }: { draft:
           <select id={sheetId} value={d.tableIndex} onChange={(e) => {
               const i = Number(e.target.value);
               setD({ ...d, tableIndex: i, mapping: detectMapping(d.tables[i].headers, d.kind) });
-            }} className="mt-1 min-h-11 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[15px]">
+            }} className="mt-1 min-h-11 rounded-parcel border border-line-strong bg-panel px-3 text-[15px]">
             {d.tables.map((t, i) => (
               <option key={t.name + i} value={i}>
                 {t.name} ({t.rows.length} rows)
@@ -148,7 +148,7 @@ export function ImportReview({ draft, ctx, others, onApply, onCancel }: { draft:
       )}
 
       {table && d.mapping && (
-        <details className="rounded-[var(--radius-control)] border border-line bg-panel" open={roles.some((r) => r.required && d.mapping![r.id] === null)}>
+        <details className="rounded-parcel border border-line bg-panel" open={roles.some((r) => r.required && d.mapping![r.id] === null)}>
           <summary className="min-h-11 cursor-pointer content-center px-3 text-[15px] font-semibold">Columns PlotTwist read ({Object.values(d.mapping).filter((v) => v !== null).length} matched)</summary>
           <div className="grid gap-3 border-t border-line p-3 sm:grid-cols-2">
             {roles.map((r) => (
@@ -163,13 +163,13 @@ export function ImportReview({ draft, ctx, others, onApply, onCancel }: { draft:
           <label htmlFor={yearId} className="block text-[14.5px] font-semibold">
             Year of this map
           </label>
-          <input id={yearId} type="number" min={2000} max={2100} value={d.mapYear} onChange={(e) => setD({ ...d, mapYear: Number(e.target.value) || d.mapYear })} className="mt-1 min-h-11 w-32 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]" />
+          <input id={yearId} type="number" min={2000} max={2100} value={d.mapYear} onChange={(e) => setD({ ...d, mapYear: Number(e.target.value) || d.mapYear })} className="mt-1 min-h-11 w-32 rounded-parcel border border-line-strong bg-panel px-3 text-[16px]" />
           <p className="mt-1 text-[13.5px] text-ink-faint">The map has no dates, so PlotTwist needs the harvest or application year.</p>
         </div>
       )}
 
       {fieldNames.length > 0 && (unmatched.length > 0 || Object.keys(assign).length > 0) && (
-        <fieldset className="rounded-[var(--radius-control)] border border-line bg-panel p-3">
+        <fieldset className="rounded-parcel border border-line bg-panel p-3">
           <legend className="px-1 text-[15px] font-semibold">Which of your fields is which?</legend>
           <p className="text-[14px] text-ink-soft">Field names in the file that PlotTwist could not match exactly.</p>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -207,7 +207,7 @@ function ColumnSelect({ label, headers, sample, value, onChange }: { label: stri
       <label htmlFor={id} className="block text-[14px] font-semibold">
         {label}
       </label>
-      <select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} className="mt-1 min-h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[15px]">
+      <select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} className="mt-1 min-h-11 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[15px]">
         <option value="">Not in this file</option>
         {headers.map((h, i) => (
           <option key={i} value={i}>
@@ -227,7 +227,7 @@ function FieldAssign({ name, fields, value, onChange }: { name: string; fields: 
       <label htmlFor={id} className="block text-[14px] font-semibold">
         “{name}” in the file
       </label>
-      <select id={id} value={value === undefined ? '' : value === null ? '__none' : value} onChange={(e) => onChange(e.target.value === '__none' ? null : e.target.value || null)} className="mt-1 min-h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[15px]">
+      <select id={id} value={value === undefined ? '' : value === null ? '__none' : value} onChange={(e) => onChange(e.target.value === '__none' ? null : e.target.value || null)} className="mt-1 min-h-11 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[15px]">
         <option value="">Pick a field…</option>
         {fields.map((f) => (
           <option key={f.id} value={f.id}>

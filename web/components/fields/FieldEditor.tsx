@@ -5,6 +5,7 @@ import { areaM2, formatAcres } from '@/lib/domain/acreage';
 import type { Field, FieldCrops, FieldGeometry, FieldProfile, SourceId } from '@/lib/domain/types';
 import { type GeometryIssue, hasBlockingIssue } from '@/lib/domain/validation';
 import { Button } from '../ui/Button';
+import { FieldShape } from '../ui/FieldShape';
 import { CropsCard } from './CropsCard';
 import { IssueList } from './IssueList';
 import { ProfileCard } from './ProfileCard';
@@ -54,15 +55,17 @@ export function FieldEditor(p: Props) {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <button type="button" onClick={p.onBack} className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-[var(--radius-control)] px-2 font-semibold text-sky-deep hover:bg-sky-tint">
+    <div key={field.id} className="motion-expand space-y-5 px-4 pb-6 pt-3 lg:px-5 lg:pt-5">
+      <button type="button" onClick={p.onBack} className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-parcel px-2 font-semibold text-field hover:bg-field-tint">
         <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
           <path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
         </svg>
         All fields
       </button>
 
-      <div>
+      <div className="flex items-start gap-3">
+        <FieldShape geometry={field.feature.geometry} crop={field.crops.current.crop} pinOnly={approximate} size={64} />
+        <div className="min-w-0 flex-1">
         <label htmlFor={renameId} className="sr-only">
           Field name (edit to rename)
         </label>
@@ -76,14 +79,14 @@ export function FieldEditor(p: Props) {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             if (e.key === 'Escape') setName(field.name);
           }}
-          className="font-plate -mx-2 w-[calc(100%+1rem)] rounded-[var(--radius-control)] border border-transparent bg-transparent px-2 py-1 text-2xl hover:border-line focus:border-sky focus:bg-panel"
+          className="font-plate -mx-2 w-[calc(100%+1rem)] rounded-parcel border border-transparent bg-transparent px-2 py-0.5 text-[28px] hover:border-line focus:border-field focus:bg-panel"
         />
         <p className="text-[15px] text-ink-soft">
           {approximate ? (
             <span className="font-semibold text-wheat-deep">Boundary not drawn</span>
           ) : (
             <>
-              <span className="font-semibold text-ink" data-testid="field-acres">
+              <span className="font-semibold tabular-nums text-ink" data-testid="field-acres">
                 {formatAcres(field.areaM2)}
               </span>
               , {boundaryText(field)}
@@ -91,6 +94,7 @@ export function FieldEditor(p: Props) {
             </>
           )}
         </p>
+        </div>
       </div>
 
       {p.actions}
@@ -100,7 +104,7 @@ export function FieldEditor(p: Props) {
       {p.edit ? (
         <ShapeEditor {...p} edit={p.edit} />
       ) : approximate ? (
-        <div className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint p-4" data-testid="boundary-not-drawn">
+        <div className="rounded-parcel border border-wheat/40 bg-wheat-tint p-4" data-testid="boundary-not-drawn">
           <p className="text-[15px] font-semibold text-wheat-deep">This field only has a pin</p>
           <p className="mt-1 text-[14.5px] leading-snug text-wheat-deep">
             Until you draw its edges, the profile and crop history use an approximate area around the pin. Draw the boundary for accurate acreage and data.
@@ -125,7 +129,7 @@ export function FieldEditor(p: Props) {
 
       <div className="pb-4 pt-2">
         {confirmDelete ? (
-          <div className="rounded-[var(--radius-panel)] border border-alert/30 bg-alert-tint p-4" role="alertdialog" aria-labelledby={deleteHeadingId}>
+          <div className="rounded-parcel border border-alert/30 bg-alert-tint p-4" role="alertdialog" aria-labelledby={deleteHeadingId}>
             <p id={deleteHeadingId} className="text-[15px] text-[#7a2c1d]">
               Delete <strong>{field.name}</strong>? Its boundary, crops and profile will be removed from this browser.
             </p>
@@ -139,7 +143,7 @@ export function FieldEditor(p: Props) {
             </div>
           </div>
         ) : (
-          <button type="button" onClick={() => setConfirmDelete(true)} className="min-h-11 rounded-[var(--radius-control)] px-2 font-semibold text-alert hover:bg-alert-tint">
+          <button type="button" onClick={() => setConfirmDelete(true)} className="min-h-11 rounded-parcel px-2 font-semibold text-alert hover:bg-alert-tint">
             Delete field
           </button>
         )}
@@ -152,7 +156,7 @@ function ShapeEditor(p: Props & { edit: ShapeEdit }) {
   const blocking = hasBlockingIssue(p.editIssues);
   const geometry = p.edit.geometry;
   return (
-    <div className="rounded-[var(--radius-panel)] border border-sky/40 bg-sky-tint/60 p-4" role="status">
+    <div className="rounded-parcel border border-field/40 bg-field-tint/60 p-4" role="status">
       {p.edit.kind === 'vertices' ? (
         <>
           <p className="text-[15px] font-semibold">Editing the boundary</p>

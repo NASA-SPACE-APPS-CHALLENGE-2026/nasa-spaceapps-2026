@@ -17,7 +17,7 @@ export function ImportsSummary() {
   });
   const total = params.length + fieldNotes.length + (imported.lastYear.totalRevenue !== undefined ? 1 : 0) + (imported.lastYear.totalCosts !== undefined ? 1 : 0);
   return (
-    <section aria-labelledby="applied-h" className="mt-6 rounded-[var(--radius-panel)] border border-field/30 bg-field-tint p-5" data-testid="imports-summary">
+    <section aria-labelledby="applied-h" className="mt-6 rounded-parcel border border-field/30 bg-field-tint p-5" data-testid="imports-summary">
       <h2 id="applied-h" className="font-plate text-xl text-field">
         What your records change
       </h2>
@@ -40,7 +40,7 @@ export function ImportsSummary() {
               <li key={n}>{n}</li>
             ))}
           </ul>
-          <Link href="/finance" className="mt-3 inline-flex min-h-11 items-center font-semibold text-sky-deep underline-offset-2 hover:underline">
+          <Link href="/finance" className="mt-3 inline-flex min-h-11 items-center font-semibold text-field underline-offset-2 hover:underline">
             See the effect in Finance
           </Link>
         </>

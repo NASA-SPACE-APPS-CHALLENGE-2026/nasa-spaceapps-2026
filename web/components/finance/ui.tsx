@@ -2,51 +2,52 @@
 
 import { useEffect, useId, useState } from 'react';
 import type { Confidence, Origin } from '@/lib/domain/finance/assumptions';
+import { Badge } from '../ui/Badge';
+import { Section as PageSection } from '../ui/Panel';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { HINT, INPUT, PANEL } from '../ui/styles';
 
-export const SECTION = 'rounded-[var(--radius-panel)] border border-line bg-panel p-4 lg:p-5';
+/** A raised panel, for the few blocks that stand on their own (simulator inputs, side panels). */
+export const SECTION = `${PANEL} p-4 lg:p-6`;
 
+/** A results section: title row with optional controls and confidence tag, separated by a field-edge rule. */
 export function Section({ id, title, confidence, children, aside }: { id: string; title: string; confidence?: Confidence; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
-    <section aria-labelledby={`${id}-h`} className={SECTION} data-testid={`section-${id}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id={`${id}-h`} className="font-plate text-xl">
-          {title}
-        </h2>
-        <div className="flex items-center gap-2">
-          {aside}
-          {confidence && <ConfidenceBadge c={confidence} />}
-        </div>
-      </div>
-      <div className="mt-3">{children}</div>
-    </section>
+    <PageSection
+      id={id}
+      title={title}
+      testId={`section-${id}`}
+      aside={
+        (aside || confidence) && (
+          <>
+            {aside}
+            {confidence && <ConfidenceBadge c={confidence} />}
+          </>
+        )
+      }
+    >
+      {children}
+    </PageSection>
   );
 }
 
-const CONF: Record<Confidence, { label: string; cls: string }> = {
-  high: { label: 'High confidence', cls: 'bg-field-tint text-field' },
-  medium: { label: 'Medium confidence', cls: 'bg-sky-tint text-sky-deep' },
-  low: { label: 'Low confidence', cls: 'bg-wheat-tint text-wheat-deep' },
+const CONF: Record<Confidence, { label: string; tone: 'positive' | 'neutral' | 'caution'; icon: 'check' | 'dot' | 'caution' }> = {
+  high: { label: 'High confidence', tone: 'positive', icon: 'check' },
+  medium: { label: 'Medium confidence', tone: 'neutral', icon: 'dot' },
+  low: { label: 'Low confidence', tone: 'caution', icon: 'caution' },
 };
 
+/** How much a result rests on the farmer's own numbers. Low is a calm caution tag, not an alarm. */
 export function ConfidenceBadge({ c }: { c: Confidence }) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[12.5px] font-semibold ${CONF[c].cls}`} title="How much of this result rests on your own numbers versus defaults">
-      <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden>
-        {c === 'high' ? <path d="m2.5 6.5 2.2 2.2L9.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /> : c === 'medium' ? <circle cx="6" cy="6" r="3" fill="currentColor" /> : <path d="M6 2.5v4.2M6 9.2v.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />}
-      </svg>
+    <Badge tone={CONF[c].tone} icon={CONF[c].icon} title="How much of this result rests on your own numbers versus defaults">
       {CONF[c].label}
-    </span>
+    </Badge>
   );
 }
 
 export function OriginBadge({ origin }: { origin: Origin }) {
-  return origin === 'default' ? (
-    <span className="rounded-full border border-line px-2 py-0.5 text-[12px] font-semibold text-ink-faint">Default</span>
-  ) : origin === 'nasa' ? (
-    <span className="rounded-full bg-sky-tint px-2 py-0.5 text-[12px] font-semibold text-sky-deep">NASA data</span>
-  ) : (
-    <span className="rounded-full bg-field-tint px-2 py-0.5 text-[12px] font-semibold text-field">You entered</span>
-  );
+  return origin === 'default' ? <Badge tone="neutral">Default</Badge> : origin === 'nasa' ? <Badge tone="info">NASA data</Badge> : <Badge tone="positive">You entered</Badge>;
 }
 
 /**
@@ -102,30 +103,16 @@ export function NumberField({
           onChange={(e) => setText(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-          className={`min-h-11 w-full min-w-0 rounded-[var(--radius-control)] border px-3 text-[16px] tabular-nums ${value !== undefined ? 'border-field bg-field-tint/40' : 'border-line-strong bg-panel'}`}
+          className={`${INPUT} min-h-11 min-w-0 tabular-nums ${value !== undefined ? 'border-field bg-field-tint/50' : ''}`}
         />
-        {unit && <span className="shrink-0 text-[13px] text-ink-soft">{unit}</span>}
+        {unit && <span className="shrink-0 text-[13.5px] text-ink-soft">{unit}</span>}
       </div>
-      {hint && <p className="mt-1 text-[13px] text-ink-faint">{hint}</p>}
+      {hint && <p className={HINT}>{hint}</p>}
     </div>
   );
 }
 
-export function Segmented<T extends string | number>({ label, value, options, onChange }: { label: string; value: T; options: Array<{ value: T; label: string }>; onChange: (v: T) => void }) {
-  return (
-    <div role="radiogroup" aria-label={label} className="inline-flex rounded-[var(--radius-control)] border border-line-strong bg-paper p-1">
-      {options.map((o) => (
-        <button
-          key={String(o.value)}
-          type="button"
-          role="radio"
-          aria-checked={o.value === value}
-          onClick={() => onChange(o.value)}
-          className={`min-h-10 rounded-[8px] px-3 text-[14.5px] font-semibold ${o.value === value ? 'bg-panel text-ink shadow-sm' : 'text-ink-soft hover:text-ink'}`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
+/** Kept for existing imports; the shared control lives in ui/SegmentedControl. */
+export function Segmented<T extends string | number>(props: { label: string; value: T; options: Array<{ value: T; label: string }>; onChange: (v: T) => void }) {
+  return <SegmentedControl {...props} />;
 }

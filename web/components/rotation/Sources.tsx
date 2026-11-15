@@ -15,7 +15,7 @@ function SourceItem({ s }: { s: ReasonSource }) {
     case 'citation': {
       const c = CITATIONS[s.id];
       return (
-        <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-sky-deep underline decoration-sky/40 underline-offset-2 hover:decoration-sky-deep">
+        <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-field underline decoration-field/40 underline-offset-2 hover:decoration-field-deep">
           {c.publisher}: {c.title}
         </a>
       );

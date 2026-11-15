@@ -8,6 +8,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { Feature, FeatureCollection } from 'geojson';
 import { acresFromM2, areaM2 } from '@/lib/domain/acreage';
 import type { FieldGeometry, LonLat } from '@/lib/domain/types';
+import { Button } from '../ui/Button';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { FLOAT } from '../ui/styles';
 
 const feat = (geometry: FieldGeometry): Feature => ({ type: 'Feature', properties: {}, geometry });
 
@@ -15,7 +18,9 @@ export interface MapShape {
   id: string;
   name: string;
   geometry: FieldGeometry;
-  tone?: 'default' | 'selected' | 'muted' | 'error';
+  tone?: 'default' | 'selected' | 'hover' | 'muted' | 'error';
+  /** Fill colour: the crop growing on the field now, so the map reads like the patchwork seen from above. */
+  fill?: string;
   /** Boundary not drawn yet: show only a pin here instead of the (approximate) shape. */
   pinOnly?: LonLat;
 }
@@ -46,25 +51,34 @@ const USGS_IMAGERY = 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSI
 const OSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const US_CENTER: L.LatLngExpression = [39.5, -96.5];
 
+/** Field edges: white like a field boundary from above; the selected field gets a straw edge. */
+const STRAW = '#f0cf6e';
+const EDGE = '#fbfaf5';
+const NO_CROP = '#d9d2c2';
 const TONES: Record<NonNullable<MapShape['tone']>, L.PathOptions> = {
-  default: { color: '#ffffff', weight: 2, fillColor: '#2b7fd0', fillOpacity: 0.18 },
-  selected: { color: '#7cc0ff', weight: 4, fillColor: '#2b7fd0', fillOpacity: 0.28 },
-  muted: { color: '#d6e1d9', weight: 1.5, fillColor: '#ffffff', fillOpacity: 0.08, dashArray: '4 4' },
-  error: { color: '#ff8a70', weight: 2.5, fillColor: '#b3402a', fillOpacity: 0.2, dashArray: '6 4' },
+  default: { color: EDGE, weight: 2, fillColor: NO_CROP, fillOpacity: 0.38 },
+  hover: { color: EDGE, weight: 3.5, fillColor: NO_CROP, fillOpacity: 0.6 },
+  selected: { color: STRAW, weight: 4, fillColor: NO_CROP, fillOpacity: 0.5 },
+  muted: { color: '#e9e3d4', weight: 1.5, fillColor: '#ffffff', fillOpacity: 0.08, dashArray: '4 4' },
+  error: { color: '#ff9a7a', weight: 2.5, fillColor: '#a63d24', fillOpacity: 0.25, dashArray: '6 4' },
+};
+const toneFor = (s: MapShape): L.PathOptions => {
+  const t = TONES[s.tone ?? 'default'];
+  return s.fill && s.tone !== 'muted' && s.tone !== 'error' ? { ...t, fillColor: s.fill } : t;
 };
 
 const pinIconMuted = L.divIcon({
   className: 'pin-icon',
   iconSize: [28, 36],
   iconAnchor: [14, 34],
-  html: `<svg viewBox="0 0 34 44" width="28" height="36" aria-hidden="true"><path d="M17 43C17 43 3 26 3 16a14 14 0 1 1 28 0c0 10-14 27-14 27Z" fill="#ffffff" stroke="#2b7fd0" stroke-width="3"/><circle cx="17" cy="16" r="5.5" fill="#2b7fd0"/></svg>`,
+  html: `<svg viewBox="0 0 34 44" width="28" height="36" aria-hidden="true"><path d="M17 43C17 43 3 26 3 16a14 14 0 1 1 28 0c0 10-14 27-14 27Z" fill="#fbfaf5" stroke="#2e5426" stroke-width="3"/><circle cx="17" cy="16" r="5.5" fill="#2e5426"/></svg>`,
 });
 
 const pinIcon = L.divIcon({
   className: 'pin-icon',
   iconSize: [34, 44],
   iconAnchor: [17, 42],
-  html: `<svg viewBox="0 0 34 44" width="34" height="44" aria-hidden="true"><path d="M17 43C17 43 3 26 3 16a14 14 0 1 1 28 0c0 10-14 27-14 27Z" fill="#2b7fd0" stroke="#fff" stroke-width="2.5"/><circle cx="17" cy="16" r="5.5" fill="#fff"/></svg>`,
+  html: `<svg viewBox="0 0 34 44" width="34" height="44" aria-hidden="true"><path d="M17 43C17 43 3 26 3 16a14 14 0 1 1 28 0c0 10-14 27-14 27Z" fill="#2e5426" stroke="${STRAW}" stroke-width="2.5"/><circle cx="17" cy="16" r="5.5" fill="${STRAW}"/></svg>`,
 });
 
 function toLatLngBounds(geoms: FieldGeometry[]): L.LatLngBounds | null {
@@ -110,7 +124,7 @@ export default function FieldMap(props: FieldMapProps) {
     L.control.zoom({ position: 'topright' }).addTo(m);
     shapesLayer.current = L.layerGroup().addTo(m);
     draftLayer.current = L.layerGroup().addTo(m);
-    m.pm.setGlobalOptions({ allowSelfIntersection: false, snappable: true, templineStyle: { color: '#7cc0ff' }, hintlineStyle: { color: '#7cc0ff', dashArray: '5 5' }, pathOptions: TONES.selected } as L.PM.GlobalOptions);
+    m.pm.setGlobalOptions({ allowSelfIntersection: false, snappable: true, templineStyle: { color: STRAW, weight: 3 }, hintlineStyle: { color: STRAW, dashArray: '5 5' }, pathOptions: TONES.selected } as L.PM.GlobalOptions);
     m.on('pm:create', (e: { layer: L.Layer }) => {
       const gj = (e.layer as L.Polygon).toGeoJSON();
       m.removeLayer(e.layer);
@@ -172,7 +186,7 @@ export default function FieldMap(props: FieldMapProps) {
       if (mode === 'edit' && s.id === editShapeId) continue;
       const layer: L.Layer = s.pinOnly
         ? L.marker([s.pinOnly[1], s.pinOnly[0]], { icon: s.tone === 'selected' ? pinIcon : pinIconMuted, keyboard: false, pmIgnore: true } as L.MarkerOptions)
-        : L.geoJSON(feat(s.geometry), { style: TONES[s.tone ?? 'default'], pmIgnore: true } as L.GeoJSONOptions);
+        : L.geoJSON(feat(s.geometry), { style: toneFor(s), pmIgnore: true } as L.GeoJSONOptions);
       if (showLabels) {
         layer.bindTooltip(s.name, { permanent: s.tone === 'selected', direction: s.pinOnly ? 'top' : 'center', offset: s.pinOnly ? [0, -38] : [0, 0], className: 'field-label' });
       }
@@ -274,22 +288,18 @@ export default function FieldMap(props: FieldMapProps) {
       <div ref={el} className="absolute inset-0" data-testid="field-map" />
       <div className="pointer-events-none absolute bottom-6 left-3 z-[1000] flex flex-col items-start gap-2">
         {imageryFailed && base === 'osm' && (
-          <p className="pointer-events-auto max-w-xs rounded-lg border border-line bg-panel/95 px-3 py-2 text-sm text-ink-soft">
+          <p className={`pointer-events-auto max-w-xs px-3 py-2 text-[14px] text-ink-soft ${FLOAT}`}>
             USGS satellite imagery is not loading right now, so this is the OpenStreetMap street map.
           </p>
         )}
-        <div className="pointer-events-auto flex overflow-hidden rounded-[var(--radius-control)] border border-line bg-panel text-sm font-semibold shadow-sm" role="group" aria-label="Map background">
-          {(['imagery', 'osm'] as const).map((b) => (
-            <button key={b} type="button" onClick={() => setBase(b)} aria-pressed={base === b} className={`min-h-11 px-4 ${base === b ? 'bg-sky text-white' : 'text-ink-soft hover:bg-sky-tint'}`}>
-              {b === 'imagery' ? 'Satellite' : 'Street map'}
-            </button>
-          ))}
+        <div className="pointer-events-auto">
+          <SegmentedControl label="Map background" variant="float" size="sm" value={base} onChange={setBase} options={[{ value: 'imagery', label: 'Satellite' }, { value: 'osm', label: 'Street map' }]} />
         </div>
       </div>
       {mode === 'draw' && (
-        <div className="absolute inset-x-3 top-3 z-[1000] flex flex-wrap items-center gap-2 rounded-[var(--radius-panel)] border border-line bg-panel/95 p-2 pl-4 shadow-sm lg:right-auto lg:max-w-xl">
+        <div className={`absolute inset-x-3 top-3 z-[1000] flex flex-wrap items-center gap-2 p-2 pl-4 lg:right-auto lg:max-w-xl ${FLOAT}`}>
           <div className="min-w-0 flex-1" role="status" aria-live="polite">
-            <p className="text-[15px]">
+            <p className="text-[15px] leading-snug">
               {drawPoints === 0
                 ? 'Tap the map at each corner of your field.'
                 : drawPoints < 3
@@ -297,21 +307,21 @@ export default function FieldMap(props: FieldMapProps) {
                   : 'Tap the first corner, or Finish shape, to close it.'}
             </p>
             {drawAcres !== null && (
-              <p className="text-[14px] font-semibold text-sky-deep" data-testid="live-acres">
-                About {drawAcres < 10 ? drawAcres.toFixed(1) : Math.round(drawAcres).toLocaleString('en-US')} acres so far
+              <p className="mt-0.5 text-[14px] text-ink-soft" data-testid="live-acres">
+                About <strong className="font-plate text-[20px] tabular-nums text-ink">{drawAcres < 10 ? drawAcres.toFixed(1) : Math.round(drawAcres).toLocaleString('en-US')}</strong> acres so far
               </p>
             )}
           </div>
-          <button type="button" disabled={drawPoints === 0} onClick={() => { pm?.Draw?.Polygon?._removeLastVertex?.(); syncDrawing(); }} className="min-h-11 rounded-[var(--radius-control)] border border-line px-3 font-semibold disabled:opacity-40">
+          <Button variant="secondary" size="sm" disabled={drawPoints === 0} onClick={() => { pm?.Draw?.Polygon?._removeLastVertex?.(); syncDrawing(); }}>
             Undo corner
-          </button>
-          <button type="button" disabled={drawPoints < 3} onClick={() => pm?.Draw?.Polygon?._finishShape?.()} className="min-h-11 rounded-[var(--radius-control)] bg-sky px-4 font-semibold text-white disabled:opacity-40">
+          </Button>
+          <Button size="sm" disabled={drawPoints < 3} onClick={() => pm?.Draw?.Polygon?._finishShape?.()}>
             Finish shape
-          </button>
+          </Button>
         </div>
       )}
       {mode === 'pin' && (
-        <p className="absolute inset-x-3 top-3 z-[1000] rounded-[var(--radius-panel)] border border-line bg-panel/95 px-4 py-3 text-[15px] shadow-sm lg:right-auto lg:max-w-md">
+        <p className={`absolute inset-x-3 top-3 z-[1000] px-4 py-3 text-[15px] lg:right-auto lg:max-w-md ${FLOAT}`}>
           Tap the middle of your field. Then you&rsquo;ll trace its edges.
         </p>
       )}

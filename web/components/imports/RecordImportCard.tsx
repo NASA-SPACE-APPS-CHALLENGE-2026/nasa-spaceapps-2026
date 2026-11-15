@@ -75,7 +75,7 @@ export function RecordImportCard({ kind, title, description, acceptLabel, note }
   };
 
   return (
-    <section className="flex flex-col rounded-[var(--radius-panel)] border border-line bg-panel p-5 lg:p-6" aria-labelledby={headingId} data-testid={`import-card-${kind}`}>
+    <section className="flex flex-col rounded-parcel border border-line bg-panel p-5 lg:p-6" aria-labelledby={headingId} data-testid={`import-card-${kind}`}>
       <div className="flex items-start justify-between gap-3">
         <h2 id={headingId} className="font-plate text-xl">
           {title}
@@ -94,7 +94,7 @@ export function RecordImportCard({ kind, title, description, acceptLabel, note }
         </p>
       )}
       {error && (
-        <p className="mt-3 rounded-[var(--radius-control)] bg-alert-tint px-3 py-2 text-[14.5px] text-[#7a2c1d]" role="alert">
+        <p className="mt-3 rounded-parcel bg-alert-tint px-3 py-2 text-[14.5px] text-[#7a2c1d]" role="alert">
           {error}
         </p>
       )}
@@ -103,7 +103,7 @@ export function RecordImportCard({ kind, title, description, acceptLabel, note }
       {mine.length > 0 && (
         <ul className="mt-4 space-y-2" aria-label={`${title}: imported files`}>
           {mine.map((r) => (
-            <li key={r.id} className="rounded-[var(--radius-control)] border border-line bg-paper px-3 py-2.5" data-testid="imported-file">
+            <li key={r.id} className="rounded-parcel border border-line bg-paper px-3 py-2.5" data-testid="imported-file">
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-semibold">{r.fileName}</p>
@@ -113,10 +113,10 @@ export function RecordImportCard({ kind, title, description, acceptLabel, note }
                   <p className="text-[13.5px] font-semibold text-field">{r.applied.length ? `Using ${r.applied.length} value${r.applied.length === 1 ? '' : 's'} from this file` : 'Records kept; no values used'}</p>
                 </div>
                 <div className="flex shrink-0 flex-col gap-1 sm:flex-row">
-                  <button type="button" onClick={() => setEditing(editing === r.id ? null : r.id)} className="min-h-11 rounded-[var(--radius-control)] px-2 text-[14px] font-semibold text-sky-deep hover:bg-sky-tint" aria-expanded={editing === r.id}>
+                  <button type="button" onClick={() => setEditing(editing === r.id ? null : r.id)} className="min-h-11 rounded-parcel px-2 text-[14px] font-semibold text-field hover:bg-field-tint" aria-expanded={editing === r.id}>
                     Change<span className="sr-only"> what is used from {r.fileName}</span>
                   </button>
-                  <button type="button" onClick={() => void store.removeImport(r.id)} className="min-h-11 rounded-[var(--radius-control)] px-2 text-[14px] font-semibold text-alert hover:bg-alert-tint" aria-label={`Remove ${r.fileName}`}>
+                  <button type="button" onClick={() => void store.removeImport(r.id)} className="min-h-11 rounded-parcel px-2 text-[14px] font-semibold text-alert hover:bg-alert-tint" aria-label={`Remove ${r.fileName}`}>
                     Remove
                   </button>
                 </div>

@@ -20,7 +20,7 @@ import { useEffectiveFinance } from '@/lib/client/useEffectiveFinance';
 import { FieldPicker, NoFieldsYet } from '../ui/FieldPicker';
 
 const CROP_CHOICES = ['corn', 'soybeans', 'oats', 'winter-wheat', 'fallow'];
-const SELECT = 'mt-1 block min-h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]';
+const SELECT = 'mt-1 block min-h-11 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[16px]';
 
 export function SimulatorScreen() {
   const store = useStore();
@@ -81,7 +81,7 @@ export function SimulatorScreen() {
                   </h2>
                   <PlanSummary title={SERIES.proposed.label} color={SERIES.proposed.color} side={run.result.proposed} note={suggested ? (suggested.saved ? `From your Planner: ${suggested.plan.name}` : 'Best-fit strategy from Rotation Explorer (not saved as a plan yet)') : 'No plan yet: same as what you do now'} />
                   {suggested && !suggested.saved && (
-                    <Link href={`/rotation?field=${field.id}`} className="mt-1 inline-flex min-h-10 items-center text-[14.5px] font-semibold text-sky-deep hover:underline">
+                    <Link href={`/rotation?field=${field.id}`} className="mt-1 inline-flex min-h-10 items-center text-[14.5px] font-semibold text-field hover:underline">
                       Open Rotation Explorer
                     </Link>
                   )}
@@ -139,7 +139,7 @@ function PlanASeasons({ side, sim, onChange, onReset }: { side: SimSide; sim: Si
         ))}
       </ol>
       {sim.currentCrops && Object.keys(sim.currentCrops).length > 0 && (
-        <button type="button" onClick={onReset} className="mt-2 min-h-10 text-[14px] font-semibold text-sky-deep hover:underline">
+        <button type="button" onClick={onReset} className="mt-2 min-h-10 text-[14px] font-semibold text-field hover:underline">
           Reset to my crop history
         </button>
       )}
@@ -155,7 +155,7 @@ function CropSelect({ year, value, onChange }: { year: number; value: string; on
       <label htmlFor={id} className="w-11 shrink-0 text-[14.5px] font-semibold tabular-nums">
         {year}
       </label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className="min-h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[15px]">
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className="min-h-11 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[15px]">
         {!value && <option value="">No crop</option>}
         {options.map((c) => (
           <option key={c} value={c}>
@@ -207,7 +207,7 @@ function SimInputs({ field, sim, finance, fieldId, onUpdate, onOverride, onFinan
           <NumberField label="Soybean price" unit="$/bu" min={0} value={o['soybeans.price']} placeholder={12.1} onCommit={(v) => onOverride('soybeans.price', v)} />
         </div>
         <label className="flex items-center gap-2 text-[15px]">
-          <input type="checkbox" checked={irrigated} onChange={(e) => onFinance({ ...finance, fields: { ...finance.fields, [fieldId]: { ...finance.fields[fieldId], irrigated: e.target.checked } } })} className="h-5 w-5 accent-[var(--color-sky)]" />
+          <input type="checkbox" checked={irrigated} onChange={(e) => onFinance({ ...finance, fields: { ...finance.fields, [fieldId]: { ...finance.fields[fieldId], irrigated: e.target.checked } } })} className="h-5 w-5 accent-[var(--color-field)]" />
           Irrigated
         </label>
         <div>
@@ -316,7 +316,7 @@ function Results({ run, years }: { run: ReturnType<typeof simulate>['result']; y
         <h3 className="mt-5 text-[15px] font-semibold">Cumulative profit on this field</h3>
         <p className="text-[14px] text-ink-soft">{be === 'start' ? 'The plan is never behind what you do now.' : be ? `The plan catches up by ${be.label}${run.cash.deepestDip < -0.5 ? `, after being behind by up to ${money(run.cash.deepestDip)}` : ''}.` : `The plan does not catch up within ${years} years.`}</p>
         <PairLines data={cum} title="Cumulative profit by season" marker={be && be !== 'start' ? be.label : undefined} />
-        <Link href="/finance" className="mt-3 inline-flex min-h-11 items-center font-semibold text-sky-deep hover:underline">
+        <Link href="/finance" className="mt-3 inline-flex min-h-11 items-center font-semibold text-field hover:underline">
           See the whole farm in Finance
         </Link>
       </section>

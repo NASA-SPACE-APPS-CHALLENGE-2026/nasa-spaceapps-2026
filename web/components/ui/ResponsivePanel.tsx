@@ -27,7 +27,7 @@ export function sheetInset(desktop: boolean, snap: Snap): number {
   return 0; // full: the map is hidden anyway
 }
 
-const SNAP_HEIGHT: Record<Snap, string> = { peek: '132px', half: '52dvh', full: 'calc(100dvh - 116px)' };
+const SNAP_HEIGHT: Record<Snap, string> = { peek: '132px', half: '52dvh', full: 'calc(100% - 8px)' };
 
 /**
  * Desktop: a fixed-width side panel next to the map.
@@ -53,7 +53,7 @@ export function ResponsivePanel({ snap, onSnap, children, label }: { snap: Snap;
   };
   const onMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
-    setDragH(Math.max(96, Math.min(window.innerHeight - 100, drag.current.h + (drag.current.y - e.clientY))));
+    setDragH(Math.max(96, Math.min((sheet.current?.parentElement?.clientHeight ?? window.innerHeight) - 8, drag.current.h + (drag.current.y - e.clientY))));
   };
   const onUp = (e: React.PointerEvent) => {
     if (!drag.current) return;
@@ -73,7 +73,7 @@ export function ResponsivePanel({ snap, onSnap, children, label }: { snap: Snap;
     <aside
       ref={sheet}
       aria-label={label}
-      className="absolute inset-x-0 bottom-0 z-[1001] flex flex-col rounded-t-[20px] border-t border-line bg-paper shadow-[0_-10px_30px_-12px_rgba(29,43,34,0.35)]"
+      className="absolute inset-x-0 bottom-0 z-[1001] flex flex-col rounded-t-float border-t border-line bg-paper shadow-[0_-10px_30px_-12px_rgb(26_21_16/0.35)]"
       style={{ height: dragH !== null ? `${dragH}px` : SNAP_HEIGHT[snap], transition: dragH !== null ? 'none' : 'height 220ms ease' }}
     >
       <button

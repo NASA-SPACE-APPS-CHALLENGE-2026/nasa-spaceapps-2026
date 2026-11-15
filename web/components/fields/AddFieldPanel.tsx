@@ -43,7 +43,7 @@ export function AddFieldPanel(p: Props) {
     <div className="p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-plate text-2xl">Add a field</h2>
-        <button type="button" onClick={p.onCancel} className="min-h-11 rounded-[var(--radius-control)] px-3 font-semibold text-ink-soft hover:bg-panel">
+        <button type="button" onClick={p.onCancel} className="min-h-11 rounded-parcel px-3 font-semibold text-ink-soft hover:bg-panel">
           Cancel
         </button>
       </div>
@@ -54,7 +54,7 @@ export function AddFieldPanel(p: Props) {
 
 function StepBody(p: Props) {
   const back = (
-    <button type="button" onClick={() => p.onStep('choose')} className="mt-3 min-h-11 font-semibold text-sky-deep hover:underline">
+    <button type="button" onClick={() => p.onStep('choose')} className="mt-3 min-h-11 font-semibold text-field hover:underline">
       Choose another way
     </button>
   );
@@ -122,11 +122,11 @@ function ChooseMethod({ onStep, lookupsOn, addressStep }: Props) {
               type="button"
               disabled={m.disabled}
               onClick={() => onStep(m.step)}
-              className="w-full rounded-[var(--radius-panel)] border border-line bg-panel p-4 text-left hover:border-sky disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line"
+              className="w-full rounded-parcel border border-line bg-panel p-4 text-left transition-colors hover:border-field hover:bg-field-tint/40 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line"
             >
               <span className="flex items-center gap-2">
                 <span className="text-[17px] font-semibold">{m.title}</span>
-                {m.badge && !m.disabled && <span className="rounded-full bg-sky-tint px-2 py-0.5 text-[12.5px] font-semibold text-sky-deep">{m.badge}</span>}
+                {m.badge && !m.disabled && <span className="rounded-parcel border border-field/25 bg-field-tint px-1.5 py-0.5 text-[12.5px] font-semibold text-field">{m.badge}</span>}
               </span>
               <span className="mt-0.5 block text-[14.5px] text-ink-soft">{m.text}</span>
             </button>
@@ -137,13 +137,13 @@ function ChooseMethod({ onStep, lookupsOn, addressStep }: Props) {
       <ul className="mt-2 flex flex-wrap gap-2">
         {secondary.map((m) => (
           <li key={m.step}>
-            <button type="button" onClick={() => onStep(m.step)} className="min-h-11 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[15px] font-semibold text-sky-deep hover:border-sky">
+            <button type="button" onClick={() => onStep(m.step)} className="min-h-11 rounded-parcel border border-line-strong bg-panel px-3 text-[15px] font-semibold text-field hover:border-field">
               {m.title}
             </button>
           </li>
         ))}
       </ul>
-      <Link href="/imports" className="mt-4 inline-flex min-h-11 items-center text-[15px] font-semibold text-sky-deep hover:underline">
+      <Link href="/imports" className="mt-4 inline-flex min-h-11 items-center text-[15px] font-semibold text-field hover:underline">
         Or import a boundary file
       </Link>
     </>
@@ -258,12 +258,12 @@ function DraftForm(p: Props & { draft: Draft }) {
         if (!blocking && name.trim()) p.onSave(name);
       }}
     >
-      <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+      <div className="rounded-parcel border border-line bg-panel p-4">
         <p className="text-[14px] text-ink-soft">Your boundary{p.located ? ` (${p.located.label.toLowerCase()})` : ''}</p>
         <p className="font-plate text-3xl" data-testid="draft-acres">
           {formatAcres(areaM2(p.draft.geometry))}
         </p>
-        <button type="button" onClick={p.onRedraw} className="mt-2 min-h-11 font-semibold text-sky-deep hover:underline">
+        <button type="button" onClick={p.onRedraw} className="mt-2 min-h-11 font-semibold text-field hover:underline">
           Redraw
         </button>
       </div>

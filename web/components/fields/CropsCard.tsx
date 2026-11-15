@@ -30,7 +30,7 @@ export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Prop
   const unconfirmed = countUnconfirmed(crops);
 
   return (
-    <section aria-labelledby="crops-h" className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+    <section aria-labelledby="crops-h" className="border-t border-line pt-5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 id="crops-h" className="font-plate text-lg">
           Crops
@@ -59,7 +59,7 @@ export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Prop
 
       <div className="mt-4 flex flex-wrap gap-2">
         {unconfirmed > 0 && (
-          <button type="button" onClick={() => onChange(confirmAllDetected(crops))} className="min-h-12 rounded-[var(--radius-control)] bg-field px-4 text-[15px] font-semibold text-white hover:bg-[#245530]">
+          <button type="button" onClick={() => onChange(confirmAllDetected(crops))} className="min-h-12 rounded-parcel bg-field px-4 text-[15px] font-semibold text-white hover:bg-field-deep">
             These look right ({unconfirmed})
           </button>
         )}
@@ -67,7 +67,7 @@ export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Prop
           type="button"
           disabled={crops.history.length >= MAX_HISTORY_YEARS}
           onClick={() => onChange(addOlderSeason(crops))}
-          className="min-h-12 rounded-[var(--radius-control)] px-3 text-[15px] font-semibold text-sky-deep hover:bg-sky-tint disabled:opacity-40"
+          className="min-h-12 rounded-parcel px-3 text-[15px] font-semibold text-field hover:bg-field-tint disabled:opacity-40"
         >
           Add {(crops.history[crops.history.length - 1]?.year ?? crops.current.year) - 1}
         </button>
@@ -75,7 +75,7 @@ export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Prop
           type="button"
           disabled={crops.history.length <= MIN_HISTORY_YEARS}
           onClick={() => onChange(removeOldestSeason(crops))}
-          className="min-h-12 rounded-[var(--radius-control)] px-3 text-[15px] font-semibold text-ink-soft hover:bg-paper disabled:opacity-40"
+          className="min-h-12 rounded-parcel px-3 text-[15px] font-semibold text-ink-soft hover:bg-paper disabled:opacity-40"
         >
           Remove {crops.history[crops.history.length - 1]?.year}
         </button>
@@ -86,11 +86,11 @@ export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Prop
 
 function CdlStatus({ field, lookupsOn, onRetry }: { field: Field; lookupsOn: boolean; onRetry: () => void }) {
   const { cdl } = field;
-  const box = 'mt-3 rounded-[var(--radius-control)] px-3 py-2 text-[14.5px] leading-snug';
+  const box = 'mt-3 rounded-parcel px-3 py-2 text-[14.5px] leading-snug';
   if (!lookupsOn) return <p className={`${box} bg-paper text-ink-soft`}>Public data lookups are off, so past crops are not detected. Enter them by hand.</p>;
   if (cdl.status === 'loading' || cdl.status === 'idle') {
     return (
-      <p className={`${box} flex items-center gap-2 bg-sky-tint text-sky-deep`} role="status">
+      <p className={`${box} flex items-center gap-2 bg-field-tint text-field`} role="status">
         <span className="spinner" aria-hidden /> Checking USDA crop maps (Cropland Data Layer) for this field, up to {LATEST_CDL_YEAR}…
       </p>
     );
@@ -106,7 +106,7 @@ function CdlStatus({ field, lookupsOn, onRetry }: { field: Field; lookupsOn: boo
     );
   }
   const again = (
-    <button type="button" onClick={onRetry} className="min-h-10 text-[14px] font-semibold text-sky-deep hover:underline">
+    <button type="button" onClick={onRetry} className="min-h-10 text-[14px] font-semibold text-field hover:underline">
       Check the crop maps again
     </button>
   );
@@ -133,7 +133,7 @@ function SeasonRow({ season, label, demo, onPick, onConfirm }: { season: SeasonC
         </div>
         <CropPicker value={season.crop} onChange={onPick} label={`Crop in ${season.year}`} />
         {detected && (
-          <button type="button" onClick={onConfirm} aria-label={`Confirm ${season.year}`} title="Confirm this crop" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-control)] border border-field/40 text-field hover:bg-field-tint">
+          <button type="button" onClick={onConfirm} aria-label={`Confirm ${season.year}`} title="Confirm this crop" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-parcel border border-field/40 text-field hover:bg-field-tint">
             <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
               <path d="m4.5 10.5 3.5 3.5 7.5-8" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

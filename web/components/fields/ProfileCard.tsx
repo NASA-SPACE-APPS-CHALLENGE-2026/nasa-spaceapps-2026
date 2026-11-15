@@ -13,14 +13,14 @@ interface Props {
 /** The field's automatic profile, kept deliberately plain: a heading per topic and "label  value" rows. */
 export function ProfileCard({ profile, lookupsOn, onRefresh, onTurnOnLookups }: Props) {
   return (
-    <section aria-labelledby="profile-h" className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+    <section aria-labelledby="profile-h" className="border-t border-line pt-5">
       <h3 id="profile-h" className="font-plate text-lg">
         Field profile
       </h3>
       {!lookupsOn && (
-        <div className="mt-3 rounded-[var(--radius-control)] bg-paper px-3 py-2 text-[14.5px] text-ink-soft">
+        <div className="mt-3 rounded-parcel bg-paper px-3 py-2 text-[14.5px] text-ink-soft">
           Public data lookups are off.{' '}
-          <button type="button" onClick={onTurnOnLookups} className="min-h-10 font-semibold text-sky-deep underline underline-offset-2">
+          <button type="button" onClick={onTurnOnLookups} className="min-h-10 font-semibold text-field underline underline-offset-2">
             Turn lookups on
           </button>
         </div>
@@ -47,13 +47,13 @@ function SourceRow({ id, result, lookupsOn, onRefresh }: { id: SourceId; result?
       <div className="flex min-h-8 items-center gap-2">
         <p className="min-w-0 flex-1 text-[15.5px] font-semibold">{meta.name}</p>
         {status === 'loading' && (
-          <span role="status" className="inline-flex items-center gap-1.5 text-[13px] text-sky-deep">
+          <span role="status" className="inline-flex items-center gap-1.5 text-[13px] text-field">
             <span className="spinner" aria-hidden />
             Loading
           </span>
         )}
         {canRefresh && (
-          <button type="button" onClick={onRefresh} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-faint hover:bg-sky-tint hover:text-sky-deep" aria-label={`Refresh ${meta.name.toLowerCase()}`} title="Refresh">
+          <button type="button" onClick={onRefresh} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-faint hover:bg-field-tint hover:text-field" aria-label={`Refresh ${meta.name.toLowerCase()}`} title="Refresh">
             <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
               <path d="M16 10a6 6 0 1 1-1.8-4.3M16 3.5v3.2h-3.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

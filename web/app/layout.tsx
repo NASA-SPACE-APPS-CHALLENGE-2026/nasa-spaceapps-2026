@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#f6f9f7',
+  themeColor: '#1a1510',
 };
 
 /** Only the document shell. The app screens and the marketing site each bring their own layout (route groups). */

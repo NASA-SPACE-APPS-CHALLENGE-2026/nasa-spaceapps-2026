@@ -8,7 +8,8 @@ import { useFarm, useStore } from '@/lib/client/StoreProvider';
 import { useActiveField } from '@/lib/client/useActiveField';
 import { useRotation } from '@/lib/client/useRotation';
 import { FieldPicker, NoFieldsYet } from '../ui/FieldPicker';
-import { Button } from '../ui/Button';
+import { Button, buttonClass } from '../ui/Button';
+import { PageHeader } from '../ui/PageHeader';
 import { Questionnaire } from './Questionnaire';
 import { ReasonList } from './Sources';
 import { StrategyCard } from './StrategyCard';
@@ -29,13 +30,8 @@ export function RotationScreen() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 lg:py-8">
-        <header>
-          <h1 className="font-plate text-3xl">Rotation Explorer</h1>
-          <p className="mt-1 max-w-3xl text-[16px] text-ink-soft">
-            Answer a few questions about how you farm a field, then compare three strategies on soil cover, crop diversity, pests and diseases, and climate fit.
-          </p>
-        </header>
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 lg:py-10">
+        <PageHeader title="Rotation Explorer" description="Answer a few questions about how you farm a field, then compare three strategies on soil cover, crop diversity, pests and diseases, and climate fit." />
 
         {!loaded ? (
           <p className="text-ink-soft" role="status">
@@ -79,9 +75,9 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
 
   if (result.problem) {
     return (
-      <div className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint p-5" data-testid="rotation-problem">
+      <div className="border-l-4 border-wheat bg-wheat-tint/60 px-5 py-4" data-testid="rotation-problem">
         <p className="text-[16px] font-semibold text-wheat-deep">{result.problem}</p>
-        <Link href="/fields" className="mt-3 inline-flex min-h-12 items-center rounded-[var(--radius-control)] bg-sky px-5 font-semibold text-white hover:bg-sky-deep">
+        <Link href="/fields" className={buttonClass("primary", "md", "mt-3")}>
           Go to Fields
         </Link>
       </div>
@@ -105,9 +101,9 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
         </Button>
       </div>
 
-      <div className={`rounded-[var(--radius-panel)] border p-4 ${best ? 'border-field/40 bg-field-tint' : 'border-wheat/40 bg-wheat-tint'}`} role="status" data-testid="best-fit-summary">
-        <p className={`text-[16px] font-semibold ${best ? 'text-field' : 'text-wheat-deep'}`}>{best ? `Best fit: ${best.strategy.title}` : 'No best fit yet'}</p>
-        <p className="mt-0.5 text-[15px]">{result.bestFitReason}</p>
+      <div className={`border-l-4 px-5 py-4 ${best ? "border-field bg-field-tint/70" : "border-wheat bg-wheat-tint/60"}`} role="status" data-testid="best-fit-summary">
+        <p className={`font-plate text-[22px] ${best ? "text-field" : "text-wheat-deep"}`}>{best ? `Best fit: ${best.strategy.title}` : 'No best fit yet'}</p>
+        <p className="mt-1 max-w-3xl text-[15.5px] leading-relaxed">{result.bestFitReason}</p>
         {result.weightReasons.length > 0 && (
           <div className="mt-2">
             <ReasonList reasons={result.weightReasons} />
@@ -115,7 +111,7 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
         )}
       </div>
 
-      {!lookupsOn && <p className="rounded-[var(--radius-control)] bg-paper px-3 py-2 text-[14.5px] text-ink-soft">Public data lookups are off, so climate and soil data are missing and those parts are marked “Not enough info”.</p>}
+      {!lookupsOn && <p className="border-l-4 border-line-strong px-4 py-2 text-[14.5px] text-ink-soft">Public data lookups are off, so climate and soil data are missing and those parts are marked “Not enough info”.</p>}
       {loading && (
         <p className="text-[14.5px] text-ink-soft" role="status">
           Some field data is still loading. Scores update when it arrives.
@@ -128,7 +124,7 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
         ))}
       </div>
 
-      <details className="rounded-[var(--radius-panel)] border border-line bg-panel p-4">
+      <details className="border-t border-line pt-4">
         <summary className="min-h-11 cursor-pointer content-center text-[16px] font-semibold">How the four bars are scored</summary>
         <ul className="mt-2 space-y-1 text-[15px] text-ink-soft">
           {BARS.map((b) => (

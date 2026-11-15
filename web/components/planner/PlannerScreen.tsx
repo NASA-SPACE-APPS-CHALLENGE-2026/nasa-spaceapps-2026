@@ -24,7 +24,7 @@ const KIND_STYLE: Record<PlanTaskKind, string> = {
   harvest: 'bg-wheat-tint text-wheat-deep border-wheat/40',
   'cover-plant': 'bg-[#e0f3ef] text-[#1f6f60] border-[#2f9a86]/40',
   'cover-terminate': 'bg-[#e0f3ef] text-[#1f6f60] border-[#2f9a86]/40',
-  'soil-test': 'bg-sky-tint text-sky-deep border-sky/30',
+  'soil-test': 'bg-field-tint text-field border-field/30',
   scout: 'bg-alert-tint text-[#7a2c1d] border-alert/30',
   note: 'bg-paper text-ink-soft border-line-strong',
 };
@@ -69,10 +69,10 @@ export function PlannerScreen() {
           <>
             <FieldPicker fields={fields} field={field} onSelect={select} />
             {!plan ? (
-              <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-6" data-testid="no-plan">
+              <div className="rounded-parcel border border-line bg-panel p-6" data-testid="no-plan">
                 <h2 className="font-plate text-xl">No plan for {field.name} yet</h2>
                 <p className="mt-2 text-[16px] text-ink-soft">Compare strategies in Rotation Explorer, open one, and choose “Make this my plan”.</p>
-                <Link href={`/rotation?field=${field.id}`} className="mt-4 inline-flex min-h-12 items-center rounded-[var(--radius-control)] bg-sky px-5 font-semibold text-white hover:bg-sky-deep">
+                <Link href={`/rotation?field=${field.id}`} className="mt-4 inline-flex min-h-12 items-center rounded-parcel bg-field px-5 font-semibold text-white hover:bg-field-deep">
                   Open Rotation Explorer
                 </Link>
               </div>
@@ -81,7 +81,7 @@ export function PlannerScreen() {
                 <PlanHeader plan={plan} plans={fieldPlans} onChoose={choosePlan} onRename={(name) => save(renamePlan(plan, name))} />
                 <div className="flex flex-wrap gap-2">
                   {plan.strategyId !== 'custom' && (
-                    <Link href={`/rotation/${plan.strategyId}?field=${field.id}`} className="inline-flex min-h-12 items-center rounded-[var(--radius-control)] border border-line-strong bg-panel px-4 text-[15px] font-semibold hover:border-sky hover:text-sky-deep">
+                    <Link href={`/rotation/${plan.strategyId}?field=${field.id}`} className="inline-flex min-h-12 items-center rounded-parcel border border-line-strong bg-panel px-4 text-[15px] font-semibold hover:border-field hover:text-field">
                       Back to strategy
                     </Link>
                   )}
@@ -99,7 +99,7 @@ export function PlannerScreen() {
 
                 <div className="pt-2">
                   {confirmDelete ? (
-                    <div className="rounded-[var(--radius-panel)] border border-alert/30 bg-alert-tint p-4" role="alertdialog" aria-labelledby="del-plan-h">
+                    <div className="rounded-parcel border border-alert/30 bg-alert-tint p-4" role="alertdialog" aria-labelledby="del-plan-h">
                       <p id="del-plan-h" className="text-[15px] text-[#7a2c1d]">
                         Delete <strong>{plan.name}</strong>? This can’t be undone.
                       </p>
@@ -113,7 +113,7 @@ export function PlannerScreen() {
                       </div>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => setConfirmDelete(true)} className="min-h-11 rounded-[var(--radius-control)] px-2 font-semibold text-alert hover:bg-alert-tint">
+                    <button type="button" onClick={() => setConfirmDelete(true)} className="min-h-11 rounded-parcel px-2 font-semibold text-alert hover:bg-alert-tint">
                       Delete plan
                     </button>
                   )}
@@ -169,7 +169,7 @@ function PlanHeader({ plan, plans, onChoose, onRename }: { plan: Plan; plans: Pl
           onChange={(e) => setName(e.target.value)}
           onBlur={() => (name.trim() ? onRename(name) : setName(plan.name))}
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-          className="font-plate -mx-2 w-[calc(100%+1rem)] rounded-[var(--radius-control)] border border-transparent bg-transparent px-2 py-1 text-2xl hover:border-line focus:border-sky focus:bg-panel"
+          className="font-plate -mx-2 w-[calc(100%+1rem)] rounded-parcel border border-transparent bg-transparent px-2 py-1 text-2xl hover:border-line focus:border-field focus:bg-panel"
         />
         <h2 id="plan-h" className="sr-only">
           {plan.name}
@@ -183,7 +183,7 @@ function PlanHeader({ plan, plans, onChoose, onRename }: { plan: Plan; plans: Pl
           <label htmlFor={pickId} className="block text-[14px] font-semibold text-ink-soft">
             Plans for this field
           </label>
-          <select id={pickId} value={plan.id} onChange={(e) => onChoose(e.target.value)} className="mt-1 min-h-12 rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[15px]">
+          <select id={pickId} value={plan.id} onChange={(e) => onChoose(e.target.value)} className="mt-1 min-h-12 rounded-parcel border border-line-strong bg-panel px-3 text-[15px]">
             {plans.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -210,13 +210,13 @@ function Legend() {
 
 function SeasonCropButton({ season, onEdit }: { season: PlanSeason; onEdit: () => void }) {
   return (
-    <button type="button" onClick={onEdit} className="flex min-h-11 w-full items-start gap-2 rounded-[var(--radius-control)] px-1 text-left hover:bg-sky-tint" aria-label={`${season.year}: ${season.crop ? cropLabel(season.crop) : 'no crop'}${season.cover ? `, then ${season.cover.name}` : ''}. Change crop`}>
+    <button type="button" onClick={onEdit} className="flex min-h-11 w-full items-start gap-2 rounded-parcel px-1 text-left hover:bg-field-tint" aria-label={`${season.year}: ${season.crop ? cropLabel(season.crop) : 'no crop'}${season.cover ? `, then ${season.cover.name}` : ''}. Change crop`}>
       <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-[3px] border border-line" style={{ background: cropColor(season.crop) }} aria-hidden />
       <span className="min-w-0">
         <span className="block text-[16px] font-bold">{season.year}</span>
         <span className="block text-[14px] leading-tight">{season.crop ? cropLabel(season.crop) : 'No crop set'}</span>
         {season.cover && <span className="block text-[13px] leading-tight text-[#1f6f60]">+ {season.cover.name}</span>}
-        <span className="mt-0.5 block text-[12.5px] font-semibold text-sky-deep">Change</span>
+        <span className="mt-0.5 block text-[12.5px] font-semibold text-field">Change</span>
       </span>
     </button>
   );
@@ -267,7 +267,7 @@ function MonthGrid({ plan, onMove, onEditTask, onAddTask, onEditSeason }: { plan
         {announce}
       </p>
       <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActive(null)}>
-        <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-panel">
+        <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-parcel border border-line bg-panel">
           <caption className="sr-only">Month-by-month schedule. Rows are years, columns are months.</caption>
           <thead>
             <tr>
@@ -299,7 +299,7 @@ function MonthGrid({ plan, onMove, onEditTask, onAddTask, onEditSeason }: { plan
                     <button
                       type="button"
                       onClick={() => onAddTask(s.year, i + 1)}
-                      className="mt-auto min-h-8 rounded-md text-[13px] font-semibold text-ink-faint opacity-0 hover:bg-sky-tint hover:text-sky-deep focus-visible:opacity-100 group-hover:opacity-100"
+                      className="mt-auto min-h-8 rounded-md text-[13px] font-semibold text-ink-faint opacity-0 hover:bg-field-tint hover:text-field focus-visible:opacity-100 group-hover:opacity-100"
                       aria-label={`Add a task in ${MONTH_NAMES[i]} ${s.year}`}
                     >
                       + Add
@@ -319,7 +319,7 @@ function MonthGrid({ plan, onMove, onEditTask, onAddTask, onEditSeason }: { plan
 function MonthCell({ year, month, dragging, children }: { year: number; month: number; dragging: boolean; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: `${year}-${month}`, data: { year, month } });
   return (
-    <td ref={setNodeRef} data-testid="plan-cell" data-year={year} data-month={month} className={`group border-b border-l border-line p-1 align-top transition-colors ${isOver ? 'bg-sky-tint' : dragging ? 'bg-paper/60' : ''}`}>
+    <td ref={setNodeRef} data-testid="plan-cell" data-year={year} data-month={month} className={`group border-b border-l border-line p-1 align-top transition-colors ${isOver ? 'bg-field-tint' : dragging ? 'bg-paper/60' : ''}`}>
       <div className="flex min-h-20 flex-col gap-1">{children}</div>
     </td>
   );
@@ -337,7 +337,7 @@ function SeasonList({ plan, onEditTask, onAddTask, onEditSeason }: { plan: Plan;
       {plan.seasons.map((s) => {
         const months = [...new Set(s.tasks.map((t) => t.month))].sort((a, b) => a - b);
         return (
-          <li key={s.year} className="rounded-[var(--radius-panel)] border border-line bg-panel p-3">
+          <li key={s.year} className="rounded-parcel border border-line bg-panel p-3">
             <SeasonCropButton season={s} onEdit={() => onEditSeason(s.year)} />
             {months.length === 0 && <p className="mt-2 text-[14.5px] text-ink-faint">No tasks yet.</p>}
             <dl className="mt-2 space-y-2">
@@ -381,7 +381,7 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
   }, []);
   return (
     <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-ink/30 sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className="max-h-[90dvh] w-full overflow-y-auto rounded-t-[var(--radius-panel)] bg-panel p-5 shadow-xl sm:max-w-md sm:rounded-[var(--radius-panel)]">
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className="max-h-[90dvh] w-full overflow-y-auto rounded-t-[var(--radius-parcel)] bg-panel p-5 shadow-xl sm:max-w-md sm:rounded-parcel">
         <h2 id={titleId} className="font-plate text-xl">
           {title}
         </h2>
@@ -399,7 +399,7 @@ function TaskDialog({ plan, year, task, month, onClose, onSave, onDelete }: { pl
   const kindId = useId();
   const monthId = useId();
   const yearId = useId();
-  const select = 'mt-1 block min-h-12 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]';
+  const select = 'mt-1 block min-h-12 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[16px]';
   return (
     <Dialog title={task ? 'Edit task' : `Add a task in ${y}`} onClose={onClose}>
       <form
@@ -476,7 +476,7 @@ function SeasonDialog({ season, onClose, onSave }: { season: PlanSeason; onClose
           <label htmlFor={coverId} className="block text-[15px] font-semibold">
             Cover crop after harvest
           </label>
-          <select id={coverId} value={cover} onChange={(e) => setCover(e.target.value)} className="mt-1 block min-h-12 w-full rounded-[var(--radius-control)] border border-line-strong bg-panel px-3 text-[16px]">
+          <select id={coverId} value={cover} onChange={(e) => setCover(e.target.value)} className="mt-1 block min-h-12 w-full rounded-parcel border border-line-strong bg-panel px-3 text-[16px]">
             <option value="">None</option>
             {COVER_SPECIES.map((c) => (
               <option key={c.id} value={c.id}>
