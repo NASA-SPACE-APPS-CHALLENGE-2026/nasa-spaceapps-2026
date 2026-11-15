@@ -11,13 +11,16 @@ export const ECOLOGY_SOURCES = {
   soil: 'https://www.nrcs.usda.gov/conservation-basics/soil/soil-health/soil-health-on-cropland',
   nitrogen: 'https://www.udel.edu/academics/colleges/canr/cooperative-extension/fact-sheets/nitrogen-removal-delaware-crops/',
   leaching: 'https://extension.missouri.edu/publications/wq262',
+  rowCrops: 'https://www.uaex.uada.edu/publications/pdf/FSA-2176.pdf',
 };
 
 /** Harvested grain N only, not whole-plant uptake. UD Table 1, Delaware 2003–2007 samples.
  * Corn: 56 lb/bu, 15.5% moisture; soybean: 60 lb/bu, 13%; wheat: 60 lb/bu, 13%; barley: 48 lb/bu, 14%.
- * Other crops deliberately have no removal factor. See docs/ecology-methods.md.
+ * Rice and grain sorghum use Arkansas FSA2176 Table 1. Other crops have no removal factor. See docs/ecology-methods.md.
  */
-export const N_REMOVAL: Record<string, number> = { corn: 0.69, soybeans: 3.44, 'winter-wheat': 1.05, barley: 0.76 };
+export const N_REMOVAL: Record<string, number> = { corn: 0.69, soybeans: 3.44, 'winter-wheat': 1.05, barley: 0.76, rice: 0.57 * 100 / 45, sorghum: 0.66 };
+// Arkansas FSA2176 Table 1: rice 0.57 lb N / 45-lb bushel. The UI uses cwt (100 lb).
+// Grain sorghum: 0.66 lb N/bu. No fertilizer rate or yield is inferred from these coefficients.
 export const YIELD_UNITS: Record<string, string> = {
   corn: 'bu/ac', soybeans: 'bu/ac', oats: 'bu/ac', 'winter-wheat': 'bu/ac', 'spring-wheat': 'bu/ac', 'durum-wheat': 'bu/ac',
   barley: 'bu/ac', rye: 'bu/ac', triticale: 'bu/ac', sorghum: 'bu/ac', cotton: 'lb lint/ac', rice: 'cwt/ac',
@@ -30,7 +33,7 @@ export function expectedYield(id: string, sim: SimulatorInputs, params: Params):
   const key = ['corn', 'soybeans', 'oats'].includes(id) ? id : ['winter-wheat', 'spring-wheat', 'durum-wheat'].includes(id) ? 'wheat' : null;
   if (!key) return { source: 'Missing: enter your expected harvest' };
   const p = params.resolve(`${key}.yield`);
-  return { value: p.value, source: p.origin === 'farmer' ? 'Saved Finance assumption' : `${p.assumption.source.name} reference estimate` };
+  return { value: p.value, source: p.origin === 'farmer' ? 'Saved Finance assumption' : p.assumption.source.name.startsWith('Iowa State') ? 'Iowa crop-budget reference' : 'Finance planning estimate' };
 }
 
 export type CoverState = 'cash' | 'cover' | 'residue' | 'gap' | 'unknown';
@@ -38,7 +41,7 @@ export interface CoverMonth { year: number; month: number; days: number; state: 
 interface Interval { start: number; end: number; state: 'cash' | 'cover'; name: string }
 const index = (year: number, month: number) => year * 12 + month - 1;
 const mean = (xs: number[]) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
-const totalKnown = (xs: Array<number | null>) => xs.some((n) => n === null) ? null : xs.reduce<number>((a, b) => a + (b ?? 0), 0);
+const totalKnown = (xs: Array<number | null>) => !xs.length || xs.some((n) => n === null) ? null : xs.reduce<number>((a, b) => a + (b ?? 0), 0);
 
 /** Month-resolution planned vegetation, never satellite-observed ground cover. */
 export function coverTimeline(seasons: SeasonPlan[], plan: Plan | undefined, sim: SimulatorInputs, lat?: number) {
@@ -100,20 +103,25 @@ export function coverTimeline(seasons: SeasonPlan[], plan: Plan | undefined, sim
   return { months, notes: [...notes] };
 }
 
-export interface NitrogenYear { year: number; input: number | null; removal: number | null; balance: number | null; missing: string[]; legumes: boolean }
+export interface NitrogenYear { year: number; input: number | null; removal: number | null; balance: number | null; missing: string[]; legumes: boolean; needs: Array<{ crop: string; rate: boolean; yield: boolean; coefficient: boolean }>; inputSources: string[] }
 export function nitrogenYears(seasons: SeasonPlan[], sim: SimulatorInputs, params: Params, previous?: SeasonPlan): NitrogenYear[] {
   return seasons.map((season, i) => {
     const missing: string[] = [];
+    const needs: NitrogenYear['needs'] = [];
+    const inputSources: string[] = [];
     const prev = i ? seasons[i - 1] : previous;
     const rates: Array<number | null> = [];
     const removed: Array<number | null> = [];
     for (const id of season.crops) {
       const rate = nitrogenRate(id, prev, sim, params);
       rates.push(rate ?? null);
+      const entered = sim.cropInputs?.[id]?.nitrogen !== undefined || (id === 'corn' && sim.nRateCorn !== undefined);
+      if (rate !== undefined && id !== 'fallow') inputSources.push(`${cropName(id)}: ${rate} lb N/ac (${entered ? 'your entry' : 'Finance assumption'})`);
       if (rate === undefined) missing.push(`${cropName(id)} fertilizer rate`);
       if (id === 'fallow') { removed.push(0); continue; }
       const yieldValue = expectedYield(id, sim, params).value;
       const coefficient = N_REMOVAL[id];
+      if (rate === undefined || yieldValue === undefined || coefficient === undefined) needs.push({ crop: id, rate: rate === undefined, yield: yieldValue === undefined, coefficient: coefficient === undefined });
       removed.push(yieldValue === undefined || coefficient === undefined ? null : yieldValue * coefficient);
       if (yieldValue === undefined) missing.push(`${cropName(id)} yield`);
       if (coefficient === undefined) missing.push(`${cropName(id)} grain N coefficient`);
@@ -121,7 +129,7 @@ export function nitrogenYears(seasons: SeasonPlan[], sim: SimulatorInputs, param
     if (!season.crops.length) { rates.push(null); removed.push(null); missing.push('Crop sequence'); }
     const input = totalKnown(rates);
     const removal = totalKnown(removed);
-    return { year: season.year, input, removal, balance: input === null || removal === null ? null : input - removal, missing, legumes: season.crops.some((id) => familyOf(id) === 'legumes') || !!season.cover?.legume };
+    return { year: season.year, input, removal, balance: input === null || removal === null ? null : input - removal, missing, needs, inputSources, legumes: season.crops.some((id) => familyOf(id) === 'legumes') || !!season.cover?.legume };
   });
 }
 
@@ -141,7 +149,7 @@ export function diversity(seasons: SeasonPlan[]) {
 
 export function assessEcology(seasons: SeasonPlan[], plan: Plan | undefined, sim: SimulatorInputs, params: Params, ctx?: RotationInputs, previous?: SeasonPlan) {
   const timeline = coverTimeline(seasons, plan, sim, ctx?.lat);
-  const unknown = timeline.months.some((m) => m.state === 'unknown');
+  const unknown = !seasons.length || timeline.months.some((m) => m.state === 'unknown');
   const livingDays = mean(seasons.map((s) => timeline.months.filter((m) => m.year === s.year && (m.state === 'cash' || m.state === 'cover')).reduce((n, m) => n + m.days, 0)));
   const gapDays = mean(seasons.map((s) => timeline.months.filter((m) => m.year === s.year && (m.state === 'gap' || m.state === 'residue')).reduce((n, m) => n + m.days, 0)));
   const d = diversity(seasons);
@@ -156,11 +164,12 @@ export function assessEcology(seasons: SeasonPlan[], plan: Plan | undefined, sim
   const surplusYears = nitrogen.filter((n) => n.balance !== null && n.balance > 0).map((n) => n.year);
   const wet = sim.scenario === 'wet';
   const coarse = /sand|coarse/i.test(ctx?.texture?.value ?? '');
-  const leaching = wet && surplusYears.length ? 'Elevated concern' : wet || surplusYears.length || coarse ? 'Review loss pathways' : 'Not quantified';
+  const rice = seasons.some((s) => s.crops.includes('rice'));
+  const leaching = rice ? 'Review rice water management' : nitrogen.some((n) => n.balance === null) ? 'Complete nitrogen inputs first' : wet && surplusYears.length ? 'Elevated concern' : wet || surplusYears.length || coarse ? 'Review loss pathways' : 'Not quantified';
   return {
     seasons, timeline, livingDays: unknown ? null : livingDays, gapDays: unknown ? null : gapDays,
-    diversity: d, erosion, organic, nitrogen, fertilizer: fertilizer === null ? null : fertilizer / seasons.length,
-    removal: removal === null ? null : removal / seasons.length, balance: balance === null ? null : balance / seasons.length,
+    diversity: d, erosion, organic, nitrogen, fertilizer: fertilizer === null ? null : fertilizer / Math.max(1, seasons.length),
+    removal: removal === null ? null : removal / Math.max(1, seasons.length), balance: balance === null ? null : balance / Math.max(1, seasons.length),
     leaching, surplusYears,
     factors: { tillage, residue, wet, coarse, slope: ctx?.slopePct?.value },
   };

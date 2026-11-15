@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { cropName } from '@/lib/domain/rotation/agronomy';
 import { MONTH_SHORT } from '@/lib/domain/management';
-import { ECOLOGY_SOURCES, type EcologicalSide, type CoverState } from '@/lib/domain/ecology';
+import { ECOLOGY_SOURCES, type EcologicalSide, type CoverState, type NitrogenYear } from '@/lib/domain/ecology';
 import { SECTION, Segmented } from '../finance/ui';
 
 // AP's paired chart palette, comparison panels, hover details and seasonal timeline,
@@ -16,18 +17,21 @@ export function ComparisonLegend() {
 /** Responsive paired bars adapted from AP's RotationComparisonChart / Finance NetChart.
  * Missing values never become zero. Signed axes support a negative partial N balance.
  */
-export function ComparisonBars({ rows, unit }: { rows: Array<{ label: string; current: number | null; proposed: number | null }>; unit: string }) {
+export function ComparisonBars({ rows, unit }: { rows: Array<{ label: string; current: number | null; proposed: number | null; crops?: [string, string]; missing?: [string, string] }>; unit: string }) {
   const all = rows.flatMap((r) => [r.current, r.proposed]).filter((v): v is number => v !== null);
   const min = Math.min(0, ...all), max = Math.max(1, ...all);
   const position = (n: number) => (n - min) / (max - min) * 100;
   const zero = position(0);
   return <div className="mt-4 space-y-4">{rows.map((r) => <div key={r.label}>
     <p className="mb-1 text-sm font-semibold">{r.label}</p>
-    {[r.current, r.proposed].map((v, i) => <div key={i} className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3">
-      <div className="relative h-5 rounded bg-paper" role="img" aria-label={`${r.label}, ${ECO_SERIES[i].label}: ${fmt(v)} ${v === null ? '' : unit}`}>
-        <span className="absolute inset-y-0 border-l border-line-strong" style={{ left: `${zero}%` }} />
-        {v !== null && <div className="absolute top-1 h-3 rounded-sm" style={{ left: `${Math.min(zero, position(v))}%`, width: `${Math.abs(position(v) - zero)}%`, background: ECO_SERIES[i].color }} title={`${ECO_SERIES[i].label}: ${fmt(v)} ${unit}`} />}
-      </div><span className="text-right text-xs tabular-nums">{fmt(v)}{v !== null && ` ${unit}`}</span>
+    {[r.current, r.proposed].map((v, i) => <div key={i} className="mb-2">
+      {r.crops && <p className="mb-1 flex items-center gap-2 text-xs text-ink-soft"><i className="h-2 w-2 shrink-0 rounded-sm" style={{ background: ECO_SERIES[i].color }} aria-hidden />{ECO_SERIES[i].label}: {r.crops[i]}</p>}
+      {v === null ? <p className="rounded-lg border border-dashed border-line px-3 py-2 text-sm text-ink-soft">{r.missing?.[i] || 'Enter the missing inputs to calculate this year.'}</p> : <div className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3">
+        <div className="relative h-5 rounded bg-paper" role="img" aria-label={`${r.label}, ${ECO_SERIES[i].label}: ${fmt(v)} ${unit}`}>
+          <span className="absolute inset-y-0 border-l border-line-strong" style={{ left: `${zero}%` }} />
+          <div className="absolute top-1 h-3 rounded-sm" style={{ left: `${Math.min(zero, position(v))}%`, width: v === 0 ? '2px' : `${Math.abs(position(v) - zero)}%`, background: ECO_SERIES[i].color }} title={`${ECO_SERIES[i].label}: ${fmt(v)} ${unit}`} />
+        </div><span className="text-right text-xs tabular-nums">{fmt(v)} {unit}</span>
+      </div>}
     </div>)}
   </div>)}</div>;
 }
@@ -37,7 +41,7 @@ function QualitativePair({ current, proposed, kind }: { current: EcologicalSide;
   return <div className="mt-4 grid gap-3 sm:grid-cols-2">{[current, proposed].map((s, i) => <div key={i} className="rounded-xl border border-line p-4" style={{ borderTop: `4px solid ${ECO_SERIES[i].color}` }}>
     <p className="text-xs font-semibold text-ink-soft">{ECO_SERIES[i].label}</p>
     <p className="mt-2 font-plate text-xl">{kind === 'erosion' ? s.erosion : s.organic}</p>
-    <p className="mt-2 text-sm">{fmt(s.livingDays)} living-cover days/year · {s.factors.tillage} tillage · residue {s.factors.residue}</p>
+    <p className="mt-2 text-sm">{s.livingDays === null ? 'Crop dates needed' : `${fmt(s.livingDays)} living-cover days/year`} · {s.factors.tillage} tillage · residue {s.factors.residue}</p>
     {kind === 'organic' && <p className="mt-1 text-sm">Cover crops in {s.diversity.coverYears} of {s.seasons.length} years</p>}
   </div>)}</div>;
 }
@@ -66,39 +70,27 @@ export function CropCoverTimeline({ current, proposed }: { current: EcologicalSi
 }
 
 export function EcologyCharts({ current: c, proposed: p, irrigated }: { current: EcologicalSide; proposed: EcologicalSide; irrigated: boolean }) {
-  const [nMetric, setNMetric] = useState<'input' | 'removal' | 'balance'>('input');
   return <div className="space-y-5" data-testid="eco-results">
     <section className={SECTION} aria-labelledby="erosion-h">
       <p className="text-xs font-semibold uppercase tracking-widest text-ink-faint">01 / Soil protection</p>
       <h2 id="erosion-h" className="mt-1 font-plate text-2xl">Soil erosion</h2>
       <QualitativePair current={c} proposed={p} kind="erosion" />
-      <Interpretation>Current: {c.erosion.toLowerCase()}; proposed: {p.erosion.toLowerCase()}. The proposed plan has {fmt(p.gapDays)} days/year without planned living vegetation, compared with {fmt(c.gapDays)} currently. Tillage and retained residue affect protection during these gaps. {p.factors.slope === undefined ? 'Field slope is unavailable.' : `Mapped average slope is ${fmt(p.factors.slope)}%.`} {p.factors.wet ? 'Wet conditions add rainfall exposure, but rainfall erosivity has not been modeled.' : 'Weather is a scenario assumption, not a forecast.'} Review local conservation practices before interpreting this as a risk rating.</Interpretation>
-      <p className="mt-3 text-sm text-ink-soft">Soil loss (tons/ac/year): unavailable. Soil-specific tolerance T: unavailable. Rainfall erosivity, soil erodibility, slope length, calibrated cover/practice factors and soil-specific T are missing. T is a tolerance benchmark, not a universal legal limit.</p>
-      <Source href={ECOLOGY_SOURCES.erosion}>USDA NRCS erosion methodology</Source>
+      <Interpretation>{p.gapDays !== null && c.gapDays !== null ? `The proposed plan has about ${fmt(p.gapDays)} days/year without living cover, compared with ${fmt(c.gapDays)} currently.` : 'Complete crop choices and dates in Planner to compare seasonal cover.'} Tillage and retained residue also affect soil protection.</Interpretation>
+      <details className="mt-3 text-sm text-ink-soft"><summary className="cursor-pointer font-semibold text-sky-deep">How soil protection is assessed</summary><p className="mt-2">This is a practice-based comparison, not a calibrated erosion forecast. {p.factors.slope === undefined ? 'No mapped slope is available.' : `Mapped average slope: ${fmt(p.factors.slope)}%.`} Soil-loss tonnage and soil-specific tolerance require rainfall erosivity, soil erodibility, slope length and local cover/practice factors. Weather is a scenario assumption.</p><Source href={ECOLOGY_SOURCES.erosion}>USDA NRCS erosion methodology</Source></details>
     </section>
     <section className={SECTION} aria-labelledby="som-h">
       <p className="text-xs font-semibold uppercase tracking-widest text-ink-faint">02 / Long-term soil health</p>
       <h2 id="som-h" className="mt-1 font-plate text-2xl">Soil organic matter trend</h2>
       <QualitativePair current={c} proposed={p} kind="organic" />
-      <Interpretation>Across {p.seasons[0]?.year}–{p.seasons.at(-1)?.year}, the proposed plan includes {p.diversity.coverYears} cover-crop years versus {c.diversity.coverYears}. With {p.factors.tillage} tillage and {p.factors.residue} residue management, its direction is “{p.organic.toLowerCase()}.” These are practice-based signals, not predicted percentage changes. Repeated soil tests are needed to determine whether organic matter is increasing, stable or decreasing.</Interpretation>
-      <Source href={ECOLOGY_SOURCES.soil}>USDA NRCS soil health practices</Source>
+      <Interpretation>The proposed plan includes cover crops in {p.diversity.coverYears} of {p.seasons.length} years. These practice-based signals describe potential direction; repeated soil tests are needed to measure change.</Interpretation>
+      <details className="mt-3 text-sm"><summary className="cursor-pointer font-semibold text-sky-deep">Soil organic matter methods</summary><p className="mt-2 text-ink-soft">The comparison uses tillage, residue retention and cover-crop frequency. It does not predict a percentage change.</p><Source href={ECOLOGY_SOURCES.soil}>USDA NRCS soil health practices</Source></details>
     </section>
-    <section className={SECTION} aria-labelledby="nitrogen-h">
-      <p className="text-xs font-semibold uppercase tracking-widest text-ink-faint">03 / Nutrient management</p>
-      <h2 id="nitrogen-h" className="mt-1 font-plate text-2xl">Nitrogen inputs and partial balance</h2>
-      <div className="mt-3"><Segmented label="Nitrogen measure" value={nMetric} onChange={setNMetric} options={[{ value: 'input', label: 'Fertilizer' }, { value: 'removal', label: 'Removal' }, { value: 'balance', label: 'Balance' }]} /></div>
-      <div className="mt-3"><ComparisonLegend /></div>
-      <ComparisonBars unit="lb N/ac" rows={p.nitrogen.map((n, i) => ({ label: String(n.year), current: c.nitrogen[i]?.[nMetric] ?? null, proposed: n[nMetric] }))} />
-      <Interpretation>Annual fertilizer averages: current {fmt(c.fertilizer)}, proposed {fmt(p.fertilizer)} lb N/ac/year. Proposed harvested-grain removal averages {fmt(p.removal)}; its partial balance averages {fmt(p.balance)} lb N/ac/year. Balance means fertilizer minus grain removal, excluding fixation, mineralization, manure, deposition and losses. Negative values are not fertilizer recommendations; legume fixation is especially important. Yields are baseline assumptions and do not change automatically with weather.</Interpretation>
-      <p className="mt-3 text-sm"><strong>Leaching concern:</strong> current {c.leaching.toLowerCase()}, proposed {p.leaching.toLowerCase()}. {p.factors.wet ? 'Wet conditions increase water-movement concerns.' : 'Normal or dry conditions do not rule out nitrogen loss.'} {p.factors.coarse && 'Sandy texture may allow faster drainage.'} {irrigated && 'Irrigation is enabled; excess irrigation could increase loss, but amount and timing are unknown.'} Proposed positive partial balances occur in {p.surplusYears.join(', ') || 'no fully modeled years'}. This is a qualitative screening, not pounds leached.</p>
-      {[...new Set([...c.nitrogen, ...p.nitrogen].flatMap((n) => n.missing))].length > 0 && <p className="mt-2 text-sm text-wheat-deep">Missing: {[...new Set([...c.nitrogen, ...p.nitrogen].flatMap((n) => n.missing))].join('; ')}. Incomplete totals are unavailable.</p>}
-      <Source href={ECOLOGY_SOURCES.nitrogen}>Grain nitrogen-removal coefficients</Source><span className="mx-2">·</span><Source href={ECOLOGY_SOURCES.leaching}>Leaching pathways</Source>
-    </section>
+    <NitrogenComparison current={c} proposed={p} irrigated={irrigated} />
     <section className={SECTION} aria-labelledby="cover-h">
       <p className="text-xs font-semibold uppercase tracking-widest text-ink-faint">04 / The seasons between harvests</p>
       <h2 id="cover-h" className="mt-1 font-plate text-2xl">Living cover and seasonal gaps</h2>
       <CropCoverTimeline current={c} proposed={p} />
-      <Interpretation>Planned living cover averages {fmt(c.livingDays)} days/year currently and {fmt(p.livingDays)} in the proposed plan. Longer living-cover periods can help protect soil and retain nutrients. Months include planting and harvest months in full, so day totals are approximate. Days without living vegetation are not necessarily bare soil. Check establishment, termination and residue coverage in the field.</Interpretation>
+      <Interpretation>{c.livingDays !== null && p.livingDays !== null ? `Planned living cover averages ${fmt(c.livingDays)} days/year currently and ${fmt(p.livingDays)} in the proposed plan.` : 'Complete crop choices and dates in Planner to calculate living-cover averages.'} Months include planting and harvest months in full, so totals are approximate. Days without living vegetation may still have residue cover.</Interpretation>
       <details className="mt-3 text-sm"><summary className="cursor-pointer font-semibold text-sky-deep">Calendar assumptions</summary><ul className="mt-2 list-disc space-y-1 pl-5">{[...new Set([...c.timeline.notes, ...p.timeline.notes])].map((n) => <li key={n}>{n}</li>)}<li>Planner tasks take precedence over regional calendar estimates. Repeated years beyond the saved plan use calendar estimates.</li></ul></details>
     </section>
     <section className={SECTION} aria-labelledby="diversity-h">
@@ -114,4 +106,50 @@ export function EcologyCharts({ current: c, proposed: p, irrigated }: { current:
       <Interpretation>Proposed crops: {p.diversity.names.join(', ') || 'not entered'}. Covers: {p.diversity.coverNames.join(', ') || 'none'}. This is {p.diversity.crops} cash-crop types versus {c.diversity.crops} currently, with {p.diversity.repeated} repeated transitions versus {c.diversity.repeated}. Different crops may share pest hosts, especially within a family. Counts describe the plan; they are not a biodiversity or disease-elimination score. {p.diversity.unknownYears + c.diversity.unknownYears > 0 && 'Unknown crops make these counts incomplete.'}</Interpretation>
     </section>
   </div>;
+}
+
+
+type NitrogenMetric = 'input' | 'removal' | 'balance';
+function missingFor(n: NitrogenYear | undefined, metric: NitrogenMetric) {
+  if (!n || n.missing.includes('Crop sequence')) return 'Choose a crop for this year in the rotation.';
+  const messages = n.needs.flatMap((need) => {
+    const inputs = [metric !== 'removal' && need.rate ? 'fertilizer rate' : '', metric !== 'input' && need.yield ? 'expected yield' : ''].filter(Boolean);
+    return [...(inputs.length ? [`Enter ${cropName(need.crop)} ${inputs.join(' and ')}.`] : []), ...(metric !== 'input' && need.coefficient ? [`${cropName(need.crop)} grain-removal model is not supported.`] : [])];
+  });
+  return messages.join(' ');
+}
+function NitrogenComparison({ current: c, proposed: p, irrigated }: { current: EcologicalSide; proposed: EcologicalSide; irrigated: boolean }) {
+  const [metric, setMetric] = useState<NitrogenMetric>('input');
+  const title = { input: 'fertilizer', removal: 'grain removal', balance: 'partial balance' }[metric];
+  const key = metric === 'input' ? 'fertilizer' : metric;
+  const needs = [...new Set([...c.nitrogen, ...p.nitrogen].flatMap((n) => n.needs.filter((x) => (metric !== 'removal' && x.rate) || (metric !== 'input' && x.yield)).map((x) => x.crop)))];
+  const rice = [...c.seasons, ...p.seasons].some((s) => s.crops.includes('rice'));
+  return <section className={SECTION} aria-labelledby="nitrogen-h">
+    <p className="text-xs font-semibold uppercase tracking-widest text-ink-faint">03 / Nutrient management</p>
+    <h2 id="nitrogen-h" className="mt-1 font-plate text-2xl">Nitrogen inputs and partial balance</h2>
+    <p className="mt-2 text-sm text-ink-soft">{metric === 'input' ? 'Applied fertilizer by crop year. A zero means no fertilizer in the entered or reference rate.' : metric === 'removal' ? 'Expected harvested-grain nitrogen, calculated from yield and a published crop coefficient.' : 'Fertilizer minus expected grain removal. This partial balance is not a fertilizer recommendation.'}</p>
+    <div className="mt-3"><Segmented label="Nitrogen measure" value={metric} onChange={setMetric} options={[{ value: 'input', label: 'Fertilizer' }, { value: 'removal', label: 'Removal' }, { value: 'balance', label: 'Balance' }]} /></div>
+    {needs.length > 0 && <div className="mt-4 rounded-xl border border-wheat/40 bg-wheat-tint p-3 text-sm"><p className="font-semibold">Complete your crop inputs</p><p className="mt-1">The rotation is loaded. Add the missing values below to finish this comparison.</p><div className="mt-2 flex flex-wrap gap-2">{needs.map((id) => <button key={id} type="button" className="min-h-11 rounded-lg border border-line-strong bg-panel px-3 font-semibold text-sky-deep" onClick={() => {
+      const group = document.getElementById(`crop-input-${id}`);
+      const rateMissing = [...c.nitrogen, ...p.nitrogen].some((n) => n.needs.some((x) => x.crop === id && x.rate));
+      group?.querySelectorAll('input')[metric === 'removal' || !rateMissing ? 1 : 0]?.focus();
+    }}>Enter {cropName(id)} inputs</button>)}</div></div>}
+    <ComparisonBars unit="lb N/ac" rows={p.nitrogen.map((n) => {
+      const current = c.nitrogen.find((v) => v.year === n.year);
+      return { label: String(n.year), current: current?.[metric] ?? null, proposed: n[metric], crops: [c.seasons.find((s) => s.year === n.year)?.crops.map(cropName).join(' → ') || 'Crop not entered', p.seasons.find((s) => s.year === n.year)?.crops.map(cropName).join(' → ') || 'Crop not entered'], missing: [missingFor(current, metric), missingFor(n, metric)] };
+    })} />
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">{[c, p].map((side, i) => <div key={i} className="rounded-xl bg-paper p-3"><p className="text-xs text-ink-soft">{ECO_SERIES[i].label} · annual {title}</p>{side[key] === null ? <><p className="mt-1 font-semibold">Inputs needed</p><p className="mt-1 text-xs text-ink-soft">{side.nitrogen.filter((n) => n[metric] !== null).length} of {side.nitrogen.length} years calculated. Average requires every year.</p></> : <p className="mt-1 font-semibold tabular-nums">{fmt(side[key])} lb N/ac/year</p>}</div>)}</div>
+    <details className="mt-4 text-sm text-ink-soft"><summary className="cursor-pointer font-semibold text-sky-deep">Calculation details and sources</summary>
+      <p className="mt-2">Rates and expected yields come from your scenario entries or the labeled Finance assumptions, not from the boundary file. The same crop inputs apply to both rotations. Yields do not change automatically with weather.</p>
+      <p className="mt-2">Balance excludes nitrogen fixation, soil mineralization, manure, deposition and losses. Negative balances, especially for legumes, do not directly indicate a fertilizer need.</p>
+      {rice && <p className="mt-2">Rice yield uses cwt/ac (100 lb). Its grain coefficient is 0.57 lb N per 45-lb bushel, converted to approximately 1.267 lb N/cwt.</p>}
+      <ul className="mt-2 space-y-2">{[c, p].map((side, i) => <li key={i}><strong>{ECO_SERIES[i].label} rates:</strong> {[...new Set(side.nitrogen.flatMap((n) => n.inputSources))].join('; ') || 'Enter crop rates.'}</li>)}</ul>
+      <Source href={ECOLOGY_SOURCES.nitrogen}>Delaware grain coefficients</Source><span className="mx-2">·</span><Source href={ECOLOGY_SOURCES.rowCrops}>Arkansas rice and sorghum coefficients</Source>
+    </details>
+    <details className="mt-3 text-sm text-ink-soft"><summary className="cursor-pointer font-semibold text-sky-deep">Nitrogen-loss considerations</summary>
+      <p className="mt-2">{rice ? 'Rice nitrogen losses depend on flooding, drainage and application timing. This comparison does not model rice water management or quantify nitrogen lost.' : `Current: ${c.leaching.toLowerCase()}. Proposed: ${p.leaching.toLowerCase()}. This is a qualitative screening, not pounds leached.`} {irrigated && 'Irrigation amount and timing have not been entered.'}</p>
+      {!rice && <p className="mt-2">Wet conditions and sandy soils can increase drainage concerns. Normal or dry conditions do not rule out loss. {p.surplusYears.length > 0 && `Fertilizer exceeds modeled grain removal in ${p.surplusYears.join(', ')}; this is not a measured loss.`}</p>}
+      <Source href={ECOLOGY_SOURCES.leaching}>Nitrogen loss pathways</Source>
+    </details>
+  </section>;
 }

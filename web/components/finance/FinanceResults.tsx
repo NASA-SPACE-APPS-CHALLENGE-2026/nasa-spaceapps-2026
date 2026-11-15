@@ -11,6 +11,7 @@ const perAcre = (y: PlanYear, v: number) => (y.acres ? v / y.acres : 0);
 const sum = (l: PartialLine[]) => l.reduce((s, x) => s + x.amount, 0);
 
 export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: boolean }) {
+  if (a.unmodeled.length) return <IncompleteFinance a={a} />;
   const { low, high, mid, wholeFarm, horizon } = a.headline;
   const tone = mid > 0.5 ? 'text-field' : mid < -0.5 ? 'text-alert' : 'text-ink';
   return (
@@ -42,6 +43,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
   }));
   const cum = a.cash.points.map((p) => ({ label: p.label, current: p.current.cumulative, proposed: p.proposed.cumulative }));
   const be = a.cash.breakEven;
+  if (a.unmodeled.length) return <IncompleteFinance a={a} />;
 
   return (
     <div className="space-y-5">
@@ -51,7 +53,6 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         </p>
       )}
       {planned > 0 && planned < fieldCount && <p className="text-[14.5px] text-ink-soft">{fieldCount - planned} of {fieldCount} fields have no plan yet; they stay on their current rotation in both columns.</p>}
-      {a.unmodeled.length > 0 && <p className="text-[14.5px] text-ink-soft">No budget yet for {a.unmodeled.join(', ')}; those seasons count rent only, in both plans.</p>}
 
       <Headline a={a} />
 
@@ -383,4 +384,14 @@ function PartialBox({ title, lines, sign }: { title: string; lines: PartialLine[
       )}
     </div>
   );
+}
+
+
+function IncompleteFinance({ a }: { a: FarmAnalysis }) {
+  return <div className="rounded-[var(--radius-panel)] border border-line bg-panel p-4" data-testid="finance-headline">
+    <p className="font-plate text-xl">Financial comparison needs complete crop budgets</p>
+    <p className="mt-2 text-sm text-ink-soft">{a.acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres · {a.years[0]}–{a.years.at(-1)}. Missing coverage: {a.unmodeled.join(', ')}.</p>
+    <p className="mt-2 text-sm text-ink-soft">Whole-farm profit, cash flow and savings are withheld because some crop revenue or costs cannot be calculated. Unsupported crop budgets cannot be completed by entering a nitrogen rate or yield alone.</p>
+    <Link href="/planner" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-sky-deep">Review crop choices in Planner →</Link>
+  </div>;
 }

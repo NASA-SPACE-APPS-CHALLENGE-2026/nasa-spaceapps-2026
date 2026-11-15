@@ -18,8 +18,10 @@ const plan: Plan = { id: 'plan-a', fieldId: 'a', name: 'Meadow cover plan', stra
   ...(i ? [{ id: `t${i}`, kind: 'cover-terminate' as const, month: 4, label: 'End cereal rye' }] : []),
 ] })) };
 
-async function seed(page: import('@playwright/test').Page) {
+async function seed(page: import('@playwright/test').Page, rice = false) {
   await mockSources(page);
+  const crops = ['rice', 'corn', 'soybeans', 'rice', 'corn'];
+  const selectedPlan = rice ? { ...plan, seasons: plan.seasons.map((s, i) => ({ ...s, crop: { kind: 'catalog' as const, id: crops[i] }, cover: undefined, tasks: [] })) } : plan;
   await page.addInitScript(({ fields, plan, finance }) => {
     if (sessionStorage.getItem('ecology-seeded')) return;
     localStorage.clear();
@@ -29,7 +31,7 @@ async function seed(page: import('@playwright/test').Page) {
     write('settings', { farm: { externalLookups: false, lastFieldId: 'a' } });
     write('finance', { farm: finance });
     sessionStorage.setItem('ecology-seeded', 'yes');
-  }, { fields, plan, finance: { ...DEFAULT_FINANCE, fields: { a: { acres: 31 } }, simulator: { a: { acres: 31 } } } });
+  }, { fields, plan: selectedPlan, finance: { ...DEFAULT_FINANCE, fields: { a: { acres: 31 } }, simulator: { a: { acres: 31, nRateCorn: 170, ...(rice ? { nRateCorn: undefined, currentCrops: Object.fromEntries(crops.map((id, i) => [2027 + i, id])) } : {}) } } } });
 }
 
 test('ecological controls, field isolation, persistence, responsive charts and Finance handoff', async ({ page }, testInfo) => {
@@ -45,6 +47,9 @@ test('ecological controls, field isolation, persistence, responsive charts and F
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   }
   const n = page.getByLabel('Corn nitrogen', { exact: true });
+  await expect(n).toHaveValue('170');
+  await n.clear();
+  await expect(n).toHaveValue('');
   await n.fill('150');
   await expect(n).toBeFocused();
   await expect(page.getByRole('img', { name: '2027, Proposed Planner rotation: 150 lb N/ac', exact: true })).toBeAttached();
@@ -94,4 +99,55 @@ test('saved Planner date edits reach the ecological timeline without re-entering
   await expect(page.getByTestId('sim-plan-proposed')).toContainText('Meadow cover plan');
   await expect(page.getByRole('button', { name: /Proposed Planner rotation, May 2027: No planned living crop/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Proposed Planner rotation, Jun 2027: Corn: Planner dates/ })).toBeVisible();
+});
+
+
+test('rice rotation shows actionable missing values, correct cwt accounting and honest Finance coverage', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await seed(page, true);
+  await page.goto('/simulator?field=a');
+  const panel = page.getByRole('region', { name: 'Nitrogen inputs and partial balance' });
+  await expect(panel).toContainText('Enter Rice fertilizer rate.');
+  await expect(panel).toContainText('3 of 5 years calculated.');
+  await expect(panel.getByRole('img', { name: /^2027,/ })).toHaveCount(0);
+  await expect(panel.getByRole('img', { name: '2029, Proposed Planner rotation: 0 lb N/ac', exact: true })).toBeAttached();
+  await expect(page.getByTestId('eco-results')).not.toContainText(/Unavailable|undefined|NaN/);
+  const viewport = page.viewportSize()!;
+  await page.setViewportSize({ ...viewport, height: 2400 });
+  await panel.screenshot({ path: testInfo.outputPath('rice-inputs-needed.png') });
+  await page.setViewportSize(viewport);
+  await panel.getByRole('button', { name: 'Enter Rice inputs' }).click();
+  const rate = page.getByLabel('Rice nitrogen', { exact: true });
+  const yieldInput = page.getByLabel('Rice expected yield', { exact: true });
+  await expect(rate).toBeFocused();
+  await expect(rate).toHaveValue('');
+  await expect(yieldInput).toHaveValue('');
+  await rate.fill('150');
+  await expect(panel.getByRole('img', { name: '2027, Proposed Planner rotation: 150 lb N/ac', exact: true })).toBeAttached();
+  await expect(panel).toContainText('123.6 lb N/ac/year');
+  await panel.getByRole('radio', { name: 'Removal', exact: true }).click();
+  await panel.getByRole('button', { name: 'Enter Rice inputs' }).click();
+  await expect(yieldInput).toBeFocused();
+  await yieldInput.fill('90');
+  await expect(panel.getByRole('img', { name: '2027, Proposed Planner rotation: 114 lb N/ac', exact: true })).toBeAttached();
+  await panel.getByRole('radio', { name: 'Balance', exact: true }).click();
+  await expect(panel.getByRole('img', { name: '2027, Proposed Planner rotation: 36 lb N/ac', exact: true })).toBeAttached();
+  await expect(panel.getByRole('button', { name: 'Enter Rice inputs' })).toHaveCount(0);
+  await expect(panel).not.toContainText('Inputs needed');
+  await page.setViewportSize({ ...viewport, height: 2400 });
+  await panel.screenshot({ path: testInfo.outputPath('rice-complete-balance.png') });
+  await page.setViewportSize(viewport);
+  await rate.fill('0');
+  await expect(panel.getByRole('img', { name: '2027, Proposed Planner rotation: -114 lb N/ac', exact: true })).toBeAttached();
+  await page.reload();
+  await expect(rate).toHaveValue('0');
+  await expect(yieldInput).toHaveValue('90');
+  await page.getByRole('link', { name: 'View Financial Impact' }).click();
+  await expect(page.getByTestId('scenario-finance')).toContainText('Rice');
+  await expect(page.getByTestId('finance-headline')).toContainText('Financial comparison needs complete crop budgets');
+  await expect(page.getByTestId('finance-headline')).toContainText('Rice');
+  await expect(page.getByRole('heading', { name: 'Annual net return', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('section-projection')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });

@@ -5,6 +5,7 @@ import { nitrogenRate, seasonBudget, type SeasonPlan } from '@/lib/domain/financ
 import { DEFAULT_FINANCE, parseFinance } from '@/lib/domain/finance/inputs';
 import { fieldAcres, fieldSetup } from '@/lib/domain/finance/farm';
 import { proposedPlanSeasons } from '@/lib/domain/finance/plans';
+import { analyzeFarm } from '@/lib/domain/finance/analysis';
 import { simulate } from '@/lib/domain/finance/simulate';
 import { createField } from '@/lib/domain/field';
 import { createLocalRepositories, STORAGE_KEYS } from '@/lib/repo/local';
@@ -25,6 +26,35 @@ describe('ecological nitrogen accounting', () => {
     expect(result[1].removal).toBeCloseTo(206.4);
     expect(result[1].balance).toBeCloseTo(-201.4);
     expect(result[1].legumes).toBe(true);
+  });
+  it('converts rice cwt to grain nitrogen without inventing application or yield', () => {
+    const rice = [{ year: 2027, crops: ['rice'] }];
+    const missing = nitrogenYears(rice, {}, P)[0];
+    expect(missing).toMatchObject({ input: null, removal: null, balance: null, needs: [{ crop: 'rice', rate: true, yield: true, coefficient: false }] });
+    const entered = nitrogenYears(rice, { cropInputs: { rice: { nitrogen: 150, yield: 90 } } }, P)[0];
+    expect(entered.removal).toBeCloseTo(114);
+    expect(entered.balance).toBeCloseTo(36);
+    expect(entered.missing).toEqual([]);
+    expect(entered.inputSources).toEqual(['Rice: 150 lb N/ac (your entry)']);
+    const zero = nitrogenYears(rice, { cropInputs: { rice: { nitrogen: 0, yield: 90 } } }, P)[0];
+    expect(zero.input).toBe(0);
+    expect(zero.balance).toBeCloseTo(-114);
+    expect(assessEcology(rice, undefined, { scenario: 'wet', cropInputs: { rice: { nitrogen: 150, yield: 90 } } }, P).leaching).toBe('Review rice water management');
+  });
+  it('keeps partial years out of full-horizon averages and prevents incomplete loss screening', () => {
+    expect(assessEcology([], undefined, {}, P)).toMatchObject({ fertilizer: null, removal: null, balance: null, livingDays: null, gapDays: null });
+    const ss = [{ year: 2027, crops: ['sorghum'] }, { year: 2028, crops: ['corn'] }];
+    const missing = assessEcology(ss, undefined, { scenario: 'wet' }, P);
+    expect(missing.fertilizer).toBeNull();
+    expect(missing.removal).toBeNull();
+    expect(missing.leaching).toBe('Complete nitrogen inputs first');
+    const complete = assessEcology(ss, undefined, { cropInputs: { sorghum: { nitrogen: 100, yield: 100 }, corn: { nitrogen: 150, yield: 200 } } }, P);
+    expect(complete.fertilizer).toBe(125);
+    expect(complete.removal).toBe(102);
+    expect(complete.balance).toBe(23);
+    const doubled = nitrogenYears([{ year: 2027, crops: ['corn', 'rice'] }], { cropInputs: { corn: { nitrogen: 100, yield: 200 } } }, P)[0];
+    expect(doubled.input).toBeNull();
+    expect(doubled.removal).toBeNull();
   });
   it('sums double crops without applying corn nitrogen to soybeans', () => {
     const [n] = nitrogenYears([{ year: 2027, crops: ['corn', 'soybeans'] }], { nRateCorn: 170, cropInputs: { corn: { yield: 100 }, soybeans: { yield: 30 } } }, P);
@@ -104,6 +134,10 @@ describe('Planner calendar and diversity', () => {
 });
 
 describe('branch compatibility and acreage', () => {
+  it('flags unsupported budgets and empty crop years before whole-farm results are displayed', () => {
+    const result = analyzeFarm([{ id: 'f', name: 'North meadow', setup: { acres: 8.6, tenure: 'own', irrigated: false }, thisSeason: seasons[0], current: [{ year: 2027, crops: ['rice'] }], proposed: [{ year: 2027, crops: [] }] }], new Params(), { beginningFarmer: false });
+    expect(result.unmodeled).toEqual(['Rice', 'North meadow, 2027: crop not entered']);
+  });
   it('uses mapped acreage unless an explicit scenario override is enabled', () => {
     const finance = { ...DEFAULT_FINANCE, fields: { [f.id]: { acres: 31 } } };
     const actual = acresFromM2(f.areaM2);

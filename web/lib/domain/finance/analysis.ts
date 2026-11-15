@@ -347,7 +347,7 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
   const all = [...P.used];
   const pick = (prefixes: string[]) => all.filter((id) => prefixes.some((p) => id.startsWith(p)));
   const overall = confidenceOf(P, all.filter((id) => !id.startsWith('risk.') && !id.startsWith('practice.') && !id.startsWith('fsa.')));
-  const unmodeled = [...new Set(fields.flatMap((f) => [...f.current, ...f.proposed].flatMap((s) => s.crops.filter((id) => id !== 'fallow' && !cropKeyOf(id)).map(cropName))))];
+  const unmodeled = [...new Set(fields.flatMap((f) => [...f.current, ...f.proposed].flatMap((s) => s.crops.length ? s.crops.filter((id) => id !== 'fallow' && !cropKeyOf(id)).map(cropName) : [`${f.name}, ${s.year}: crop not entered`])))];
   const confidence = {
     headline: overall,
     comparison: overall,
