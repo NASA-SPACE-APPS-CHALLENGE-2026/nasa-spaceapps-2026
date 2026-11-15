@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildDemoFarm, demoBlocker } from '@/lib/demo/demoFarm';
@@ -30,7 +31,7 @@ type View =
 
 export function FieldsScreen() {
   const store = useStore();
-  const { fields, profiles, settings, loaded } = useFarm();
+  const { fields, profiles, settings, loaded, plans } = useFarm();
   const router = useRouter();
   const params = useSearchParams();
   const [view, setView] = useState<View>({ kind: 'list' });
@@ -120,6 +121,7 @@ export function FieldsScreen() {
 
   const selectField = (id: string) => {
     const f = fields.find((x) => x.id === id);
+    void store.rememberField(id);
     setView({ kind: 'field', id, edit: null });
     setSnap('half');
     if (f) setFocus({ key: `sel-${id}-${Date.now()}`, kind: 'geometry', geometry: f.feature.geometry });
@@ -135,6 +137,7 @@ export function FieldsScreen() {
     if (view.kind !== 'add' || !view.draft) return;
     const field = createField({ name, geometry: view.draft.geometry, definedBy: 'polygon', locatedVia: view.located?.via ?? 'map' });
     await store.addFields([field]);
+    void store.rememberField(field.id);
     setView({ kind: 'field', id: field.id, edit: null });
     setSnap('half');
     setFocus({ key: `saved-${field.id}`, kind: 'geometry', geometry: field.feature.geometry });
@@ -222,6 +225,29 @@ export function FieldsScreen() {
             onRefreshSource={(id) => store.refreshSource(selected.id, id)}
             onRetryCdl={() => store.retryCdl(selected.id)}
             onTurnOnLookups={() => void store.setSettings({ ...settings, externalLookups: true })}
+            actions={
+              !view.edit && (
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/rotation?field=${selected.id}`}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-field px-4 text-[15px] font-semibold text-white hover:bg-[#245530]"
+                  >
+                    Explore rotation
+                    <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
+                      <path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                    </svg>
+                  </Link>
+                  {plans.some((pl) => pl.fieldId === selected.id) && (
+                    <Link
+                      href={`/planner?field=${selected.id}`}
+                      className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-control)] border border-line-strong bg-panel px-4 text-[15px] font-semibold text-ink hover:border-sky hover:text-sky-deep"
+                    >
+                      Open plan
+                    </Link>
+                  )}
+                </div>
+              )
+            }
           />
         )}
       </ResponsivePanel>
