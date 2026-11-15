@@ -46,7 +46,7 @@ function earthdataStub(id: SourceId): ProfileSource {
       const base = { sourceId: id, sourceName: meta.provider, docsUrl: meta.docsUrl, values: [] };
       const token = deps.env.EARTHDATA_TOKEN?.trim();
       if (!token) {
-        devHint('EARTHDATA_TOKEN is not set, so SMAP, IMERG and NDVI are off. Add it to web/.env.local (see .env.example) and restart the server.');
+        devHint('EARTHDATA_TOKEN is not set, so SMAP soil moisture and IMERG rainfall are off. Add it to web/.env.local (see .env.example) and restart the server.');
         return { ...base, status: 'needs_token', message: 'Not available yet.' };
       }
       try {
@@ -65,4 +65,3 @@ function earthdataStub(id: SourceId): ProfileSource {
 
 export const smapSource = earthdataStub('smap');
 export const imergSource = earthdataStub('imerg');
-export const ndviSource = earthdataStub('ndvi');

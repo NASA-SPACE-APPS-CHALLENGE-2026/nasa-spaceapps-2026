@@ -3,6 +3,7 @@ import { squareAroundPoint } from '@/lib/domain/acreage';
 import { MemoryCache } from '@/lib/server/cache';
 import { albersToLonLat, detectCdl, dominantClass, lonLatToAlbers, parseCdlValue, parseReturnUrl, resetCdlBreaker, zonalHistogram } from '@/lib/sources/cdl';
 import { imergSource, smapSource } from '@/lib/sources/earthdataStubs';
+import { compositeCode, ndviSource, readNdvi, sinusoidalToLonLat } from '@/lib/sources/ndvi';
 import { elevationSource, parseEpqs, planeSlopePct } from '@/lib/sources/elevation';
 import { gddF, parseDaily, powerSource } from '@/lib/sources/power';
 import { runSource, SOURCES } from '@/lib/sources/registry';
@@ -133,7 +134,7 @@ describe('USGS elevation (EPQS)', () => {
   });
 });
 
-describe('Earthdata stubs (SMAP, IMERG, NDVI)', () => {
+describe('Earthdata stubs (SMAP, IMERG)', () => {
   it('needs a token when EARTHDATA_TOKEN is unset, without any network call', async () => {
     const f = mockFetch([]);
     const r = await smapSource.run(ctx, deps(f));
@@ -150,6 +151,39 @@ describe('Earthdata stubs (SMAP, IMERG, NDVI)', () => {
     const bad = await imergSource.run(ctx, deps(f, { EARTHDATA_TOKEN: 'bad' }));
     expect(bad).toMatchObject({ status: 'needs_token' });
     expect(bad.message).toBe('Not available right now.');
+  });
+});
+
+describe('NASA MODIS NDVI (ORNL DAAC)', () => {
+  it('computes composite codes and sinusoidal coordinates', () => {
+    expect(compositeCode(new Date('2026-11-14T00:00:00Z'))).toBe('A2026305');
+    const [lon, lat] = sinusoidalToLonLat(-7723423.02 + 4.5 * 231.656358264, 4672508.71 + 4.5 * 231.656358264);
+    expect(lat).toBeCloseTo(42.031, 2);
+    expect(lon).toBeCloseTo(-93.497, 2);
+  });
+
+  it('averages clear pixels inside the field from the recorded live response', () => {
+    const big = { type: 'Polygon' as const, coordinates: [[[-93.505, 42.025], [-93.489, 42.025], [-93.489, 42.037], [-93.505, 42.037], [-93.505, 42.025]]] };
+    const r = readNdvi(JSON.parse(fixture('modis-ndvi.json')), JSON.parse(fixture('modis-reliability.json')), big, [-93.497, 42.031]);
+    expect(r).toMatchObject({ date: '2026-10-16', insideField: true });
+    expect(r!.pixels).toBeGreaterThan(10);
+    expect(r!.ndvi).toBeGreaterThan(0.1);
+    expect(r!.ndvi).toBeLessThan(0.6);
+  });
+
+  it('runs end to end with mocked responses and labels values', async () => {
+    const f = mockFetch([
+      [/pixel_reliability/, () => text(fixture('modis-reliability.json'))],
+      [/startDate=A2025/, () => text(fixture('modis-ndvi-lastyear.json'))],
+      [/250m_16_days_NDVI/, () => text(fixture('modis-ndvi.json'))],
+    ]);
+    const wide = { ...ctx, geometry: { type: 'Polygon' as const, coordinates: [[[-93.505, 42.025], [-93.489, 42.025], [-93.489, 42.037], [-93.505, 42.037], [-93.505, 42.025]]] }, point: [-93.497, 42.031] as [number, number] };
+    const r = await ndviSource.run(wide, deps(f));
+    expect(r.status).toBe('ok');
+    expect(r.values.map((v) => [v.key, v.honesty])).toEqual([
+      ['ndviLatest', 'Measured'],
+      ['ndviLastYear', 'Measured'],
+    ]);
   });
 });
 

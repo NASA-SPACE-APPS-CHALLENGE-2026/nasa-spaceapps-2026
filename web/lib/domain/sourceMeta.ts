@@ -63,11 +63,11 @@ export const SOURCE_META: Record<SourceId, SourceMeta> = {
   ndvi: {
     id: 'ndvi',
     name: 'Crop greenness (NDVI)',
-    provider: 'Landsat / MODIS (Earthdata)',
-    docsUrl: 'https://lpdaac.usgs.gov/',
+    provider: 'NASA MODIS MOD13Q1 via ORNL DAAC',
+    docsUrl: 'https://modis.ornl.gov/data/modis_webservice.html',
     staleAfterMs: 7 * DAY,
-    needsEarthdata: true,
-    blurb: 'Vegetation index from Landsat and MODIS imagery.',
+    needsEarthdata: false,
+    blurb: 'Satellite vegetation index (250 m, 16-day) for the field, now and a year ago.',
   },
 };
 
