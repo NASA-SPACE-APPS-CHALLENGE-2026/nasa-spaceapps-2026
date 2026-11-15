@@ -122,11 +122,11 @@ function ChooseMethod({ onStep, lookupsOn, addressStep }: Props) {
               type="button"
               disabled={m.disabled}
               onClick={() => onStep(m.step)}
-              className="w-full rounded-parcel border border-line bg-panel p-4 text-left hover:border-field disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line"
+              className="w-full rounded-parcel border border-line bg-panel p-4 text-left transition-colors hover:border-field hover:bg-field-tint/40 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line"
             >
               <span className="flex items-center gap-2">
                 <span className="text-[17px] font-semibold">{m.title}</span>
-                {m.badge && !m.disabled && <span className="rounded-full bg-field-tint px-2 py-0.5 text-[12.5px] font-semibold text-field">{m.badge}</span>}
+                {m.badge && !m.disabled && <span className="rounded-parcel border border-field/25 bg-field-tint px-1.5 py-0.5 text-[12.5px] font-semibold text-field">{m.badge}</span>}
               </span>
               <span className="mt-0.5 block text-[14.5px] text-ink-soft">{m.text}</span>
             </button>

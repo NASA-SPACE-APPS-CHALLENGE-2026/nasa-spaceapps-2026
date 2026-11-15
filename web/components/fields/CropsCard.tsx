@@ -30,7 +30,7 @@ export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Prop
   const unconfirmed = countUnconfirmed(crops);
 
   return (
-    <section aria-labelledby="crops-h" className="rounded-parcel border border-line bg-panel p-4">
+    <section aria-labelledby="crops-h" className="border-t border-line pt-5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 id="crops-h" className="font-plate text-lg">
           Crops

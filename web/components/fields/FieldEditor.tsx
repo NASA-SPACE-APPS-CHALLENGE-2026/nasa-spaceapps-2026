@@ -5,6 +5,7 @@ import { areaM2, formatAcres } from '@/lib/domain/acreage';
 import type { Field, FieldCrops, FieldGeometry, FieldProfile, SourceId } from '@/lib/domain/types';
 import { type GeometryIssue, hasBlockingIssue } from '@/lib/domain/validation';
 import { Button } from '../ui/Button';
+import { FieldShape } from '../ui/FieldShape';
 import { CropsCard } from './CropsCard';
 import { IssueList } from './IssueList';
 import { ProfileCard } from './ProfileCard';
@@ -54,7 +55,7 @@ export function FieldEditor(p: Props) {
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div key={field.id} className="motion-expand space-y-5 px-4 pb-6 pt-3 lg:px-5 lg:pt-5">
       <button type="button" onClick={p.onBack} className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-parcel px-2 font-semibold text-field hover:bg-field-tint">
         <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
           <path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -62,7 +63,9 @@ export function FieldEditor(p: Props) {
         All fields
       </button>
 
-      <div>
+      <div className="flex items-start gap-3">
+        <FieldShape geometry={field.feature.geometry} crop={field.crops.current.crop} pinOnly={approximate} size={64} />
+        <div className="min-w-0 flex-1">
         <label htmlFor={renameId} className="sr-only">
           Field name (edit to rename)
         </label>
@@ -76,14 +79,14 @@ export function FieldEditor(p: Props) {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             if (e.key === 'Escape') setName(field.name);
           }}
-          className="font-plate -mx-2 w-[calc(100%+1rem)] rounded-parcel border border-transparent bg-transparent px-2 py-1 text-2xl hover:border-line focus:border-field focus:bg-panel"
+          className="font-plate -mx-2 w-[calc(100%+1rem)] rounded-parcel border border-transparent bg-transparent px-2 py-0.5 text-[28px] hover:border-line focus:border-field focus:bg-panel"
         />
         <p className="text-[15px] text-ink-soft">
           {approximate ? (
             <span className="font-semibold text-wheat-deep">Boundary not drawn</span>
           ) : (
             <>
-              <span className="font-semibold text-ink" data-testid="field-acres">
+              <span className="font-semibold tabular-nums text-ink" data-testid="field-acres">
                 {formatAcres(field.areaM2)}
               </span>
               , {boundaryText(field)}
@@ -91,6 +94,7 @@ export function FieldEditor(p: Props) {
             </>
           )}
         </p>
+        </div>
       </div>
 
       {p.actions}

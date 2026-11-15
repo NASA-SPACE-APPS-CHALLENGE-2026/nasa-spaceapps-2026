@@ -1,5 +1,6 @@
 'use client';
 
+import { FLOAT, INPUT } from '../ui/styles';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { LonLat } from '@/lib/domain/types';
 import type { AddressMatch } from '@/lib/server/geocode';
@@ -139,7 +140,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
     }
   };
 
-  const bubble = compact ? 'rounded-parcel bg-panel/95 px-3 py-2' : '';
+  const bubble = compact ? `px-3 py-2 ${FLOAT}` : '';
   const showList = open && suggestions.length > 0;
 
   return (
@@ -171,10 +172,10 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
             onKeyDown={onKeyDown}
             placeholder={compact ? 'Search an address' : 'Start typing, e.g. 2229 Lincoln Way, Ames'}
             aria-describedby={!lookupsOn ? `${id}-off` : undefined}
-            className={`min-h-12 w-full min-w-0 rounded-parcel border border-line-strong bg-panel px-3 text-[16px] disabled:bg-paper ${compact ? 'shadow-sm' : ''}`}
+            className={`${INPUT} min-w-0 ${compact ? 'border-line/70 bg-panel/95 shadow-float backdrop-blur-md' : ''}`}
           />
-          <Button type="submit" disabled={!lookupsOn || state.kind === 'loading'} className={compact ? 'shrink-0 px-3' : 'shrink-0'} aria-label={compact ? 'Search address' : undefined}>
-            {state.kind === 'loading' ? (compact ? <span className="spinner !border-white/40 !border-t-white" aria-hidden /> : 'Searching…') : compact ? (
+          <Button type="submit" disabled={!lookupsOn || state.kind === 'loading'} className={compact ? 'shrink-0 px-3 shadow-float' : 'shrink-0'} aria-label={compact ? 'Search address' : undefined}>
+            {state.kind === 'loading' ? (compact ? <span className="spinner spinner-on-dark" aria-hidden /> : 'Searching…') : compact ? (
               <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
                 <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="2.2" />
                 <path d="m13 13 4.5 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -189,7 +190,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
             aria-label="Address suggestions"
             hidden={!showList}
             data-testid="address-suggestions"
-            className="absolute left-0 right-0 top-full z-[1300] mt-1 overflow-hidden rounded-parcel border border-line bg-panel p-1 shadow-lg"
+            className={`absolute left-0 right-0 top-full z-[1300] mt-1 overflow-hidden p-1 ${FLOAT}`}
           >
             {suggestions.map((m, i) => (
               <li
@@ -234,7 +235,7 @@ export function AddressSearch({ lookupsOn, onPick, variant = 'panel', autoFocus 
           <p className={`mt-2 text-[14.5px] text-ink-soft ${bubble}`}>No matching address found. Check the spelling and include the town and state, or use a ZIP code instead.</p>
         )}
         {state.kind === 'results' && state.matches.length > 1 && (
-          <div className={`mt-2 ${compact ? 'rounded-parcel border border-line bg-panel p-1 shadow-sm' : ''}`}>
+          <div className={`mt-2 ${compact ? `p-1 ${FLOAT}` : ''}`}>
             <p className="px-2 pt-1 text-[14px] text-ink-soft">{state.matches.length} matches. Pick one:</p>
             <ul className="mt-1 space-y-1">
               {state.matches.map((m) => (

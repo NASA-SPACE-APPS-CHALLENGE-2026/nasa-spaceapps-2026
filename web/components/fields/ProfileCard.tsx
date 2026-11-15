@@ -13,7 +13,7 @@ interface Props {
 /** The field's automatic profile, kept deliberately plain: a heading per topic and "label  value" rows. */
 export function ProfileCard({ profile, lookupsOn, onRefresh, onTurnOnLookups }: Props) {
   return (
-    <section aria-labelledby="profile-h" className="rounded-parcel border border-line bg-panel p-4">
+    <section aria-labelledby="profile-h" className="border-t border-line pt-5">
       <h3 id="profile-h" className="font-plate text-lg">
         Field profile
       </h3>

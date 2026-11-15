@@ -10,6 +10,9 @@ import type { Field, FieldGeometry, LonLat } from '@/lib/domain/types';
 import { overlapIssues, validateGeometry } from '@/lib/domain/validation';
 import { useFarm, useStore } from '@/lib/client/StoreProvider';
 import type { MapFocus, MapMode, MapShape } from '../map/FieldMap';
+import { cropColor } from '@/lib/domain/cropColors';
+import { buttonClass } from '../ui/Button';
+import { FLOAT } from '../ui/styles';
 import { ResponsivePanel, sheetInset, type Snap, useIsDesktop } from '../ui/ResponsivePanel';
 import { AddFieldPanel, type AddStep, type Draft, type Located } from './AddFieldPanel';
 import { AddressSearch } from './AddressSearch';
@@ -18,7 +21,7 @@ import { FieldList } from './FieldList';
 
 const FieldMap = dynamic(() => import('../map/FieldMap'), {
   ssr: false,
-  loading: () => <div className="absolute inset-0 flex items-center justify-center bg-[#dfe8e2] text-ink-soft">Loading map…</div>,
+  loading: () => <div className="absolute inset-0 flex items-center justify-center bg-[#8a7a5e] font-semibold text-chalk">Loading map…</div>,
 });
 
 /** Zoom level where individual field edges are clear on the imagery. */
@@ -39,6 +42,8 @@ export function FieldsScreen() {
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  /** Field card under the pointer or keyboard focus: its polygon lights up on the map. */
+  const [hoverId, setHoverId] = useState<string | null>(null);
   const desktop = useIsDesktop();
 
   // Arrival from Imports: show what happened, then clean the URL.
@@ -95,10 +100,11 @@ export function FieldsScreen() {
         id: f.id,
         name: f.name,
         geometry: f.feature.geometry,
+        fill: f.crops.current.crop ? cropColor(f.crops.current.crop) : undefined,
         pinOnly: f.boundary === 'approximate' && f.pin ? f.pin.center : undefined,
-        tone: view.kind === 'field' && view.id === f.id ? 'selected' : view.kind === 'add' ? 'muted' : 'default',
+        tone: view.kind === 'field' && view.id === f.id ? 'selected' : view.kind === 'add' ? 'muted' : hoverId === f.id ? 'hover' : 'default',
       })),
-    [fields, view],
+    [fields, view, hoverId],
   );
 
   let mode: MapMode = 'browse';
@@ -155,7 +161,11 @@ export function FieldsScreen() {
             loaded={loaded}
             selectedId={null}
             settings={settings}
-            onSelect={selectField}
+            onSelect={(id) => {
+              setHoverId(null);
+              selectField(id);
+            }}
+            onHover={setHoverId}
             onAdd={() => {
               setView({ kind: 'add', step: 'choose', located: null, draft: null });
               setSnap('half');
@@ -228,20 +238,14 @@ export function FieldsScreen() {
             actions={
               !view.edit && (
                 <div className="flex flex-wrap gap-2">
-                  <Link
-                    href={`/rotation?field=${selected.id}`}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-parcel bg-field px-4 text-[15px] font-semibold text-white hover:bg-field-deep"
-                  >
+                  <Link href={`/rotation?field=${selected.id}`} className={buttonClass('primary')}>
                     Explore rotation
                     <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
                       <path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                     </svg>
                   </Link>
                   {plans.some((pl) => pl.fieldId === selected.id) && (
-                    <Link
-                      href={`/planner?field=${selected.id}`}
-                      className="inline-flex min-h-12 items-center justify-center rounded-parcel border border-line-strong bg-panel px-4 text-[15px] font-semibold text-ink hover:border-field hover:text-field"
-                    >
+                    <Link href={`/planner?field=${selected.id}`} className={buttonClass('secondary')}>
                       Open plan
                     </Link>
                   )}
@@ -290,13 +294,13 @@ export function FieldsScreen() {
                   />
                 </div>
                 {!desktop && (
-                  <button type="button" onClick={() => setSearchOpen(false)} className="min-h-12 shrink-0 rounded-parcel border border-line bg-panel px-3 text-[15px] font-semibold shadow-sm">
+                  <button type="button" onClick={() => setSearchOpen(false)} className={`min-h-12 shrink-0 px-4 text-[15px] font-semibold hover:text-field ${FLOAT}`}>
                     Close
                   </button>
                 )}
               </div>
             ) : (
-              <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search an address" className="flex h-12 w-12 items-center justify-center rounded-parcel border border-line bg-panel text-ink shadow-sm">
+              <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search an address" className={`flex h-12 w-12 items-center justify-center text-ink hover:text-field ${FLOAT}`}>
                 <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
                   <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="2.2" />
                   <path d="m13 13 4.5 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -306,7 +310,7 @@ export function FieldsScreen() {
           </div>
         )}
         {toast && (
-          <div role="status" className="absolute left-1/2 top-[4.5rem] z-[1002] w-[min(92vw,440px)] -translate-x-1/2 rounded-parcel lg:left-auto lg:right-16 lg:top-3 lg:translate-x-0 border border-field/30 bg-panel px-4 py-3 text-[15px] shadow-[0_10px_30px_-12px_rgba(29,43,34,0.4)]">
+          <div role="status" className={`motion-expand absolute left-1/2 top-[4.5rem] z-[1002] w-[min(92vw,440px)] -translate-x-1/2 lg:left-auto lg:right-16 lg:top-3 lg:translate-x-0 border-l-4 !border-l-field px-4 py-3 text-[15px] leading-snug ${FLOAT}`}>
             {toast}
           </div>
         )}
