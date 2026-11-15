@@ -42,7 +42,7 @@ export const COVER_SPECIES: CoverSpecies[] = [
   },
   {
     id: 'winter-wheat-cover',
-    name: 'Winter wheat (as a cover)',
+    name: 'Winter wheat cover',
     family: 'grasses',
     winterKills: false,
     minColdestF: -15,

@@ -99,7 +99,7 @@ function season(ids: string[], year: number, inputs: RotationInputs, currentIds:
   return { year, ids, label: seasonLabel(ids), crops: windows(ids, year, inputs, currentIds), changed };
 }
 
-function goalsFor(inputs: RotationInputs): CoverGoal[] {
+export function goalsFor(inputs: RotationInputs): CoverGoal[] {
   const goals: CoverGoal[] = ['scavenge'];
   const problems = Array.isArray(inputs.answers.problems) ? inputs.answers.problems : [];
   if (problems.includes('erosion') || (inputs.slopePct?.value ?? 0) >= 6) goals.push('erosion');
