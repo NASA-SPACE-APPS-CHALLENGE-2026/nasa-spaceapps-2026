@@ -1,0 +1,7 @@
+Dataset: SMAP_L3_SM_P_E_20261110_R19240_001.h5
+/Soil_Moisture_Retrieval_Data_AM/soil_moisture[0], -9999, -9999, -9999
+/Soil_Moisture_Retrieval_Data_AM/soil_moisture[1], -9999, -9999, -9999
+/Soil_Moisture_Retrieval_Data_AM/soil_moisture[2], -9999, -9999, -9999
+/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm[0], 0.292518, 0.295033, 0.295217
+/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm[1], 0.284068, 0.284269, 0.284346
+/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm[2], 0.269287, 0.279613, 0.285204

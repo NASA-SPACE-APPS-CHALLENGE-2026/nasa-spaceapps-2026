@@ -1,7 +1,8 @@
 import { bboxOf, interiorPoint } from '../domain/acreage';
 import { SOURCE_META } from '../domain/sourceMeta';
 import type { FieldGeometry, SourceId, SourceResult } from '../domain/types';
-import { imergSource, smapSource } from './earthdataStubs';
+import { imergSource } from './imerg';
+import { smapSource } from './smap';
 import { ndviSource } from './ndvi';
 import { elevationSource } from './elevation';
 import { powerSource } from './power';

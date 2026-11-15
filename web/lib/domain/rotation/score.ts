@@ -376,7 +376,7 @@ function recentDryness(bar: Bar, inputs: RotationInputs) {
     signals.push({ dry: pct < 50, src: data(inputs.imergRain30), text: `satellite rain is ${pct}% of normal (GPM IMERG)` });
   }
   if (inputs.smapSoilMoisture) {
-    signals.push({ dry: inputs.smapSoilMoisture.value < 0.15, src: data(inputs.smapSoilMoisture), text: `surface soil moisture is ${inputs.smapSoilMoisture.value} m³/m³ (SMAP)` });
+    signals.push({ dry: inputs.smapSoilMoisture.value < 15, src: data(inputs.smapSoilMoisture), text: `topsoil moisture is ${inputs.smapSoilMoisture.value}% water by volume (NASA SMAP)` });
   }
   if (!signals.length) {
     bar.assume(-5, 'recent rain and soil moisture', 'Recent rain and soil moisture are unknown, so the risk of a dry fall seeding was assumed to be moderate.', cite('sare-mccp'));
