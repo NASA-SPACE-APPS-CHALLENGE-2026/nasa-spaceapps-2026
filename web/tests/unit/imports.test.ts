@@ -82,7 +82,7 @@ describe('yield and harvest records', () => {
   it('CSV: acre-weighted yields of the latest year, corn split by the crop before', async () => {
     const { d, ev } = await run('yield-2023-2025.csv', 'yield');
     expect(d.format).toBe('csv');
-    expect(find(ev.findings, 'param:corn.yield')).toMatchObject({ value: 204.9, confidence: 'high', suggested: true });
+    expect(find(ev.findings, 'param:corn.yield')).toMatchObject({ value: 204.9, suggested: true });
     expect(find(ev.findings, 'param:corn.yieldAfterCorn')?.value).toBe(194.6);
     expect(find(ev.findings, 'param:soybeans.yield')?.value).toBe(60.1);
     // The demo farm's crops are already confirmed and match, so there is nothing to confirm.
@@ -96,7 +96,7 @@ describe('yield and harvest records', () => {
     const c = { ...ctx, fields: [emptied, ...fields.slice(1, 5), conflicting] };
     const { ev } = await run('yield-2023-2025.csv', 'yield', env, c);
     expect(find(ev.findings, `crop:${north.id}:2025`)).toMatchObject({ value: 'corn', suggested: true });
-    expect(find(ev.findings, `crop:${conflicting.id}:2025`)).toMatchObject({ value: 'corn', suggested: false, confidence: 'low' });
+    expect(find(ev.findings, `crop:${conflicting.id}:2025`)).toMatchObject({ value: 'corn', suggested: false });
   });
 
   it('shapefile yield map: mean of the points inside each field', async () => {
@@ -105,7 +105,6 @@ describe('yield and harvest records', () => {
     const f = find(ev.findings, 'param:corn.yield')!;
     expect(f.value as number).toBeGreaterThan(200);
     expect(f.value as number).toBeLessThan(222);
-    expect(f.confidence).toBe('medium');
     expect(ev.summary).toMatch(/2 fields/);
   });
 
@@ -201,7 +200,6 @@ describe('supplier and purchase records', () => {
     const langPath = path.join(__dirname, '..', '..', 'node_modules', '@tesseract.js-data', 'eng', '4.0.0_best_int');
     const { d, ev } = await run('coop-invoice-2026-photo.png', 'supplier', { ocr: (imgs, onProgress) => ocrImages(imgs as Uint8Array[], { paths: { langPath, cacheMethod: 'none' }, onProgress }) });
     expect(d.format).toBe('image');
-    expect(d.ocrConfidence!).toBeGreaterThan(80);
     expectInvoice(ev.findings);
   }, 60000);
 
@@ -212,7 +210,7 @@ describe('supplier and purchase records', () => {
 
 describe('applying findings (review, then apply)', () => {
   const rec = (id: string, findings: Finding[], applied: string[], importedAt: string): ImportRecord => ({ id, kind: 'yield', fileName: `${id}.csv`, size: 1, format: 'csv', importedAt, summary: '', warnings: [], data: { kind: 'yield', rows: [] }, findings, applied });
-  const f = (target: string, value: number): Finding => ({ target, label: target, group: 'Yields', value, evidence: '', confidence: 'high', suggested: true });
+  const f = (target: string, value: number): Finding => ({ target, label: target, group: 'Yields', value, evidence: '', suggested: true });
 
   it('only applied findings count; the latest file wins; a typed value beats any file', () => {
     const a = rec('a', [f('param:corn.yield', 200), f('param:soybeans.yield', 55)], ['param:corn.yield'], '2026-11-01T00:00:00Z');

@@ -2,7 +2,7 @@ import { COVER_LABELS, IRRIGATION_LABELS, known, MONTH_NAMES, PROBLEM_LABELS, TI
 import type { StrategyId } from '../types';
 import { agronomyOf, coldestMonthF, cropName, fallGdd40, familyOf, HOSTS, SMALL_GRAINS } from './agronomy';
 import type { CitationId } from './citations';
-import type { DataPoint, InputHonesty, RotationInputs } from './inputs';
+import type { DataPoint, RotationInputs } from './inputs';
 import { buildStrategies, PLAN_YEARS, type PlannedSeason, type Strategy } from './strategies';
 
 /**
@@ -12,7 +12,6 @@ import { buildStrategies, PLAN_YEARS, type PlannedSeason, type Strategy } from '
  */
 
 export type BarId = 'soilCover' | 'diversity' | 'pests' | 'climate';
-export type Confidence = 'low' | 'medium' | 'high';
 
 export const BARS: Array<{ id: BarId; label: string; question: string }> = [
   { id: 'soilCover', label: 'Soil cover', question: 'How much of the year living plants cover and hold the soil.' },
@@ -23,7 +22,7 @@ export const BARS: Array<{ id: BarId; label: string; question: string }> = [
 
 export type ReasonSource =
   | { kind: 'citation'; id: CitationId }
-  | { kind: 'data'; label: string; display: string; provider: string; honesty: InputHonesty }
+  | { kind: 'data'; label: string; display: string; provider: string; fromFarmer?: boolean }
   | { kind: 'answer'; question: string; answer: string }
   | { kind: 'history'; text: string };
 
@@ -40,7 +39,6 @@ export interface BarScore {
   id: BarId;
   label: string;
   score: number | null;
-  confidence: Confidence;
   reasons: Reason[];
   /** Inputs that were missing; for an unscored bar, what would be needed. */
   missing: string[];
@@ -66,25 +64,20 @@ export interface RotationResult {
 }
 
 export const MIN_SCORED_BARS = 3;
-const LEVELS: Confidence[] = ['low', 'medium', 'high'];
-const lower = (c: Confidence, steps = 1): Confidence => LEVELS[Math.max(0, LEVELS.indexOf(c) - steps)];
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 const cite = (...ids: CitationId[]): ReasonSource[] => ids.map((id) => ({ kind: 'citation', id }));
-const data = (p: DataPoint<unknown>): ReasonSource => ({ kind: 'data', label: p.label, display: p.display, provider: p.provider, honesty: p.honesty });
+const data = (p: DataPoint<unknown>): ReasonSource => ({ kind: 'data', label: p.label, display: p.display, provider: p.provider, fromFarmer: p.fromFarmer });
 const answer = (question: string, a: string): ReasonSource => ({ kind: 'answer', question, answer: a });
 
 class Bar {
   score: number;
-  confidence: Confidence;
   reasons: Reason[] = [];
   missing: string[] = [];
   constructor(
     readonly id: BarId,
     base: number,
-    confidence: Confidence,
   ) {
     this.score = base;
-    this.confidence = confidence;
   }
   add(effect: number, text: string, sources: ReasonSource[]) {
     this.score += effect;
@@ -98,21 +91,20 @@ class Bar {
     this.score = base;
     this.reasons.push({ text, sources, headline: true });
   }
-  /** Missing optional input: half the unfavourable adjustment, one confidence level lower, and say so. */
+  /** Missing optional input: half the unfavourable adjustment, and say so. */
   assume(unfavourable: number, what: string, text: string, sources: ReasonSource[]) {
     this.add(unfavourable / 2, text, sources);
-    this.confidence = lower(this.confidence);
     this.missing.push(what);
   }
   done(): BarScore {
-    return { id: this.id, label: label(this.id), score: clamp(this.score), confidence: this.confidence, reasons: this.reasons, missing: this.missing };
+    return { id: this.id, label: label(this.id), score: clamp(this.score), reasons: this.reasons, missing: this.missing };
   }
 }
 
 const label = (id: BarId) => BARS.find((b) => b.id === id)!.label;
 
 function unscored(id: BarId, missing: string[], why: string, sources: ReasonSource[]): BarScore {
-  return { id, label: label(id), score: null, confidence: 'low', reasons: [{ text: why, sources }], missing };
+  return { id, label: label(id), score: null, reasons: [{ text: why, sources }], missing };
 }
 
 // ---------- helpers over a strategy's seasons ----------
@@ -165,7 +157,7 @@ const hasHost = (ids: string[] | null, hosts: ReadonlySet<string>) => !!ids && i
 function soilCoverBar(st: Strategy, inputs: RotationInputs, firstYear: number): BarScore {
   const months = coveredMonths(st.seasons, firstYear);
   const base = (100 * (months.living + 0.5 * months.residue)) / months.total;
-  const bar = new Bar('soilCover', 0, 'high');
+  const bar = new Bar('soilCover', 0);
   bar.start(
     base,
     `Living plants cover the soil about ${months.living} of the ${months.total} months from ${firstYear} to ${firstYear + PLAN_YEARS - 1}${months.residue ? `, and winter-killed cover residue protects it ${months.residue} more` : ''}.`,
@@ -185,14 +177,13 @@ function soilCoverBar(st: Strategy, inputs: RotationInputs, firstYear: number): 
   else if (tillage === 'conventional') bar.add(-10, 'Full tillage buries most residue, so bare months are fully exposed to wind and rain.', [answer(tq, TILLAGE_LABELS.conventional), ...cite('nrcs-329')]);
   else bar.assume(-10, 'tillage', 'Tillage is unknown, so PlotTwist assumed some residue is buried (half the full-tillage penalty).', [answer(tq, 'Not answered'), ...cite('nrcs-329')]);
   if (known(inputs.answers.harvestMonth) === undefined) {
-    bar.confidence = lower(bar.confidence);
     bar.missing.push('harvest month');
     bar.note('Your usual harvest month is unknown, so the usual month for the crop was used.', cite('nass-dates'));
   }
   return bar.done();
 }
 
-function diversityBar(st: Strategy, inputs: RotationInputs, knownSeasons: number, unconfirmed: boolean): BarScore {
+function diversityBar(st: Strategy, inputs: RotationInputs, knownSeasons: number): BarScore {
   if (knownSeasons < 2) {
     return unscored('diversity', ['an earlier season'], 'Not enough info: enter at least one earlier season on the Fields tab.', [{ kind: 'history', text: 'Crop history on the Fields tab' }]);
   }
@@ -200,7 +191,7 @@ function diversityBar(st: Strategy, inputs: RotationInputs, knownSeasons: number
   const covers = st.seasons.flatMap((s) => (s.cover ? [s.cover.pick.species] : []));
   const families = new Set<string>([...cash.map((id) => familyOf(id) ?? id), ...covers.map((c) => c.family)]);
   const seasonsUsed = new Set(cash.map((id) => agronomyOf(id)?.season));
-  const bar = new Bar('diversity', 20, unconfirmed ? 'medium' : 'high');
+  const bar = new Bar('diversity', 20);
   const extraFamilies = Math.min(3, families.size - 1);
   bar.start(20, 'Starts at 20 for a single crop family.', cite('nrcs-328'));
   if (extraFamilies > 0) bar.add(20 * extraFamilies, `${families.size} plant families (${[...families].join(', ')}) over ${PLAN_YEARS} years.`, cite('nrcs-328', 'davis-2012'));
@@ -211,19 +202,18 @@ function diversityBar(st: Strategy, inputs: RotationInputs, knownSeasons: number
     bar.note('All cash crops grow in the same season, so the field follows the same calendar every year.', cite('nrcs-328'));
   }
   if (covers.length) bar.add(10, `Adds a cover crop species (${[...new Set(covers.map((c) => c.name))].join(', ')}).`, cite('sare-mccp'));
-  if (unconfirmed) bar.note('Some past crops came from USDA’s Cropland Data Layer and you haven’t confirmed them yet.', [{ kind: 'history', text: 'Crops marked “Check this info” on the Fields tab' }]);
   return bar.done();
 }
 
 const PEST_CITES: Record<'rootworm' | 'scn' | 'white-mold', CitationId> = { rootworm: 'gray-2009', scn: 'scn-coalition', 'white-mold': 'peltier-2012' };
 
-function pestsBar(st: Strategy, inputs: RotationInputs, knownSeasons: number, unconfirmed: boolean): BarScore {
+function pestsBar(st: Strategy, inputs: RotationInputs, knownSeasons: number): BarScore {
   if (knownSeasons < 2) {
     return unscored('pests', ['an earlier season'], 'Not enough info: enter at least one earlier season on the Fields tab so PlotTwist can see what follows what.', [{ kind: 'history', text: 'Crop history on the Fields tab' }]);
   }
   const current = inputs.seasons[inputs.seasons.length - 1].ids!;
   const seq: string[][] = [current, ...st.seasons.map(seasonIds)];
-  const bar = new Bar('pests', 50, unconfirmed ? 'medium' : 'high');
+  const bar = new Bar('pests', 50);
   bar.start(50, 'Starts at 50, then rises or falls with how often host crops repeat.', cite('nrcs-328'));
 
   // Longest run of the same crop that touches a planned season.
@@ -307,14 +297,14 @@ function climateBar(st: Strategy, inputs: RotationInputs): BarScore {
       'climate',
       ['NASA POWER climate normals'],
       inputs.lookupsOff ? 'Not enough info: public data lookups are off, so this field has no climate normals.' : 'Not enough info: NASA POWER climate normals for this field have not loaded.',
-      [{ kind: 'data', label: 'Climate normals', display: 'Missing', provider: 'NASA POWER', honesty: 'Estimated' }],
+      [{ kind: 'data', label: 'Climate normals', display: 'Missing', provider: 'NASA POWER' }],
     );
   }
   const c = inputs.climate.value;
   const climateSrc = data(inputs.climate);
   const irrigation = known(inputs.answers.irrigation);
   const iq = 'Is this field irrigated?';
-  const bar = new Bar('climate', 0, 'medium');
+  const bar = new Bar('climate', 0);
   const sum = (months: number[]) => Math.round(months.reduce((a, m) => a + c.monthlyRainIn[m - 1], 0) * 10) / 10;
   bar.note('Based on 30-year normals for a roughly 50 km NASA POWER grid cell, not your field’s own weather.', [climateSrc]);
 
@@ -444,9 +434,8 @@ export function scoreRotation(inputs: RotationInputs): RotationResult {
   const { weights, reasons: weightReasons } = weightsFor(inputs);
   if (set.problem) return { strategies: [], bestFit: null, bestFitReason: set.problem, weights, weightReasons, problem: set.problem, knownSeasons: 0 };
   const firstYear = inputs.currentYear + 1;
-  const unconfirmed = inputs.seasons.some((s) => s.status === 'detected');
   const strategies: StrategyScore[] = set.strategies.map((st) => {
-    const bars = [soilCoverBar(st, inputs, firstYear), diversityBar(st, inputs, set.knownSeasons, unconfirmed), pestsBar(st, inputs, set.knownSeasons, unconfirmed), climateBar(st, inputs)];
+    const bars = [soilCoverBar(st, inputs, firstYear), diversityBar(st, inputs, set.knownSeasons), pestsBar(st, inputs, set.knownSeasons), climateBar(st, inputs)];
     return { strategy: st, bars, overall: overallOf(bars, weights), caveats: caveats(st, inputs) };
   });
   const ranked = strategies.filter((s) => s.overall !== null).sort((a, b) => b.overall! - a.overall! || a.strategy.practiceChanges - b.strategy.practiceChanges);

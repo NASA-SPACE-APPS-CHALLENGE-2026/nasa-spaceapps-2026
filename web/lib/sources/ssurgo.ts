@@ -126,12 +126,12 @@ export function summarizeSoil(areas: Row[], props: Row[], fieldAreaM2: number): 
 export function soilValues(s: SoilSummary): ProfileValue[] {
   const survey = 'From the county soil survey map (generalized map units with typical values), not a soil test of this field.';
   const v: ProfileValue[] = [
-    { key: 'dominantSoil', label: 'Main soil', value: s.dominant.name, honesty: 'Estimated', note: `Covers about ${s.dominant.pctOfField}% of the field; ${s.mapUnitCount} soil map unit${s.mapUnitCount === 1 ? '' : 's'} in total.` },
+    { key: 'dominantSoil', label: 'Main soil', value: s.dominant.name, note: `Covers about ${s.dominant.pctOfField}% of the field; ${s.mapUnitCount} soil map unit${s.mapUnitCount === 1 ? '' : 's'} in total.` },
   ];
-  if (s.texture) v.push({ key: 'texture', label: 'Surface texture', value: s.texture, honesty: 'Estimated', note: `Main component of the main soil. ${survey}` });
-  if (s.organicMatterPct !== null) v.push({ key: 'organicMatter', label: 'Organic matter (surface layer)', value: s.organicMatterPct, unit: '%', honesty: 'Estimated', note: `Area-weighted representative value. ${survey}` });
-  if (s.drainage) v.push({ key: 'drainage', label: 'Drainage class', value: s.drainage, honesty: 'Estimated', note: `Dominant condition of the main soil. ${survey}` });
-  if (s.hydrologicGroup) v.push({ key: 'hydrologicGroup', label: 'Hydrologic soil group', value: s.hydrologicGroup, honesty: 'Estimated', note: 'A = water soaks in fastest (least runoff) … D = slowest (most runoff). A dual group like B/D means drained / undrained.' });
+  if (s.texture) v.push({ key: 'texture', label: 'Surface texture', value: s.texture, note: `Main component of the main soil. ${survey}` });
+  if (s.organicMatterPct !== null) v.push({ key: 'organicMatter', label: 'Organic matter (surface layer)', value: s.organicMatterPct, unit: '%', note: `Area-weighted representative value. ${survey}` });
+  if (s.drainage) v.push({ key: 'drainage', label: 'Drainage class', value: s.drainage, note: `Dominant condition of the main soil. ${survey}` });
+  if (s.hydrologicGroup) v.push({ key: 'hydrologicGroup', label: 'Hydrologic soil group', value: s.hydrologicGroup, note: 'A = water soaks in fastest (least runoff) … D = slowest (most runoff). A dual group like B/D means drained / undrained.' });
   return v;
 }
 

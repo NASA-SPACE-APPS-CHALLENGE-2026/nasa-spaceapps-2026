@@ -1,6 +1,4 @@
-import type { BarScore, Confidence } from '@/lib/domain/rotation/score';
-
-const CONFIDENCE: Record<Confidence, string> = { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' };
+import type { BarScore } from '@/lib/domain/rotation/score';
 
 /**
  * One labelled 0–100 bar. The number and label are always shown, so meaning never depends on colour.
@@ -15,7 +13,7 @@ export function ScoreBar({ bar, compact = false }: { bar: BarScore; compact?: bo
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={missing ? undefined : bar.score!}
-      aria-valuetext={missing ? 'Not enough information to score' : `${bar.score} out of 100, ${CONFIDENCE[bar.confidence].toLowerCase()}`}
+      aria-valuetext={missing ? 'Not enough information to score' : `${bar.score} out of 100`}
       className={`relative h-2 overflow-hidden rounded-[2px] ${missing ? 'border border-dashed border-line-strong bg-paper' : 'bg-line/70'}`}
     >
       {!missing && <span className="absolute inset-y-0 left-0 rounded-[2px] bg-field" style={{ width: `${bar.score}%` }} />}
@@ -43,7 +41,7 @@ export function ScoreBar({ bar, compact = false }: { bar: BarScore; compact?: bo
         </span>
       </div>
       <div className="mt-1.5">{meter}</div>
-      <p className="mt-1 text-[12.5px] text-ink-soft">{missing ? bar.missing.length ? `Needs ${bar.missing.join(', ')}` : '' : CONFIDENCE[bar.confidence]}</p>
+      {missing && bar.missing.length > 0 && <p className="mt-1 text-[12.5px] text-ink-soft">Needs {bar.missing.join(', ')}</p>}
     </div>
   );
 }

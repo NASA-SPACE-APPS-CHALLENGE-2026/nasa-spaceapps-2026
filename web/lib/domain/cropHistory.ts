@@ -51,22 +51,9 @@ export function setSeasonCrop(crops: FieldCrops, year: number, crop: CropRef | n
   }));
 }
 
-export function confirmSeason(crops: FieldCrops, year: number): FieldCrops {
-  return mapSeason(crops, year, (s) => (s.status === 'detected' && s.crop ? { ...s, status: 'confirmed' } : s));
-}
-
-export function confirmAllDetected(crops: FieldCrops): FieldCrops {
-  const confirm = (s: SeasonCrop): SeasonCrop => (s.status === 'detected' && s.crop ? { ...s, status: 'confirmed' } : s);
-  return { current: confirm(crops.current), history: crops.history.map(confirm) };
-}
-
-export function countUnconfirmed(crops: FieldCrops): number {
-  return [crops.current, ...crops.history].filter((s) => s.status === 'detected').length;
-}
-
-/** "Needs crops" when anything is detected-but-unconfirmed or the current crop is missing. */
+/** "Needs crops" when the current crop is missing. */
 export function needsCropReview(crops: FieldCrops): boolean {
-  return countUnconfirmed(crops) > 0 || crops.current.status === 'empty';
+  return crops.current.status === 'empty';
 }
 
 export function cdlYearsFor(crops: FieldCrops): number[] {

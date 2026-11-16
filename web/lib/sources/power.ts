@@ -152,12 +152,12 @@ export function summaryValues(s: PowerSummary): ProfileValue[] {
   const grid = 'NASA POWER model grid cell (about 50 km across), not a gauge on your field.';
   const diff = r1(s.meanTempF - s.normalMeanTempF);
   return [
-    { key: 'rain30', label: `Rain, last ${s.days} days`, value: s.rainIn, unit: 'in', honesty: 'Estimated', note: `Bias-corrected precipitation. ${grid}` },
-    { key: 'rainNormal', label: 'Normal rain for these dates', value: s.normalRainIn, unit: 'in', honesty: 'Estimated', note: '1991–2020 POWER climatology.' },
-    { key: 'avgHigh', label: 'Average daily high', value: s.avgHighF, unit: '°F', honesty: 'Estimated', note: grid },
-    { key: 'avgLow', label: 'Average daily low', value: s.avgLowF, unit: '°F', honesty: 'Estimated', note: grid },
-    { key: 'tempVsNormal', label: 'Temperature vs normal', value: `${diff > 0 ? '+' : ''}${diff}`, unit: '°F', honesty: 'Estimated', note: `Mean ${s.meanTempF} °F vs 1991–2020 normal ${s.normalMeanTempF} °F.` },
-    { key: 'gdd30', label: `Growing degree days, last ${s.days} days`, value: s.gdd, unit: 'GDD (°F, base 50)', honesty: 'Estimated', note: 'Modified method, 86 °F cap.' },
+    { key: 'rain30', label: `Rain, last ${s.days} days`, value: s.rainIn, unit: 'in', note: `Bias-corrected precipitation. ${grid}` },
+    { key: 'rainNormal', label: 'Normal rain for these dates', value: s.normalRainIn, unit: 'in', note: '1991–2020 POWER climatology.' },
+    { key: 'avgHigh', label: 'Average daily high', value: s.avgHighF, unit: '°F', note: grid },
+    { key: 'avgLow', label: 'Average daily low', value: s.avgLowF, unit: '°F', note: grid },
+    { key: 'tempVsNormal', label: 'Temperature vs normal', value: `${diff > 0 ? '+' : ''}${diff}`, unit: '°F', note: `Mean ${s.meanTempF} °F vs 1991–2020 normal ${s.normalMeanTempF} °F.` },
+    { key: 'gdd30', label: `Growing degree days, last ${s.days} days`, value: s.gdd, unit: 'GDD (°F, base 50)', note: 'Modified method, 86 °F cap.' },
   ];
 }
 

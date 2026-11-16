@@ -1,5 +1,5 @@
 import { cropName } from '../rotation/agronomy';
-import { confidenceOf, type Confidence, type Origin, type Params, type SourceRef } from './assumptions';
+import type { Origin, Params, SourceRef } from './assumptions';
 import type { CoverProgram } from './inputs';
 import { COST_LABELS, cropKeyOf, emptyCosts, isBudgeted, OPERATING_CATS, seasonBudget, type CostCat, type CropKey, type FieldSetup, type Season, type SeasonPlan, type WeatherYear } from './budget';
 import type { WeatherHistory } from './weather';
@@ -343,7 +343,6 @@ export interface TransparencyRow {
   unit: string;
   origin: Origin;
   source: SourceRef;
-  confidence: Confidence;
   note?: string;
 }
 
@@ -352,14 +351,13 @@ export interface FarmAnalysis {
   acres: number;
   current: PlanYear[];
   proposed: PlanYear[];
-  headline: { low: number; mid: number; high: number; wholeFarm: number; horizon: number };
+  headline: { mid: number; wholeFarm: number; horizon: number };
   partial: PartialBudget;
   cash: CashFlow;
   risk: { current: RiskStats; proposed: RiskStats; years: number; stressYears: Record<CropKey, number[]> } | null;
   savings: { nLbs: number; nDollars: number; costShare: number; costShareTiming: string; programs: ProgramNote[] };
   sensitivity: { rows: SensitivityRow[]; breakEven: BreakEven[] };
   transparency: TransparencyRow[];
-  confidence: Record<'headline' | 'comparison' | 'partial' | 'cash' | 'risk' | 'savings' | 'sensitivity', Confidence>;
   /** Everything that keeps the projection from being complete, as "Field, year: what" lines. */
   unmodeled: string[];
   /** Crop ids in the rotations with no published budget and no budget from the farmer yet. */
@@ -405,9 +403,7 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
   const current = projectPlan(fields, 'current', P, opts);
   const proposed = projectPlan(fields, 'proposed', P, opts);
   const acres = fields.reduce((s, f) => s + f.setup.acres, 0);
-  const diff = (Q: Params) => avgPerAcre(projectPlan(fields, 'proposed', Q, opts)) - avgPerAcre(projectPlan(fields, 'current', Q, opts));
   const mid = avgPerAcre(proposed) - avgPerAcre(current);
-  const scenarioDiffs = [mid, diff(scaled(P, PRICE_IDS, 0.9)), diff(scaled(P, PRICE_IDS, 1.1)), diff(scaled(P, YIELD_IDS, 0.9)), diff(scaled(P, YIELD_IDS, 1.1))];
   const wholeFarm = proposed.reduce((s, y) => s + y.net, 0) - current.reduce((s, y) => s + y.net, 0);
 
   const rows: SensitivityRow[] = [];
@@ -464,12 +460,9 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
 
   const transparency: TransparencyRow[] = [...P.used].sort().map((id) => {
     const r = P.resolve(id);
-    return { id, label: r.assumption.label, group: r.assumption.group, value: r.value, unit: r.assumption.unit, origin: r.origin, source: P.sourceOf(id), confidence: r.origin === 'default' ? r.assumption.confidence : 'high', note: r.assumption.note };
+    return { id, label: r.assumption.label, group: r.assumption.group, value: r.value, unit: r.assumption.unit, origin: r.origin, source: P.sourceOf(id), note: r.assumption.note };
   });
 
-  const all = [...P.used];
-  const pick = (prefixes: string[]) => all.filter((id) => prefixes.some((p) => id.startsWith(p)));
-  const overall = confidenceOf(P, all.filter((id) => !id.startsWith('risk.') && !id.startsWith('practice.') && !id.startsWith('fsa.')));
   const seasons = fields.flatMap((f) => [...f.current, ...f.proposed].map((s) => ({ f, s })));
   const skipped = current.flatMap((y) => y.skipped);
   const missingSeasons = skipped.filter((s) => s.reason === 'no-crop').map((s) => `${s.fieldName}, ${s.year}`);
@@ -478,29 +471,19 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
     ...missingSeasons.map((x) => `${x}: crop not entered`),
     ...new Set(seasons.flatMap(({ f, s }) => s.crops.filter((id) => !isBudgeted(id, P)).map((id) => `${f.name}, ${s.year}: ${cropName(id)}`))),
   ];
-  const confidence = {
-    headline: overall,
-    comparison: overall,
-    partial: overall,
-    cash: overall,
-    risk: risk ? confidenceOf(P, pick(['risk.'])) : ('low' as Confidence),
-    savings: confidenceOf(P, pick(['eqip.', 'state.', 'insurance.', 'csp.', 'n.price', 'corn.nLbs', 'cover.legumeNCredit'])),
-    sensitivity: overall,
-  };
 
   return {
     years: current.map((y) => y.year),
     acres,
     current,
     proposed,
-    headline: { low: Math.min(...scenarioDiffs), mid, high: Math.max(...scenarioDiffs), wholeFarm, horizon: current.length },
+    headline: { mid, wholeFarm, horizon: current.length },
     partial: partialBudget(current, proposed),
     cash: cashFlow(current, proposed),
     risk,
     savings: { nLbs: nC - nP, nDollars: (nC - nP) * P.get('n.price'), costShare, costShareTiming: costShare > 0 ? 'Cost share is paid after the practice is checked, usually the winter after seeding; an insurance discount comes off the next year’s premium.' : program === 'none' ? 'No cover crop program is counted (Your numbers → Programs and savings).' : 'No cover crop acres qualify, so no program money is counted.', programs },
     sensitivity: { rows, breakEven: breakEvens(fields, P) },
     transparency,
-    confidence,
     unmodeled,
     needsBudget,
     missingSeasons,

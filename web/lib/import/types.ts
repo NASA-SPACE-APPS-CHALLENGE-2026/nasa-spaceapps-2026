@@ -5,7 +5,6 @@
 
 export type ImportKind = 'yield' | 'machine' | 'supplier' | 'finance';
 export type ImportFormat = 'csv' | 'xlsx' | 'xls' | 'ods' | 'pdf' | 'image' | 'shapefile' | 'isoxml';
-export type FindingConfidence = 'high' | 'medium' | 'low';
 
 /** A season's crop as recorded in a file, before mapping to the crop catalogue. */
 export interface YieldRow {
@@ -115,7 +114,6 @@ export interface Finding {
   unit?: string;
   /** Short text: which rows, years or fields this came from. */
   evidence: string;
-  confidence: FindingConfidence;
   /** Ticked by default in review. */
   suggested: boolean;
 }

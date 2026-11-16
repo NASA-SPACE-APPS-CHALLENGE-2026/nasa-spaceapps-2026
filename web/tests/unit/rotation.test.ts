@@ -120,7 +120,6 @@ describe('scoring rubric', () => {
         expect(m.score!, `${s.strategy.id}/${b.id}`).toBeLessThanOrEqual(b.score!);
       }
     }
-    expect(bar(missing, 'keep', 'soilCover').confidence).not.toBe('high');
     expect(bar(missing, 'keep', 'soilCover').missing).toContain('tillage');
   });
 
@@ -164,10 +163,10 @@ describe('scoring rubric', () => {
   it('a soil test overrides the soil-survey organic matter and is labelled as the farmer’s', () => {
     const f = cornSoy;
     const profile = profileFor(f, AMES, {
-      ssurgo: { sourceId: 'ssurgo', sourceName: 'SSURGO', docsUrl: '', status: 'ok', values: [{ key: 'organicMatter', label: 'OM', value: 3.1, unit: '%', honesty: 'Estimated' }] },
+      ssurgo: { sourceId: 'ssurgo', sourceName: 'SSURGO', docsUrl: '', status: 'ok', values: [{ key: 'organicMatter', label: 'OM', value: 3.1, unit: '%' }] },
     });
-    expect(buildInputs(f, profile, {}).organicMatter).toMatchObject({ value: 3.1, honesty: 'Estimated' });
-    expect(buildInputs(f, profile, { soilTest: { organicMatterPct: 4.2 } }).organicMatter).toMatchObject({ value: 4.2, honesty: 'You entered' });
+    expect(buildInputs(f, profile, {}).organicMatter).toMatchObject({ value: 3.1 });
+    expect(buildInputs(f, profile, { soilTest: { organicMatterPct: 4.2 } }).organicMatter).toMatchObject({ value: 4.2, fromFarmer: true });
   });
 
   it('ignores a profile from an older boundary', () => {
@@ -178,10 +177,10 @@ describe('scoring rubric', () => {
 
   it('recent dryness from POWER lowers cover-crop climate fit', () => {
     const wet = profileFor(cornSoy, AMES, {
-      power: { sourceId: 'power', sourceName: 'NASA POWER', docsUrl: '', status: 'ok', climate: AMES, values: [{ key: 'rain30', label: 'r', value: 3, unit: 'in', honesty: 'Estimated' }, { key: 'rainNormal', label: 'n', value: 2.2, unit: 'in', honesty: 'Estimated' }] },
+      power: { sourceId: 'power', sourceName: 'NASA POWER', docsUrl: '', status: 'ok', climate: AMES, values: [{ key: 'rain30', label: 'r', value: 3, unit: 'in' }, { key: 'rainNormal', label: 'n', value: 2.2, unit: 'in' }] },
     });
     const dry = profileFor(cornSoy, AMES, {
-      power: { sourceId: 'power', sourceName: 'NASA POWER', docsUrl: '', status: 'ok', climate: AMES, values: [{ key: 'rain30', label: 'r', value: 0.4, unit: 'in', honesty: 'Estimated' }, { key: 'rainNormal', label: 'n', value: 2.2, unit: 'in', honesty: 'Estimated' }] },
+      power: { sourceId: 'power', sourceName: 'NASA POWER', docsUrl: '', status: 'ok', climate: AMES, values: [{ key: 'rain30', label: 'r', value: 0.4, unit: 'in' }, { key: 'rainNormal', label: 'n', value: 2.2, unit: 'in' }] },
     });
     expect(bar(score(cornSoy, FULL, dry), 'cover', 'climate').score!).toBeLessThan(bar(score(cornSoy, FULL, wet), 'cover', 'climate').score!);
   });

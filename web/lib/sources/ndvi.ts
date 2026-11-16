@@ -94,14 +94,13 @@ function prettyDate(iso: string): string {
 
 export function ndviValues(now: NdviReading, lastYear: NdviReading | null): ProfileValue[] {
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  const label = (r: NdviReading) => (r.insideField ? 'Measured' : 'Estimated') as ProfileValue['honesty'];
   const pixelNote = (r: NdviReading) =>
     r.insideField ? `Average of ${r.pixels} MODIS 250 m pixel${r.pixels === 1 ? '' : 's'} inside the field (clear-sky only).` : 'No 250 m pixel centre falls inside this field, so the nearest pixel is used.';
   const values: ProfileValue[] = [
-    { key: 'ndviLatest', label: `Crop greenness (NDVI), ${prettyDate(now.date)}`, value: r2(now.ndvi), honesty: label(now), note: `${describe(now.ndvi)}. 16-day satellite composite starting ${prettyDate(now.date)}. ${pixelNote(now)} 0 ≈ bare soil, 0.8+ ≈ dense green crop.` },
+    { key: 'ndviLatest', label: `Crop greenness (NDVI), ${prettyDate(now.date)}`, value: r2(now.ndvi), note: `${describe(now.ndvi)}. 16-day satellite composite starting ${prettyDate(now.date)}. ${pixelNote(now)} 0 ≈ bare soil, 0.8+ ≈ dense green crop.` },
   ];
   if (lastYear) {
-    values.push({ key: 'ndviLastYear', label: `Same time last year (${prettyDate(lastYear.date)})`, value: r2(lastYear.ndvi), honesty: label(lastYear), note: `${describe(lastYear.ndvi)}. ${pixelNote(lastYear)}` });
+    values.push({ key: 'ndviLastYear', label: `Same time last year (${prettyDate(lastYear.date)})`, value: r2(lastYear.ndvi), note: `${describe(lastYear.ndvi)}. ${pixelNote(lastYear)}` });
   }
   return values;
 }

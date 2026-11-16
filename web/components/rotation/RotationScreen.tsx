@@ -93,7 +93,7 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
             Three strategies for the next three seasons
           </h2>
           <p className="text-[14.5px] text-ink-soft">
-            {answered} of {QUESTION_KEYS.length} questions answered{hasSoilTest(answers) ? ', soil test added' : ''}. Unanswered questions lower confidence.
+            {answered} of {QUESTION_KEYS.length} questions answered{hasSoilTest(answers) ? ', soil test added' : ''}. Unanswered questions never raise a score.
           </p>
         </div>
         <Button variant="secondary" onClick={onEdit}>
@@ -134,7 +134,7 @@ function Results({ fieldId, rotation, lookupsOn, onEdit, onSave }: { fieldId: st
           ))}
         </ul>
         <p className="mt-2 text-[14px] text-ink-faint">
-          Each bar is 0–100, higher is better. The best fit has the highest average of at least three scored bars; within one point, the strategy with fewer changes wins. All thresholds are placeholders awaiting agronomist review.
+          Each bar is 0–100, higher is better. The best fit has the highest average of at least three scored bars; within one point, the strategy with fewer changes wins.
         </p>
       </details>
     </section>

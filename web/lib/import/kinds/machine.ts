@@ -95,7 +95,7 @@ export function machineFindings(rows: Operation[], ctx: ImportContext): { findin
     nByField.set(field.id, cur);
   }
   for (const [fieldId, v] of nByField) {
-    findings.push({ target: `field:${fieldId}:nRateCorn`, label: `${byField.get(fieldId)!.name}: nitrogen on corn`, group: 'Field practices', value: Math.round(v.n), unit: 'lb N/ac', evidence: `${latest}: all N applications on this field added up`, confidence: 'high', suggested: true });
+    findings.push({ target: `field:${fieldId}:nRateCorn`, label: `${byField.get(fieldId)!.name}: nitrogen on corn`, group: 'Field practices', value: Math.round(v.n), unit: 'lb N/ac', evidence: `${latest}: all N applications on this field added up`, suggested: true });
   }
   for (const afterCorn of [false, true]) {
     const set = [...nByField.values()].filter((v) => v.afterCorn === afterCorn);
@@ -108,7 +108,7 @@ export function machineFindings(rows: Operation[], ctx: ImportContext): { findin
       value: Math.round(set.reduce((s, v) => s + v.n * v.acres, 0) / w),
       unit: 'lb N/ac',
       evidence: `${latest}: ${plural(set.length, 'field')}, acre-weighted`,
-      confidence: 'high',
+     
       suggested: true,
     });
   }
@@ -132,7 +132,7 @@ export function machineFindings(rows: Operation[], ctx: ImportContext): { findin
       value: r1((perAcDefault * rate) / perSeeds),
       unit: '$/ac',
       evidence: `${latest}: average ${Math.round(rate).toLocaleString('en-US')} seeds/ac over ${plural(ops.length, 'planting')}, priced like the current seed cost`,
-      confidence: 'medium',
+     
       suggested: true,
     });
   }
@@ -145,7 +145,7 @@ export function machineFindings(rows: Operation[], ctx: ImportContext): { findin
     if (!prev || (prev === 'reduced' && t === 'conventional')) tillByField.set(o.fieldId!, t);
   }
   for (const [fieldId, t] of tillByField) {
-    findings.push({ target: `field:${fieldId}:tillage`, label: `${byField.get(fieldId)!.name}: tillage`, group: 'Field practices', value: t, evidence: 'From the tillage passes in your machine records', confidence: 'medium', suggested: true });
+    findings.push({ target: `field:${fieldId}:tillage`, label: `${byField.get(fieldId)!.name}: tillage`, group: 'Field practices', value: t, evidence: 'From the tillage passes in your machine records', suggested: true });
   }
 
   // ---- crop history from plantings and harvests ----
@@ -160,7 +160,7 @@ export function machineFindings(rows: Operation[], ctx: ImportContext): { findin
     const current = cropsOn(field, year);
     if (season.status === 'confirmed' && current?.includes(o.crop!)) continue;
     const differs = season.status === 'confirmed';
-    findings.push({ target, label: `${field.name}, ${year}: ${cropName(o.crop!)}`, group: 'Crop history', value: o.crop!, evidence: differs ? `You entered ${seasonText(field, year)}.` : `From a ${o.kind === 'plant' ? 'planting' : 'harvest'} record.`, confidence: differs ? 'low' : 'high', suggested: !differs });
+    findings.push({ target, label: `${field.name}, ${year}: ${cropName(o.crop!)}`, group: 'Crop history', value: o.crop!, evidence: differs ? `You entered ${seasonText(field, year)}.` : `From a ${o.kind === 'plant' ? 'planting' : 'harvest'} record.`, suggested: !differs });
   }
   return { findings, warnings };
 }

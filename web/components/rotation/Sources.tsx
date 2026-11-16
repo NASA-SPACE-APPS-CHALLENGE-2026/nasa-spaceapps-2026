@@ -1,13 +1,9 @@
 import { CITATIONS } from '@/lib/domain/rotation/citations';
-import type { InputHonesty } from '@/lib/domain/rotation/inputs';
 import type { Reason, ReasonSource } from '@/lib/domain/rotation/score';
-import { HonestyBadge } from '../ui/HonestyBadge';
 
-export function InputBadge({ honesty }: { honesty: InputHonesty }) {
-  if (honesty === 'You entered') {
-    return <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-line-strong bg-paper px-2 py-0.5 text-[12.5px] font-semibold text-ink-soft">You entered</span>;
-  }
-  return <HonestyBadge honesty={honesty} />;
+/** Marks a value the farmer entered themselves. */
+export function YouEnteredTag() {
+  return <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-line-strong bg-paper px-2 py-0.5 text-[12.5px] font-semibold text-ink-soft">You entered</span>;
 }
 
 function SourceItem({ s }: { s: ReasonSource }) {
@@ -26,7 +22,7 @@ function SourceItem({ s }: { s: ReasonSource }) {
           <span>
             {s.provider}: {s.label} <strong className="font-semibold text-ink">{s.display}</strong>
           </span>
-          <InputBadge honesty={s.honesty} />
+          {s.fromFarmer && <YouEnteredTag />}
         </span>
       );
     case 'answer':

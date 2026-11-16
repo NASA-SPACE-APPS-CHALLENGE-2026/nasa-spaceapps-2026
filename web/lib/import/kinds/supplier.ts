@@ -122,9 +122,9 @@ export function supplierFindings(rows: PurchaseLine[], ctx: ImportContext): { fi
   if (unit !== undefined) findings.push({ ...priceFinding('soybeans.seed', 'Soybean seed cost', unit, '$/ac', soyLines), evidence: `$${r2(unit)} per 140,000-seed unit at 140,000 seeds/ac, from ${plural(soyLines.length, 'line')}` });
 
   const seedSupplier = topSupplier(rows.filter((r) => r.productType.startsWith('seed')));
-  if (seedSupplier) findings.push({ target: 'supplier:seedSupplier', label: 'Seed supplier', group: 'Suppliers', value: seedSupplier.slice(0, 60), evidence: 'Supplier on your seed lines', confidence: 'high', suggested: true });
+  if (seedSupplier) findings.push({ target: 'supplier:seedSupplier', label: 'Seed supplier', group: 'Suppliers', value: seedSupplier.slice(0, 60), evidence: 'Supplier on your seed lines', suggested: true });
   const fertSupplier = topSupplier(rows.filter((r) => /fertilizer|lime|blend/.test(r.productType)));
-  if (fertSupplier) findings.push({ target: 'supplier:fertilizerSupplier', label: 'Fertilizer supplier', group: 'Suppliers', value: fertSupplier.slice(0, 60), evidence: 'Supplier on your fertilizer lines', confidence: 'high', suggested: true });
+  if (fertSupplier) findings.push({ target: 'supplier:fertilizerSupplier', label: 'Fertilizer supplier', group: 'Suppliers', value: fertSupplier.slice(0, 60), evidence: 'Supplier on your fertilizer lines', suggested: true });
 
   const unpriced = rows.filter((r) => /fertilizer|seed-corn|seed-soybeans/.test(r.productType) && (!r.unit || r.unitPrice === undefined));
   if (unpriced.length) warnings.push(`${plural(unpriced.length, 'fertilizer or seed line')} had no unit (ton, lb, gal, bag) PlotTwist could convert, so ${unpriced.length === 1 ? 'it' : 'they'} didn't set a price.`);
@@ -136,7 +136,6 @@ export function supplierFindings(rows: PurchaseLine[], ctx: ImportContext): { fi
     if (!f.target.startsWith('param:') || typeof f.value !== 'number') continue;
     const def = ASSUMPTION_BY_ID[f.target.slice(6)]?.value;
     if (def && (f.value > def * 3 || f.value < def / 3)) {
-      f.confidence = 'low';
       f.suggested = false;
       f.evidence += `. Far from the usual ${def}; check the unit on the invoice.`;
     }
@@ -153,7 +152,6 @@ function priceFinding(id: string, label: string, value: number, unit: string, li
     value: r2(value),
     unit,
     evidence: `${plural(lines.length, 'invoice line')}${dates.length ? `, ${dates[0]}${dates.length > 1 && dates[dates.length - 1] !== dates[0] ? ` to ${dates[dates.length - 1]}` : ''}` : ''}${note ? `. ${note}` : ''}`,
-    confidence: lines.length >= 2 ? 'high' : 'medium',
     suggested: true,
   };
 }

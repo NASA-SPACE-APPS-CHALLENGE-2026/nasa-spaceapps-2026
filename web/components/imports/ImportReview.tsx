@@ -80,7 +80,7 @@ export function FindingList({ findings, picked, onToggle, finance, others, field
                     </span>
                     <span className="mt-0.5 block text-[13.5px] text-ink-soft">
                       {f.evidence}
-                      {f.confidence === 'low' && <span className="ml-1 font-semibold text-wheat-deep">Check this one.</span>}
+                      
                     </span>
                   </span>
                 </label>

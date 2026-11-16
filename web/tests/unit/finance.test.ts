@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { setSeasonCrop } from '@/lib/domain/cropHistory';
 import { createField } from '@/lib/domain/field';
 import { analyzeFarm, cashFlow, cropsWithoutBuiltInBudget, partialBudget, PROGRAM_LABELS, projectPlan, type FarmFieldInput } from '@/lib/domain/finance/analysis';
-import { ASSUMPTIONS, confidenceOf, Params } from '@/lib/domain/finance/assumptions';
+import { ASSUMPTIONS, Params } from '@/lib/domain/finance/assumptions';
 import { COVER_GRAZING, OPERATING_CATS, seasonBudget, type FieldSetup, type SeasonPlan } from '@/lib/domain/finance/budget';
 import { coverMonths, currentPlanSeasons, proposedPlanSeasons } from '@/lib/domain/finance/plans';
 import { buildParams, COVER_PROGRAMS, DEFAULT_FINANCE, parseFinance, type CoverProgram } from '@/lib/domain/finance/inputs';
@@ -88,15 +88,14 @@ describe('crop budgets reproduce the ISU 2026 totals', () => {
     expect(afterClover.nLbs).toBe(159 - 40);
   });
 
-  it('every assumption has a source, a date and a confidence; farmer values count as high confidence', () => {
+  it('every assumption has a source and a date; a farmer value is marked as entered', () => {
     for (const a of ASSUMPTIONS) {
       expect(a.source.name.length).toBeGreaterThan(5);
       expect(a.source.date.length).toBeGreaterThan(2);
     }
     const P = new Params({ 'oats.price': 4 });
-    expect(confidenceOf(P, ['oats.price'])).toBe('high');
-    expect(confidenceOf(P, ['corn.price'])).toBe('medium');
-    expect(confidenceOf(P, ['cover.seed'])).toBe('low');
+    expect(P.isFarmer('oats.price')).toBe(true);
+    expect(P.isFarmer('corn.price')).toBe(false);
   });
 });
 
@@ -155,8 +154,6 @@ describe('whole-farm analysis', () => {
     expect(a.headline.wholeFarm).toBeCloseTo(sum(a.proposed) - sum(a.current), 4);
     expect(a.partial.net).toBeCloseTo(a.headline.wholeFarm, 2);
     expect(a.cash.points[a.cash.points.length - 1].difference).toBeCloseTo(a.headline.wholeFarm, 2);
-    expect(a.headline.low).toBeLessThanOrEqual(a.headline.mid);
-    expect(a.headline.high).toBeGreaterThanOrEqual(a.headline.mid);
     // Cover crop costs show up as an added cost, EQIP as added revenue, and the corn yield drag as reduced revenue.
     expect(a.partial.addedCosts.map((l) => l.label)).toContain('Cover crop seed, seeding and ending');
     expect(a.partial.addedRevenue.find((l) => /EQIP/.test(l.label))?.amount).toBeCloseTo(74.34 * 80 * 2, 2);
@@ -164,7 +161,7 @@ describe('whole-farm analysis', () => {
     expect(a.savings.costShare).toBeCloseTo(74.34 * 80 * 2, 2);
     expect(a.risk?.years).toBe(40);
     expect(a.risk!.proposed.bad).toBeLessThanOrEqual(a.risk!.proposed.typical);
-    expect(a.transparency.find((t) => t.id === 'corn.price')).toMatchObject({ value: 4.6, origin: 'default', confidence: 'medium' });
+    expect(a.transparency.find((t) => t.id === 'corn.price')).toMatchObject({ value: 4.6, origin: 'default' });
     expect(a.sensitivity.breakEven.find((b) => b.crop === 'Corn')!.breakEvenPrice).toBeCloseTo(907.98 / 211, 1);
   });
 
@@ -301,7 +298,7 @@ describe('crops without a published budget', () => {
     expect(a.unmodeled).toEqual([]);
     expect(a.needsBudget).toEqual([]);
     expect(a.current[1].revenueBy.Alfalfa).toBeCloseTo(8000, 6);
-    expect(a.transparency.find((t) => t.id === 'own.alfalfa.price')).toMatchObject({ label: 'Alfalfa price', value: 200, origin: 'farmer', confidence: 'high' });
+    expect(a.transparency.find((t) => t.id === 'own.alfalfa.price')).toMatchObject({ label: 'Alfalfa price', value: 200, origin: 'farmer' });
     expect(a.sensitivity.breakEven.find((b) => b.crop === 'Alfalfa')).toMatchObject({ breakEvenPrice: 87.5, unit: 'unit' });
     // Price scenarios move the farmer's own prices too.
     const down = a.sensitivity.rows.find((r) => r.label === 'Crop prices −20%')!;

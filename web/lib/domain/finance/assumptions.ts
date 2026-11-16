@@ -6,7 +6,6 @@
 
 import { cropName } from '../rotation/agronomy';
 
-export type Confidence = 'high' | 'medium' | 'low';
 export type Origin = 'farmer' | 'default' | 'nasa' | 'import';
 
 export interface SourceRef {
@@ -28,7 +27,7 @@ export const SOURCES = {
   idalsInsurance: { name: 'Iowa Department of Agriculture and Land Stewardship, Crop Insurance Discount Program sign-up', url: 'https://iowaagriculture.gov/news/crop-ins-discount-prog-signup-12-25', date: 'Dec 1, 2025' },
   farmer: { name: 'You entered', date: 'in PlotTwist' },
   power: { name: 'NASA POWER monthly weather for this field, 1985–2024', url: 'https://power.larc.nasa.gov/docs/services/api/temporal/monthly/', date: 'fetched live' },
-  plottwist: { name: 'PlotTwist planning assumption (not from a published budget; please check locally)', date: 'Nov 2026' },
+  plottwist: { name: 'PlotTwist planning assumption (not from a published budget)', date: 'Nov 2026' },
 } satisfies Record<string, SourceRef>;
 
 /** Cost categories that imported books can calibrate (see lib/import/kinds/finance.ts). */
@@ -45,37 +44,36 @@ export interface Assumption {
   value: number;
   unit: string;
   source: SourceRef;
-  confidence: Confidence;
   note?: string;
 }
 
-const isu = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.isu, confidence: 'high', note });
-const guess = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.plottwist, confidence: 'low', note });
-const ers = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.ersCosts, confidence: 'high', note });
+const isu = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.isu, note });
+const planning = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.plottwist, note });
+const ers = (id: string, label: string, group: Group, value: number, unit: string, note?: string): Assumption => ({ id, label, group, value, unit, source: SOURCES.ersCosts, note });
 
 export const ASSUMPTIONS: Assumption[] = [
   // ---- Yields and prices ----
   isu('corn.yield', 'Corn yield after soybeans', 'Yields and prices', 211, 'bu/ac', 'Middle yield level of the corn-following-soybeans budget (30-year trend).'),
   isu('corn.yieldAfterCorn', 'Corn yield after corn', 'Yields and prices', 193, 'bu/ac', 'Middle yield level of the corn-following-corn budget. The gap is the rotation effect.'),
-  { id: 'corn.price', label: 'Corn price', group: 'Yields and prices', value: 4.6, unit: '$/bu', source: SOURCES.wasde, confidence: 'medium', note: 'National season-average farm price, so it already includes a typical local basis.' },
+  { id: 'corn.price', label: 'Corn price', group: 'Yields and prices', value: 4.6, unit: '$/bu', source: SOURCES.wasde, note: 'National season-average farm price, so it already includes a typical local basis.' },
   isu('soybeans.yield', 'Soybean yield', 'Yields and prices', 61, 'bu/ac', 'Middle yield level of the herbicide-tolerant soybeans-following-corn budget.'),
-  { id: 'soybeans.price', label: 'Soybean price', group: 'Yields and prices', value: 12.1, unit: '$/bu', source: SOURCES.wasde, confidence: 'medium' },
+  { id: 'soybeans.price', label: 'Soybean price', group: 'Yields and prices', value: 12.1, unit: '$/bu', source: SOURCES.wasde },
   isu('oats.yield', 'Oat yield', 'Yields and prices', 80, 'bu/ac', 'The oat yield ISU assumes in its oat-companion budget.'),
-  { id: 'oats.price', label: 'Oat price', group: 'Yields and prices', value: 3.88, unit: '$/bu', source: SOURCES.oatsPrice, confidence: 'low' },
+  { id: 'oats.price', label: 'Oat price', group: 'Yields and prices', value: 3.88, unit: '$/bu', source: SOURCES.oatsPrice },
   isu('oats.strawTons', 'Oat straw', 'Yields and prices', 1, 'ton/ac'),
-  guess('oats.strawPrice', 'Oat straw price', 'Yields and prices', 80, '$/ton'),
-  guess('wheat.yield', 'Wheat yield', 'Yields and prices', 70, 'bu/ac'),
-  { id: 'wheat.price', label: 'Wheat price', group: 'Yields and prices', value: 6.2, unit: '$/bu', source: SOURCES.wasde, confidence: 'medium', note: 'All-wheat season-average farm price.' },
-  { id: 'rice.yield', label: 'Rice yield', group: 'Yields and prices', value: 76.64, unit: 'cwt/ac', source: SOURCES.wasde, confidence: 'medium', note: '7,664 pounds per harvested acre, converted to hundredweight.' },
-  { id: 'rice.price', label: 'Rice price', group: 'Yields and prices', value: 15.1, unit: '$/cwt', source: SOURCES.wasde, confidence: 'medium', note: 'All-rice season-average farm price.' },
-  { id: 'sorghum.yield', label: 'Sorghum yield', group: 'Yields and prices', value: 52.4, unit: 'bu/ac', source: SOURCES.wasde, confidence: 'medium' },
-  { id: 'sorghum.price', label: 'Sorghum price', group: 'Yields and prices', value: 4.45, unit: '$/bu', source: SOURCES.wasde, confidence: 'medium' },
-  { id: 'sorghum.secondaryRevenue', label: 'Sorghum grazing and silage value', group: 'Yields and prices', value: 7.5, unit: '$/ac', source: SOURCES.ersReturns, confidence: 'medium' },
-  { id: 'cotton.yield', label: 'Cotton lint yield', group: 'Yields and prices', value: 775, unit: 'lb/ac', source: SOURCES.wasde, confidence: 'medium' },
-  { id: 'cotton.price', label: 'Cotton lint price', group: 'Yields and prices', value: 0.76, unit: '$/lb', source: SOURCES.wasde, confidence: 'medium' },
-  { id: 'cotton.seedYield', label: 'Cottonseed yield', group: 'Yields and prices', value: 1492, unit: 'lb/ac', source: SOURCES.ersReturns, confidence: 'medium' },
-  { id: 'cotton.seedPrice', label: 'Cottonseed price', group: 'Yields and prices', value: 0.12, unit: '$/lb', source: SOURCES.ersReturns, confidence: 'medium' },
-  { id: 'basis', label: 'Local basis adjustment', group: 'Yields and prices', value: 0, unit: '$/bu', source: SOURCES.wasde, confidence: 'medium', note: 'Zero because the USDA price is already a farm price. Enter your elevator’s difference from it.' },
+  planning('oats.strawPrice', 'Oat straw price', 'Yields and prices', 80, '$/ton'),
+  planning('wheat.yield', 'Wheat yield', 'Yields and prices', 70, 'bu/ac'),
+  { id: 'wheat.price', label: 'Wheat price', group: 'Yields and prices', value: 6.2, unit: '$/bu', source: SOURCES.wasde, note: 'All-wheat season-average farm price.' },
+  { id: 'rice.yield', label: 'Rice yield', group: 'Yields and prices', value: 76.64, unit: 'cwt/ac', source: SOURCES.wasde, note: '7,664 pounds per harvested acre, converted to hundredweight.' },
+  { id: 'rice.price', label: 'Rice price', group: 'Yields and prices', value: 15.1, unit: '$/cwt', source: SOURCES.wasde, note: 'All-rice season-average farm price.' },
+  { id: 'sorghum.yield', label: 'Sorghum yield', group: 'Yields and prices', value: 52.4, unit: 'bu/ac', source: SOURCES.wasde },
+  { id: 'sorghum.price', label: 'Sorghum price', group: 'Yields and prices', value: 4.45, unit: '$/bu', source: SOURCES.wasde },
+  { id: 'sorghum.secondaryRevenue', label: 'Sorghum grazing and silage value', group: 'Yields and prices', value: 7.5, unit: '$/ac', source: SOURCES.ersReturns },
+  { id: 'cotton.yield', label: 'Cotton lint yield', group: 'Yields and prices', value: 775, unit: 'lb/ac', source: SOURCES.wasde },
+  { id: 'cotton.price', label: 'Cotton lint price', group: 'Yields and prices', value: 0.76, unit: '$/lb', source: SOURCES.wasde },
+  { id: 'cotton.seedYield', label: 'Cottonseed yield', group: 'Yields and prices', value: 1492, unit: 'lb/ac', source: SOURCES.ersReturns },
+  { id: 'cotton.seedPrice', label: 'Cottonseed price', group: 'Yields and prices', value: 0.12, unit: '$/lb', source: SOURCES.ersReturns },
+  { id: 'basis', label: 'Local basis adjustment', group: 'Yields and prices', value: 0, unit: '$/bu', source: SOURCES.wasde, note: 'Zero because the USDA price is already a farm price. Enter your elevator’s difference from it.' },
 
   // ---- Fertilizer prices (ISU 2026) ----
   isu('n.price', 'Nitrogen price', 'Fertilizer prices', 0.53, '$/lb N'),
@@ -117,20 +115,20 @@ export const ASSUMPTIONS: Assumption[] = [
   // ---- Small grains (partly ISU oat-companion budget; the rest are assumptions) ----
   isu('oats.seed', 'Oat seed', 'Small grain costs', 35.18, '$/ac', '2 bushels.'),
   isu('oats.nLbs', 'Nitrogen for oats', 'Small grain costs', 60, 'lb N/ac'),
-  guess('oats.pLbs', 'Phosphate for oats', 'Small grain costs', 25, 'lb/ac', 'About what an 80 bu crop removes.'),
-  guess('oats.kLbs', 'Potash for oats (grain and straw)', 'Small grain costs', 45, 'lb/ac'),
-  guess('oats.herbicide', 'Small grain herbicide', 'Small grain costs', 15, '$/ac'),
+  planning('oats.pLbs', 'Phosphate for oats', 'Small grain costs', 25, 'lb/ac', 'About what an 80 bu crop removes.'),
+  planning('oats.kLbs', 'Potash for oats (grain and straw)', 'Small grain costs', 45, 'lb/ac'),
+  planning('oats.herbicide', 'Small grain herbicide', 'Small grain costs', 15, '$/ac'),
   isu('oats.insurance', 'Oat crop insurance', 'Small grain costs', 4.1, '$/ac', '70% yield coverage.'),
-  { id: 'oats.machineryPre', label: 'Small grain machinery before harvest', group: 'Small grain costs', value: 35.3, unit: '$/ac', source: SOURCES.isu, confidence: 'medium', note: 'Spreading, disking and drilling in the oat-companion budget.' },
-  { id: 'oats.machineryHarvest', label: 'Small grain combining and hauling', group: 'Small grain costs', value: 41.31, unit: '$/ac', source: SOURCES.isu, confidence: 'medium' },
-  guess('oats.strawCost', 'Baling and hauling straw', 'Small grain costs', 30, '$/ac'),
-  guess('oats.labor', 'Small grain labor', 'Small grain costs', 40.8, '$/ac', '2 hours at $20.40.'),
-  guess('wheat.seed', 'Wheat seed', 'Small grain costs', 45, '$/ac'),
-  guess('wheat.nLbs', 'Nitrogen for wheat', 'Small grain costs', 90, 'lb N/ac'),
+  { id: 'oats.machineryPre', label: 'Small grain machinery before harvest', group: 'Small grain costs', value: 35.3, unit: '$/ac', source: SOURCES.isu, note: 'Spreading, disking and drilling in the oat-companion budget.' },
+  { id: 'oats.machineryHarvest', label: 'Small grain combining and hauling', group: 'Small grain costs', value: 41.31, unit: '$/ac', source: SOURCES.isu },
+  planning('oats.strawCost', 'Baling and hauling straw', 'Small grain costs', 30, '$/ac'),
+  planning('oats.labor', 'Small grain labor', 'Small grain costs', 40.8, '$/ac', '2 hours at $20.40.'),
+  planning('wheat.seed', 'Wheat seed', 'Small grain costs', 45, '$/ac'),
+  planning('wheat.nLbs', 'Nitrogen for wheat', 'Small grain costs', 90, 'lb N/ac'),
 
   // ---- Rice, sorghum and cotton (USDA ERS 2026F U.S. budgets, excluding opportunity cost of land) ----
   ers('rice.seed', 'Rice seed', 'Rice costs', 119.14, '$/ac'),
-  guess('rice.nLbs', 'Nitrogen for rice', 'Rice costs', 130, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
+  planning('rice.nLbs', 'Nitrogen for rice', 'Rice costs', 130, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
   ers('rice.fertilizerOther', 'Rice fertilizer other than nitrogen', 'Rice costs', 156.11, '$/ac', 'Residual that makes fertilizer total $225.01/ac at the default nitrogen price.'),
   ers('rice.chemicals', 'Rice chemicals', 'Rice costs', 121.69, '$/ac'),
   ers('rice.machinery', 'Rice machinery, fuel, repairs and custom work', 'Rice costs', 576.46, '$/ac'),
@@ -140,7 +138,7 @@ export const ASSUMPTIONS: Assumption[] = [
   ers('rice.other', 'Rice other variable and farm overhead', 'Rice costs', 73.2, '$/ac'),
 
   ers('sorghum.seed', 'Sorghum seed', 'Sorghum costs', 16.6, '$/ac'),
-  guess('sorghum.nLbs', 'Nitrogen for sorghum', 'Sorghum costs', 80, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
+  planning('sorghum.nLbs', 'Nitrogen for sorghum', 'Sorghum costs', 80, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
   ers('sorghum.fertilizerOther', 'Sorghum fertilizer other than nitrogen', 'Sorghum costs', 28.67, '$/ac', 'Residual that makes fertilizer total $71.07/ac at the default nitrogen price.'),
   ers('sorghum.chemicals', 'Sorghum chemicals', 'Sorghum costs', 30.87, '$/ac'),
   ers('sorghum.machinery', 'Sorghum machinery, fuel, repairs and custom work', 'Sorghum costs', 222.27, '$/ac'),
@@ -150,7 +148,7 @@ export const ASSUMPTIONS: Assumption[] = [
   ers('sorghum.other', 'Sorghum other variable and farm overhead', 'Sorghum costs', 19.45, '$/ac'),
 
   ers('cotton.seed', 'Cotton seed', 'Cotton costs', 100.06, '$/ac'),
-  guess('cotton.nLbs', 'Nitrogen for cotton', 'Cotton costs', 90, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
+  planning('cotton.nLbs', 'Nitrogen for cotton', 'Cotton costs', 90, 'lb N/ac', 'Planning rate; replace with the field rate when known.'),
   ers('cotton.fertilizerOther', 'Cotton fertilizer other than nitrogen', 'Cotton costs', 76.17, '$/ac', 'Residual that makes fertilizer total $123.87/ac at the default nitrogen price.'),
   ers('cotton.chemicals', 'Cotton chemicals', 'Cotton costs', 80.81, '$/ac'),
   ers('cotton.machinery', 'Cotton machinery, fuel, repairs and custom work', 'Cotton costs', 352.39, '$/ac'),
@@ -160,44 +158,44 @@ export const ASSUMPTIONS: Assumption[] = [
   ers('cotton.other', 'Cotton ginning, other variable and farm overhead', 'Cotton costs', 137.58, '$/ac'),
 
   // ---- Cover crops ----
-  guess('cover.seed', 'Cover crop seed (cereal rye)', 'Cover crops', 18, '$/ac', 'About 1 bushel of rye seed.'),
-  guess('cover.legumeSeedExtra', 'Extra seed cost for a legume cover', 'Cover crops', 20, '$/ac'),
-  guess('cover.planting', 'Seeding the cover (drill)', 'Cover crops', 16.5, '$/ac'),
-  guess('cover.termination', 'Ending the cover (herbicide and pass)', 'Cover crops', 12, '$/ac'),
-  guess('cover.ryeCornDrag', 'Corn yield drag after cereal rye', 'Cover crops', 2, '%'),
-  guess('cover.legumeNCredit', 'Nitrogen credit from a legume cover before corn', 'Cover crops', 40, 'lb N/ac'),
+  planning('cover.seed', 'Cover crop seed (cereal rye)', 'Cover crops', 18, '$/ac', 'About 1 bushel of rye seed.'),
+  planning('cover.legumeSeedExtra', 'Extra seed cost for a legume cover', 'Cover crops', 20, '$/ac'),
+  planning('cover.planting', 'Seeding the cover (drill)', 'Cover crops', 16.5, '$/ac'),
+  planning('cover.termination', 'Ending the cover (herbicide and pass)', 'Cover crops', 12, '$/ac'),
+  planning('cover.ryeCornDrag', 'Corn yield drag after cereal rye', 'Cover crops', 2, '%'),
+  planning('cover.legumeNCredit', 'Nitrogen credit from a legume cover before corn', 'Cover crops', 40, 'lb N/ac'),
   // Farmer-entered only: read only when set.
-  { id: 'cover.grazing', label: 'Cover crop grazing or forage value', group: 'Cover crops', value: 0, unit: '$/ac', source: SOURCES.farmer, confidence: 'low', note: 'What grazing or harvesting the cover is worth to you (feed saved or forage sold). Leave empty if you don’t use it.' },
+  { id: 'cover.grazing', label: 'Cover crop grazing or forage value', group: 'Cover crops', value: 0, unit: '$/ac', source: SOURCES.farmer, note: 'What grazing or harvesting the cover is worth to you (feed saved or forage sold). Leave empty if you don’t use it.' },
 
   // ---- Land and money ----
-  { id: 'rent', label: 'Cash rent', group: 'Land and money', value: 270, unit: '$/ac', source: SOURCES.rent, confidence: 'high' },
+  { id: 'rent', label: 'Cash rent', group: 'Land and money', value: 270, unit: '$/ac', source: SOURCES.rent },
   isu('interest.rate', 'Operating loan interest rate', 'Land and money', 7.47, '%', 'Charged on pre-harvest costs for 8 months.'),
   isu('interest.months', 'Months of operating interest', 'Land and money', 8, 'months'),
 
   // ---- Programs ----
-  { id: 'eqip.cover', label: 'EQIP cost share for a cover crop', group: 'Programs', value: 74.34, unit: '$/ac/yr', source: SOURCES.eqip, confidence: 'medium' },
-  { id: 'eqip.coverBeginning', label: 'EQIP cover crop rate for beginning farmers', group: 'Programs', value: 89.2, unit: '$/ac/yr', source: SOURCES.eqip, confidence: 'medium', note: 'Historically underserved rate, which includes beginning farmers.' },
-  guess('eqip.years', 'Years of EQIP cover crop payments', 'Programs', 3, 'years'),
-  { id: 'fsa.microloan', label: 'FSA microloan limit', group: 'Programs', value: 50000, unit: '$', source: SOURCES.fsa, confidence: 'high' },
-  { id: 'state.coverFirstTime', label: 'Iowa cost share, first-time cover crop user', group: 'Programs', value: 30, unit: '$/ac', source: SOURCES.idalsCostShare, confidence: 'medium', note: '2025 statewide rate; check the 2026 rate with your Soil and Water Conservation District.' },
-  { id: 'state.coverReturning', label: 'Iowa cost share, returning cover crop user', group: 'Programs', value: 20, unit: '$/ac', source: SOURCES.idalsCostShare, confidence: 'medium', note: '2025 statewide rate; check the 2026 rate with your Soil and Water Conservation District.' },
-  { id: 'state.maxAcres', label: 'Iowa cost share acre limit per farmer', group: 'Programs', value: 160, unit: 'ac/yr', source: SOURCES.idalsCostShare, confidence: 'medium' },
-  { id: 'insurance.coverDiscount', label: 'Iowa crop insurance discount for fall cover crops', group: 'Programs', value: 5, unit: '$/ac', source: SOURCES.idalsInsurance, confidence: 'medium', note: 'Taken off the next year’s premium. Acres in other IDALS or NRCS cost share don’t qualify; no acreage cap.' },
+  { id: 'eqip.cover', label: 'EQIP cost share for a cover crop', group: 'Programs', value: 74.34, unit: '$/ac/yr', source: SOURCES.eqip },
+  { id: 'eqip.coverBeginning', label: 'EQIP cover crop rate for beginning farmers', group: 'Programs', value: 89.2, unit: '$/ac/yr', source: SOURCES.eqip, note: 'Historically underserved rate, which includes beginning farmers.' },
+  planning('eqip.years', 'Years of EQIP cover crop payments', 'Programs', 3, 'years'),
+  { id: 'fsa.microloan', label: 'FSA microloan limit', group: 'Programs', value: 50000, unit: '$', source: SOURCES.fsa },
+  { id: 'state.coverFirstTime', label: 'Iowa cost share, first-time cover crop user', group: 'Programs', value: 30, unit: '$/ac', source: SOURCES.idalsCostShare, note: '2025 statewide rate; check the 2026 rate with your Soil and Water Conservation District.' },
+  { id: 'state.coverReturning', label: 'Iowa cost share, returning cover crop user', group: 'Programs', value: 20, unit: '$/ac', source: SOURCES.idalsCostShare, note: '2025 statewide rate; check the 2026 rate with your Soil and Water Conservation District.' },
+  { id: 'state.maxAcres', label: 'Iowa cost share acre limit per farmer', group: 'Programs', value: 160, unit: 'ac/yr', source: SOURCES.idalsCostShare },
+  { id: 'insurance.coverDiscount', label: 'Iowa crop insurance discount for fall cover crops', group: 'Programs', value: 5, unit: '$/ac', source: SOURCES.idalsInsurance, note: 'Taken off the next year’s premium. Acres in other IDALS or NRCS cost share don’t qualify; no acreage cap.' },
   // Farmer-entered only (no published per-acre value): read only when set.
-  { id: 'csp.annual', label: 'CSP contract payment per year', group: 'Programs', value: 0, unit: '$/yr', source: SOURCES.farmer, confidence: 'low', note: 'From your Conservation Stewardship Program contract, for a new contract that comes with the PlotTwist plan.' },
-  { id: 'csp.years', label: 'CSP contract years left', group: 'Programs', value: 0, unit: 'years', source: SOURCES.farmer, confidence: 'low', note: 'Leave empty to count the payment in every plan year.' },
+  { id: 'csp.annual', label: 'CSP contract payment per year', group: 'Programs', value: 0, unit: '$/yr', source: SOURCES.farmer, note: 'From your Conservation Stewardship Program contract, for a new contract that comes with the PlotTwist plan.' },
+  { id: 'csp.years', label: 'CSP contract years left', group: 'Programs', value: 0, unit: 'years', source: SOURCES.farmer, note: 'Leave empty to count the payment in every plan year.' },
 
   // ---- Risk ----
-  guess('risk.cornLoss', 'Corn yield loss in a stress year', 'Risk', 20, '%'),
-  guess('risk.soybeansLoss', 'Soybean yield loss in a stress year', 'Risk', 15, '%'),
-  guess('risk.smallGrainLoss', 'Small grain yield loss in a stress year', 'Risk', 15, '%'),
-  guess('risk.goodYearGain', 'Yield gain in a good year', 'Risk', 6, '%'),
+  planning('risk.cornLoss', 'Corn yield loss in a stress year', 'Risk', 20, '%'),
+  planning('risk.soybeansLoss', 'Soybean yield loss in a stress year', 'Risk', 15, '%'),
+  planning('risk.smallGrainLoss', 'Small grain yield loss in a stress year', 'Risk', 15, '%'),
+  planning('risk.goodYearGain', 'Yield gain in a good year', 'Risk', 6, '%'),
 
   // ---- Practices (Simulator) ----
-  guess('practice.reducedTillMachinery', 'Pre-harvest machinery saved with reduced tillage', 'Practices', 15, '%'),
-  guess('practice.noTillMachinery', 'Pre-harvest machinery saved with no-till', 'Practices', 30, '%'),
-  guess('practice.irrigatedYield', 'Yield gain from irrigation', 'Practices', 12, '%'),
-  guess('practice.irrigatedCost', 'Irrigation pumping and upkeep', 'Practices', 55, '$/ac'),
+  planning('practice.reducedTillMachinery', 'Pre-harvest machinery saved with reduced tillage', 'Practices', 15, '%'),
+  planning('practice.noTillMachinery', 'Pre-harvest machinery saved with no-till', 'Practices', 30, '%'),
+  planning('practice.irrigatedYield', 'Yield gain from irrigation', 'Practices', 12, '%'),
+  planning('practice.irrigatedCost', 'Irrigation pumping and upkeep', 'Practices', 55, '$/ac'),
 
   // ---- Your records: multipliers set only from imported books (1 = use the budget as is) ----
   ...ACTUAL_CATS.map((cat) => ({
@@ -207,7 +205,6 @@ export const ASSUMPTIONS: Assumption[] = [
     value: 1,
     unit: '×',
     source: SOURCES.plottwist,
-    confidence: 'low' as Confidence,
     note: 'Set only from imported finance records: what you actually spent last year divided by what PlotTwist modeled for the same fields and crops.',
   })),
 ];
@@ -225,7 +222,7 @@ export function assumptionFor(id: string): Assumption | undefined {
   const m = OWN_ID.exec(id);
   if (!m) return undefined;
   const [label, unit] = OWN_LABELS[m[2] as keyof typeof OWN_LABELS];
-  return { id, label: `${cropName(m[1])} ${label}`, group: 'Your crop budgets', value: 0, unit, source: { name: 'You entered', date: 'in PlotTwist' }, confidence: 'low' };
+  return { id, label: `${cropName(m[1])} ${label}`, group: 'Your crop budgets', value: 0, unit, source: { name: 'You entered', date: 'in PlotTwist' } };
 }
 
 export interface Resolved {
@@ -290,16 +287,4 @@ export class Params {
   isFarmer(id: string): boolean {
     return this.resolve(id).origin !== 'default';
   }
-}
-
-/** Lowest confidence among the values a result used; farmer-entered values count as high. */
-export function confidenceOf(params: Params, ids: Iterable<string>): Confidence {
-  let worst: Confidence = 'high';
-  for (const id of ids) {
-    const r = params.resolve(id);
-    const c: Confidence = r.origin !== 'default' ? 'high' : r.assumption.confidence;
-    if (c === 'low') return 'low';
-    if (c === 'medium') worst = 'medium';
-  }
-  return worst;
 }

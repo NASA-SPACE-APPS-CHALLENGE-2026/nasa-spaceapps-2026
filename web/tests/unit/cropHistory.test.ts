@@ -4,9 +4,6 @@ import {
   applyDetections,
   cdlYearsFor,
   clearUnconfirmedDetections,
-  confirmAllDetected,
-  confirmSeason,
-  countUnconfirmed,
   CURRENT_SEASON,
   defaultCrops,
   MAX_HISTORY_YEARS,
@@ -56,14 +53,16 @@ describe('crop history', () => {
     expect(c.history[0]).toMatchObject({ year: 2025, status: 'detected', origin: 'cdl', crop: { kind: 'catalog', id: 'soybeans' } });
     expect(c.history[1].crop).toEqual({ kind: 'catalog', id: 'corn' });
     expect(c.history[2].status).toBe('empty');
-    expect(countUnconfirmed(c)).toBe(2);
+    expect([c.current, ...c.history].filter((s) => s.status === 'detected')).toHaveLength(2);
     expect(needsCropReview(c)).toBe(true);
+    // Crop-map detections need no review once this season's crop is in.
+    expect(needsCropReview(setSeasonCrop(c, CURRENT_SEASON, { kind: 'catalog', id: 'corn' }))).toBe(false);
   });
 
-  it('never overwrites what the farmer entered or confirmed', () => {
+  it('never overwrites what the farmer entered', () => {
     let c = setSeasonCrop(defaultCrops(), 2025, { kind: 'catalog', id: 'oats' });
     c = applyDetections(c, { 2024: det(1, 'Corn') });
-    c = confirmSeason(c, 2024);
+    c = setSeasonCrop(c, 2024, { kind: 'catalog', id: 'corn' });
     c = applyDetections(c, { 2025: det(5, 'Soybeans'), 2024: det(5, 'Soybeans') });
     expect(c.history[0].crop).toEqual({ kind: 'catalog', id: 'oats' });
     expect(c.history[1]).toMatchObject({ status: 'confirmed', crop: { kind: 'catalog', id: 'corn' } });
@@ -76,14 +75,6 @@ describe('crop history', () => {
     expect(c.history[0].detection?.cdlName).toBe('Soybeans'); // still remember what CDL saw
   });
 
-  it('confirm-all confirms only detected rows', () => {
-    let c = applyDetections(defaultCrops(), { 2025: det(5, 'Soybeans'), 2024: det(1, 'Corn') });
-    c = confirmAllDetected(c);
-    expect(c.history.slice(0, 2).every((s) => s.status === 'confirmed')).toBe(true);
-    expect(c.history[2].status).toBe('empty');
-    expect(countUnconfirmed(c)).toBe(0);
-  });
-
   it('clearing an entered crop returns the row to empty', () => {
     let c = setSeasonCrop(defaultCrops(), CURRENT_SEASON, { kind: 'other', text: 'Hemp' });
     expect(c.current.status).toBe('confirmed');
@@ -91,9 +82,9 @@ describe('crop history', () => {
     expect(c.current.status).toBe('empty');
   });
 
-  it('a boundary change drops only unconfirmed detections', () => {
+  it('a boundary change drops only crop-map detections, not farmer entries', () => {
     let c = applyDetections(defaultCrops(), { 2025: det(5, 'Soybeans'), 2024: det(1, 'Corn') });
-    c = confirmSeason(c, 2024);
+    c = setSeasonCrop(c, 2024, { kind: 'catalog', id: 'corn' });
     c = clearUnconfirmedDetections(c);
     expect(c.history[0].status).toBe('empty');
     expect(c.history[1].status).toBe('confirmed');

@@ -21,11 +21,10 @@ test('explore rotation, make a plan, edit it, and come back to the same field', 
   await drawSquare(page, isMobile);
   await page.getByLabel('Field name').fill('Back forty');
   await page.getByRole('button', { name: 'Save field' }).click();
-  await expect(page.getByTestId('season-2025')).toContainText('Check this info');
+  await expect(page.getByTestId('season-2025')).toContainText('From USDA crop maps');
   await page.getByRole('button', { name: /Crop in 2026/ }).click();
   await page.getByRole('combobox', { expanded: true }).fill('soybeans');
   await page.keyboard.press('Enter');
-  await page.getByRole('button', { name: /These look right/ }).click();
 
   await page.getByRole('link', { name: 'Explore rotation' }).click();
   await expect(page).toHaveURL(/\/rotation\?field=/);

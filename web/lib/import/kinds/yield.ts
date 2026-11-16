@@ -141,7 +141,6 @@ export function yieldFindings(rows: YieldRow[], ctx: ImportContext): { findings:
       value: r1(b.sum / b.w),
       unit: 'bu/ac',
       evidence: `${b.year} harvest, ${plural(b.fields.size, 'field')}${b.acres ? `, ${Math.round(b.acres).toLocaleString('en-US')} ac` : ''}${b.map ? ' (yield map average)' : ''}`,
-      confidence: b.acres > 0 && b.fields.size > 0 ? (b.map ? 'medium' : 'high') : 'low',
       suggested: true,
     });
   }
@@ -165,7 +164,6 @@ export function yieldFindings(rows: YieldRow[], ctx: ImportContext): { findings:
       group: 'Crop history',
       value: r.crop,
       evidence: differs ? `You entered ${seasonText(field, r.year)}; the record says ${cropName(r.crop)}.` : season.status === 'detected' ? `Confirms the crop detected from USDA maps (${seasonText(field, r.year)}).` : 'This season is empty on Fields.',
-      confidence: differs ? 'low' : 'high',
       suggested: !differs,
     });
   }

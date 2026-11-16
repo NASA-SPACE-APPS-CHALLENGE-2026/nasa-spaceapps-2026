@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import type { Confidence, Origin } from '@/lib/domain/finance/assumptions';
+import type { Origin } from '@/lib/domain/finance/assumptions';
 import { Badge } from '../ui/Badge';
 import { Section as PageSection } from '../ui/Panel';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -10,39 +10,12 @@ import { HINT, INPUT, PANEL } from '../ui/styles';
 /** A raised panel, for the few blocks that stand on their own (simulator inputs, side panels). */
 export const SECTION = `${PANEL} p-4 lg:p-6`;
 
-/** A results section: title row with optional controls and confidence tag, separated by a field-edge rule. */
-export function Section({ id, title, confidence, children, aside }: { id: string; title: string; confidence?: Confidence; children: React.ReactNode; aside?: React.ReactNode }) {
+/** A results section: title row with optional controls, separated by a field-edge rule. */
+export function Section({ id, title, children, aside }: { id: string; title: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
-    <PageSection
-      id={id}
-      title={title}
-      testId={`section-${id}`}
-      aside={
-        (aside || confidence) && (
-          <>
-            {aside}
-            {confidence && <ConfidenceBadge c={confidence} />}
-          </>
-        )
-      }
-    >
+    <PageSection id={id} title={title} testId={`section-${id}`} aside={aside}>
       {children}
     </PageSection>
-  );
-}
-
-const CONF: Record<Confidence, { label: string; tone: 'positive' | 'neutral' | 'caution'; icon: 'check' | 'dot' | 'caution' }> = {
-  high: { label: 'High confidence', tone: 'positive', icon: 'check' },
-  medium: { label: 'Medium confidence', tone: 'neutral', icon: 'dot' },
-  low: { label: 'Low confidence', tone: 'caution', icon: 'caution' },
-};
-
-/** How much a result rests on the farmer's own numbers. Low is a calm caution tag, not an alarm. */
-export function ConfidenceBadge({ c }: { c: Confidence }) {
-  return (
-    <Badge tone={CONF[c].tone} icon={CONF[c].icon} title="How much of this result rests on your own numbers versus defaults">
-      {CONF[c].label}
-    </Badge>
   );
 }
 

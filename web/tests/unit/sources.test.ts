@@ -28,7 +28,7 @@ describe('NASA POWER', () => {
     expect(r.status).toBe('ok');
     const v = Object.fromEntries(r.values.map((x) => [x.key, x.value]));
     expect(v).toMatchObject({ rain30: 3.44, rainNormal: 2.24, avgHigh: 63.6, avgLow: 45.5, tempVsNormal: '+9.2', gdd30: 217 });
-    expect(r.values.every((x) => x.honesty === 'Estimated')).toBe(true);
+    expect(r.values.every((x) => !('honesty' in x))).toBe(true);
     expect(r.message).toMatch(/Oct 13, 2026 – Nov 11, 2026/);
     expect(r.fetchedAt).toBe(NOW.toISOString());
     // Monthly normals for Rotation Explorer: 12 months, Ames-like seasonality (cold Jan, warm Jul).
@@ -81,7 +81,7 @@ describe('USDA SSURGO (Soil Data Access)', () => {
     expect(v.hydrologicGroup.value).toBe('C/D');
     expect(v.organicMatter.value).toBeGreaterThan(5);
     expect(v.organicMatter.value).toBeLessThan(6.5);
-    expect(r.values.every((x) => x.honesty === 'Estimated')).toBe(true);
+    expect(r.values.every((x) => !('honesty' in x))).toBe(true);
   });
 
   it('says plainly when no survey covers the location (SDA returns {})', async () => {
@@ -133,8 +133,7 @@ describe('USGS elevation (EPQS)', () => {
     expect(r.status).toBe('ok');
     expect(r.message).toMatch(/1 of 9 elevation points could not be read/);
     const v = Object.fromEntries(r.values.map((x) => [x.key, x]));
-    expect(v.elevationMean.honesty).toBe('Measured');
-    expect(v.slopePct.honesty).toBe('Estimated');
+    expect(v.elevationMean).not.toHaveProperty('honesty');
     expect(v.slopePct.value).toBeCloseTo(1, 0);
   });
 
@@ -255,10 +254,8 @@ describe('NASA MODIS NDVI (ORNL DAAC)', () => {
     const wide = { ...ctx, geometry: { type: 'Polygon' as const, coordinates: [[[-93.505, 42.025], [-93.489, 42.025], [-93.489, 42.037], [-93.505, 42.037], [-93.505, 42.025]]] }, point: [-93.497, 42.031] as [number, number] };
     const r = await ndviSource.run(wide, deps(f));
     expect(r.status).toBe('ok');
-    expect(r.values.map((v) => [v.key, v.honesty])).toEqual([
-      ['ndviLatest', 'Measured'],
-      ['ndviLastYear', 'Measured'],
-    ]);
+    expect(r.values.map((v) => v.key)).toEqual(['ndviLatest', 'ndviLastYear']);
+    expect(r.values[0].note).toMatch(/inside the field/);
   });
 });
 

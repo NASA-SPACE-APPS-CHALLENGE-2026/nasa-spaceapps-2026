@@ -228,7 +228,7 @@ function Results({ run, years }: { run: ReturnType<typeof simulate>['result']; y
       <section className={SECTION} aria-labelledby="sim-incomplete-h" data-testid="sim-incomplete">
         <h2 id="sim-incomplete-h" className="font-plate text-xl">Financial projection needs complete crop data</h2>
         <p className="mt-2 text-[15px] text-ink-soft">
-          No profit estimate is shown for {run.unmodeled.join('; ')}. Choose a supported crop for every year so missing data is not displayed as rent, zero, or a placeholder.
+          No profit figure is shown for {run.unmodeled.join('; ')}. Choose a supported crop for every year so missing data is not displayed as rent, zero, or a placeholder.
         </p>
       </section>
     );

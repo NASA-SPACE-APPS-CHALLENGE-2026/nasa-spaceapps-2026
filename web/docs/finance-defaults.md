@@ -1,24 +1,24 @@
 # Finance defaults and rules
 
-The Finance tab and the Scenario Simulator start from the numbers below. A farmer can change any of them under **Finance → Your numbers**. A changed number is shown as "You entered" and always wins over the default. All values live in `lib/domain/finance/assumptions.ts`, and each one carries its source, date and confidence. The Transparency section of the Finance tab lists the ones used in a result.
+The Finance tab and the Scenario Simulator start from the numbers below. A farmer can change any of them under **Finance → Your numbers**. A changed number is shown as "You entered" and always wins over the default. All values live in `lib/domain/finance/assumptions.ts`, and each one carries its source and date. The Transparency section of the Finance tab lists the ones used in a result.
 
 Values were read on 2026-11-15.
 
 ## Sources
 
-| Source | What it supplies | Confidence |
-|---|---|---|
-| Iowa State University, Ag Decision Maker A1-20, *Estimated Costs of Crop Production in Iowa – 2026* (FM 1712, Jan 2026) | Yields, seed, fertilizer rates and prices, herbicide, insecticide, crop insurance, machinery, drying, hauling, labor, interest | High |
-| USDA WASDE, Nov 10, 2026 (2026/27 season-average farm prices) | Corn $4.60, soybeans $12.10, all wheat $6.20 per bushel | Medium (projection) |
-| ISU *Cash Rental Rates for Iowa 2026 Survey* (FM 1851) | Cash rent $270/ac (state average) | High |
-| Iowa NRCS FY2026 EQIP payment schedule, Cover Crop (340), single species, via hellogravel.com | $74.34/ac/yr; $89.20/ac/yr for historically underserved producers, which includes beginning farmers | Medium (third-party summary of the official schedule) |
-| USDA NASS Agricultural Prices, via the Wisconsin Farm Reporter | Oats $3.88/bu (Wisconsin, May 2026). No Iowa oat price was found. | Low |
-| USDA FSA Microloans | Operating microloans up to $50,000 | High |
-| Iowa Department of Agriculture and Land Stewardship (IDALS), cover crop cost-share sign-up, May 13, 2025 | Iowa cost share: $30/ac first-time cover crop users, $20/ac returning users, up to 160 ac per participant | Medium (2025 rates; no confirmed 2026 statewide rate) |
-| IDALS Crop Insurance Discount Program sign-up, Dec 1, 2025 | $5/ac off the crop insurance premium for fall-planted cover crops (2026 premiums), no acreage cap; acres in other IDALS or NRCS cost share don't qualify | Medium |
-| The farmer | CSP contract payment and contract years, cover crop grazing or forage value. NRCS publishes no per-acre CSP cover crop rate, and the NRCS pages couldn't be read from the build machine, so nothing is filled in. | High once entered |
-| NASA POWER monthly point data, 1985–2024 | Rain and the hottest daily high in each month, for the farm's largest field | Live data |
-| PlotTwist estimate | Values with no published budget, listed below | Low. Check these locally. |
+| Source | What it supplies |
+|---|---|
+| Iowa State University, Ag Decision Maker A1-20, *Estimated Costs of Crop Production in Iowa – 2026* (FM 1712, Jan 2026) | Yields, seed, fertilizer rates and prices, herbicide, insecticide, crop insurance, machinery, drying, hauling, labor, interest |
+| USDA WASDE, Nov 10, 2026 (2026/27 season-average farm prices) | Corn $4.60, soybeans $12.10, all wheat $6.20 per bushel |
+| ISU *Cash Rental Rates for Iowa 2026 Survey* (FM 1851) | Cash rent $270/ac (state average) |
+| Iowa NRCS FY2026 EQIP payment schedule, Cover Crop (340), single species, via hellogravel.com | $74.34/ac/yr; $89.20/ac/yr for historically underserved producers, which includes beginning farmers |
+| USDA NASS Agricultural Prices, via the Wisconsin Farm Reporter | Oats $3.88/bu (Wisconsin, May 2026). No Iowa oat price was found. |
+| USDA FSA Microloans | Operating microloans up to $50,000 |
+| Iowa Department of Agriculture and Land Stewardship (IDALS), cover crop cost-share sign-up, May 13, 2025 | Iowa cost share: $30/ac first-time cover crop users, $20/ac returning users, up to 160 ac per participant |
+| IDALS Crop Insurance Discount Program sign-up, Dec 1, 2025 | $5/ac off the crop insurance premium for fall-planted cover crops (2026 premiums), no acreage cap; acres in other IDALS or NRCS cost share don't qualify |
+| The farmer | CSP contract payment and contract years, cover crop grazing or forage value. NRCS publishes no per-acre CSP cover crop rate, and the NRCS pages couldn't be read from the build machine, so nothing is filled in. |
+| NASA POWER monthly point data, 1985–2024 | Rain and the hottest daily high in each month, for the farm's largest field |
+| PlotTwist estimate | Values with no published budget, listed below |
 
 ## How the ISU budgets map onto the engine
 
@@ -34,7 +34,7 @@ Values were read on 2026-11-15.
   - Barley, rye and triticale use the oats budget.
   - Winter, spring and durum wheat use their own yield, price, seed and N, and the oats budget for everything else.
 
-## PlotTwist estimates (low confidence)
+## PlotTwist planning values
 
 | Value | Default |
 |---|---|
@@ -109,7 +109,7 @@ The farmer chooses one cover crop program under **Your numbers → Programs and 
 
 - **Current rotation:** the repeating pattern found in the field's crop history, carried forward.
 - **PlotTwist plan:** the field's most recently changed Planner plan. Years after the plan's last year repeat the plan's own pattern. A field with no plan uses its current rotation in both columns.
-- **Headline range:** the lowest and highest per-acre difference when prices or yields move ±10%.
+- **Headline:** the change in average net return per acre per year (PlotTwist plan minus current rotation), over the seasons that have budgets.
 - **Cash flow:** each season's money in and out.
   - Seed, fertilizer, chemicals, pre-harvest machinery and half the rent go out in spring.
   - Insurance and labor go out in summer.
@@ -118,4 +118,3 @@ The farmer chooses one cover crop program under **Your numbers → Programs and 
   - EQIP pays in the winter after the cover crop is seeded.
   - **Break-even:** the first season after which the plan is never behind the current rotation again.
   - **Deepest dip:** the most the plan is ever behind.
-- **Confidence per result:** the lowest confidence among the values the result used. A value the farmer entered counts as high.

@@ -15,7 +15,7 @@ function fakeApi(opts: { delayMs?: number; failSource?: SourceId } = {}): StoreA
       api.sourceCalls.push(`${field.id}:${source}`);
       await new Promise((r) => setTimeout(r, opts.delayMs ?? 1));
       if (source === opts.failSource) return { sourceId: source, sourceName: 'x', docsUrl: '', status: 'unavailable', values: [], message: 'down' };
-      return { sourceId: source, sourceName: 'x', docsUrl: '', status: 'ok', fetchedAt: '2026-11-14T00:00:00Z', values: [{ key: 'k', label: 'K', value: field.geometryHash, honesty: 'Estimated' }] };
+      return { sourceId: source, sourceName: 'x', docsUrl: '', status: 'ok', fetchedAt: '2026-11-14T00:00:00Z', values: [{ key: 'k', label: 'K', value: field.geometryHash }] };
     },
     async fetchCdl(): Promise<CdlResponse> {
       api.cdlCalls++;

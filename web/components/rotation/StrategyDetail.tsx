@@ -19,7 +19,7 @@ import { Button } from '../ui/Button';
 import { NoFieldsYet } from '../ui/FieldPicker';
 import { ScoreAccordion } from './ScoreAccordion';
 import { SeasonTable } from './SeasonPreview';
-import { InputBadge, ReasonList, SourceList } from './Sources';
+import { ReasonList, SourceList, YouEnteredTag } from './Sources';
 
 const SECTION = 'rounded-parcel border border-line bg-panel p-4 lg:p-5';
 
@@ -119,7 +119,7 @@ export function StrategyDetail({ strategyId }: { strategyId: StrategyId }) {
           )}
         </div>
       </div>
-      <p className="mt-6 text-[13.5px] text-ink-faint">Scores come from a placeholder rubric (docs/rotation-rubric.md). They are not a yield, profit or pest forecast and have not been reviewed by agronomists yet.</p>
+      <p className="mt-6 text-[13.5px] text-ink-faint">Scores come from the rubric in docs/rotation-rubric.md. They compare strategies; they are not a yield, profit or pest forecast.</p>
     </Shell>
   );
 }
@@ -186,7 +186,7 @@ function CoverSuggestions({ strategy, inputs }: { strategy: Strategy; inputs: Ro
                   <p className="text-[14.5px]">
                     <strong>Ending it:</strong> {p.species.termination}
                   </p>
-                  <SourceList sources={[...p.species.sources.map((id) => ({ kind: 'citation' as const, id })), ...(inputs.climate ? [{ kind: 'data' as const, label: inputs.climate.label, display: 'fall temperatures', provider: inputs.climate.provider, honesty: inputs.climate.honesty }] : [])]} />
+                  <SourceList sources={[...p.species.sources.map((id) => ({ kind: 'citation' as const, id })), ...(inputs.climate ? [{ kind: 'data' as const, label: inputs.climate.label, display: 'fall temperatures', provider: inputs.climate.provider }] : [])]} />
                 </li>
               ))}
             </ol>
@@ -231,7 +231,7 @@ function InputsUsed({ inputs }: { inputs: RotationInputs }) {
               {p ? (
                 <>
                   <span className="font-semibold">{p.display}</span>
-                  <InputBadge honesty={p.honesty} />
+                  {p.fromFarmer && <YouEnteredTag />}
                 </>
               ) : (
                 <span className="text-ink-faint">Not available</span>
@@ -247,7 +247,6 @@ function InputsUsed({ inputs }: { inputs: RotationInputs }) {
 
 function GroundChecks({ s, inputs }: { s: StrategyScore; inputs: RotationInputs }) {
   const items: string[] = [];
-  if (inputs.seasons.some((x) => x.status === 'detected')) items.push('Confirm the past crops marked “Check this info” on the Fields tab; some reasons depend on them.');
   if (!inputs.answers.soilTest) items.push('Take a soil test (pH, P, K, organic matter) if the last one is more than 3–4 years old.');
   if (s.strategy.seasons.some((x) => x.ids.includes('soybeans'))) items.push('Sample for soybean cyst nematode egg counts after a soybean harvest.');
   if (s.strategy.seasons.some((x) => x.cover)) items.push('Walk the field after seeding the cover: aim for an even stand before winter.');

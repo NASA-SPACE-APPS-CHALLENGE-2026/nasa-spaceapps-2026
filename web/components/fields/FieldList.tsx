@@ -116,7 +116,7 @@ export function FieldList({ fields, loaded, selectedId, settings, onSelect, onHo
                         <span className="truncate">{now.crop ? `${now.year}: ${cropLabel(now.crop)}` : `${now.year}: crop not entered`}</span>
                         {isDemoField(f) && <Badge tone="neutral">Demo</Badge>}
                         {f.boundary === 'approximate' && <Badge tone="caution" icon="caution">Boundary not drawn</Badge>}
-                        {review && <Badge tone="caution" icon="caution">Crops not confirmed</Badge>}
+                        {review && <Badge tone="caution" icon="caution">Crop not entered</Badge>}
                       </span>
                     </span>
                   </span>

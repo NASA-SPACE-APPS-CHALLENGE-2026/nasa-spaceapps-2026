@@ -20,7 +20,7 @@ const SHORT_SOURCE = new Map<string, string>([
   [SOURCES.eqip.name, 'Iowa NRCS EQIP FY2026'],
   [SOURCES.oatsPrice.name, 'USDA NASS (Wisconsin oats, May 2026)'],
   [SOURCES.fsa.name, 'USDA FSA'],
-  [SOURCES.plottwist.name, 'PlotTwist estimate, please check'],
+  [SOURCES.plottwist.name, 'PlotTwist planning value'],
 ]);
 
 const CROP_NAMES: Record<CropKey, string> = { corn: 'Corn', soybeans: 'Soybeans', oats: 'Oats', wheat: 'Wheat', rice: 'Rice', sorghum: 'Sorghum', cotton: 'Cotton' };

@@ -24,8 +24,8 @@ export async function mockSources(page: Page) {
     const id = route.request().url().split('/').pop()!;
     const earthdata = ['imerg', 'ndvi'].includes(id);
     const smap = [
-      { key: 'smapLatest', label: 'Topsoil moisture (Nov 11)', value: 29, unit: '%', honesty: 'Estimated' },
-      { key: 'smapCondition', label: 'Topsoil condition', value: 'Good', honesty: 'Estimated' },
+      { key: 'smapLatest', label: 'Topsoil moisture (Nov 11)', value: 29, unit: '%' },
+      { key: 'smapCondition', label: 'Topsoil condition', value: 'Good' },
     ];
     await route.fulfill({
       json: earthdata
@@ -38,7 +38,7 @@ export async function mockSources(page: Page) {
             docsUrl: '',
             status: 'ok',
             fetchedAt: '2026-11-14T12:00:00Z',
-            values: [{ key: 'k', label: `Mock ${id} value`, value: 1, honesty: id === 'elevation' ? 'Measured' : 'Estimated' }],
+            values: [{ key: 'k', label: `Mock ${id} value`, value: 1 }],
             // Ames, Iowa 1991–2020 normals (rounded) so Rotation Explorer can score climate fit.
             ...(id === 'power' ? { climate: AMES_CLIMATE } : {}),
           },

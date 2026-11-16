@@ -112,7 +112,6 @@ function exportRows(fields: Field[], plans: Plan[], analysis: FarmAnalysis | nul
     Value: item.value,
     Unit: item.unit,
     Origin: item.origin,
-    Confidence: item.confidence,
     Source: item.source.name,
     'Source date': item.source.date,
   }));
@@ -126,7 +125,6 @@ function exportRows(fields: Field[], plans: Plan[], analysis: FarmAnalysis | nul
         Measure: value.label,
         Value: value.value,
         Unit: value.unit ?? '',
-        Quality: value.honesty,
         Note: value.note ?? '',
       })),
     ),
@@ -258,7 +256,7 @@ export function ExportScreen() {
       }
 
       heading('Notes');
-      line('Values are planning estimates, not tax or accounting advice. Excel includes the detailed assumptions and source metadata used by the model.', { size: 9 });
+      line('Values are planning figures, not tax or accounting advice. Excel includes the detailed assumptions and source metadata used by the model.', { size: 9 });
       doc.save(`PlotTwist-farm-report-${fileDate()}.pdf`);
       setMessage('PDF report downloaded.');
     } catch (error) {

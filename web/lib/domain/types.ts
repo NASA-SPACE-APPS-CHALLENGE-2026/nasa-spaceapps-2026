@@ -87,8 +87,6 @@ export interface Field {
 
 // ---------- Layer 2: automatic profile ----------
 
-export type Honesty = 'Measured' | 'Estimated' | 'Check this info';
-
 export type SourceId = 'power' | 'ssurgo' | 'elevation' | 'smap' | 'imerg' | 'ndvi';
 
 export type SourceStatus = 'loading' | 'ok' | 'unavailable' | 'needs_token' | 'not_built';
@@ -98,7 +96,6 @@ export interface ProfileValue {
   label: string;
   value: number | string;
   unit?: string;
-  honesty: Honesty;
   note?: string;
 }
 

@@ -5,9 +5,8 @@ import type { CropRef, FieldCrops } from '@/lib/domain/types';
 export interface SeasonBlock {
   year: number;
   crop: CropRef | null;
-  /** past and current come from the field's history; planned from a plan; detected = satellite guess not confirmed yet. */
+  /** past and current come from the field's history; planned from a plan. */
   kind: 'past' | 'current' | 'planned';
-  detected?: boolean;
   /** Cover crop name sown after this season's crop. */
   cover?: string;
 }
@@ -18,12 +17,12 @@ const HEIGHT: Record<StripSize, string> = { sm: 'h-3', md: 'h-7', lg: 'h-11' };
 
 function describe(b: SeasonBlock): string {
   const crop = b.crop ? cropLabel(b.crop) : 'not entered';
-  return `${b.year} ${crop}${b.cover ? ` then ${b.cover}` : ''}${b.detected ? ' (detected, check this info)' : ''}${b.kind === 'planned' ? ' (planned)' : ''}`;
+  return `${b.year} ${crop}${b.cover ? ` then ${b.cover}` : ''}${b.kind === 'planned' ? ' (planned)' : ''}`;
 }
 
 /**
  * Seasons drawn as a row of parcels, oldest first: crop colour + crop code inside, year below.
- * The current season has a dark field-edge outline; detected seasons are hatched; planned seasons are dashed.
+ * The current season has a dark field-edge outline; planned seasons are dashed.
  */
 export function SeasonStripBlocks({ blocks, size = 'md', years = size !== 'sm', label, className = '' }: { blocks: SeasonBlock[]; size?: StripSize; years?: boolean; label?: string; className?: string }) {
   return (
@@ -34,11 +33,7 @@ export function SeasonStripBlocks({ blocks, size = 'md', years = size !== 'sm', 
           const current = b.kind === 'current';
           const planned = b.kind === 'planned';
           const empty = !b.crop;
-          const style = empty
-            ? undefined
-            : b.detected
-              ? { backgroundImage: `repeating-linear-gradient(135deg, ${color} 0 5px, ${color}66 5px 9px)`, color: cropInk(b.crop) }
-              : { background: cropBackground(b.crop), color: cropInk(b.crop) };
+          const style = empty ? undefined : { background: cropBackground(b.crop), color: cropInk(b.crop) };
           return (
             <span
               key={`${b.year}-${b.kind}`}
@@ -79,8 +74,8 @@ export function SeasonStripBlocks({ blocks, size = 'md', years = size !== 'sm', 
 export function fieldBlocks(crops: FieldCrops): SeasonBlock[] {
   return [...crops.history]
     .reverse()
-    .map<SeasonBlock>((s) => ({ year: s.year, crop: s.crop, kind: 'past', detected: s.status === 'detected' }))
-    .concat({ year: crops.current.year, crop: crops.current.crop, kind: 'current', detected: crops.current.status === 'detected' });
+    .map<SeasonBlock>((s) => ({ year: s.year, crop: s.crop, kind: 'past' }))
+    .concat({ year: crops.current.year, crop: crops.current.crop, kind: 'current' });
 }
 
 /** Oldest → current season of a field. */

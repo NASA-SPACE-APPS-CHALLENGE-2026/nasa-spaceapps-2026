@@ -1,13 +1,13 @@
 # Rotation Explorer rubric
 
-> **Placeholder rubric, not a forecast.** Every baseline, threshold and adjustment below was written for the hackathon and has not been reviewed by agronomists. The scores do not predict yield, profit or pest outcomes. Each card says "Estimated with a placeholder rubric, not a yield or profit forecast" until a review has happened.
+> **Placeholder rubric, not a forecast.** Every baseline, threshold and adjustment below was written for the hackathon and has not been reviewed by agronomists. The scores do not predict yield, profit or pest outcomes.
 
 The code is pure and deterministic (no clock, network or randomness), so the same inputs always give the same scores:
 
 | File | What it does |
 | --- | --- |
 | `lib/domain/management.ts` | Questionnaire answers (Layer 3) and their zod schema |
-| `lib/domain/rotation/inputs.ts` | Gathers each input with its provider and honesty label |
+| `lib/domain/rotation/inputs.ts` | Gathers each input with its provider |
 | `lib/domain/rotation/agronomy.ts` | Crop families, seasons, pest hosts and the usual-month calendar |
 | `lib/domain/rotation/strategies.ts` | Builds the three strategies from the field's crop history |
 | `lib/domain/rotation/coverCrops.ts` | Cover-crop rule table and ranking |
@@ -18,16 +18,16 @@ Tests are in `tests/unit/rotation.test.ts` and `tests/unit/plan.test.ts`.
 
 ## Inputs
 
-| Input | From | Label | Required by |
-| --- | --- | --- | --- |
-| Crop history (this season + 1–5 earlier) | Fields tab: the farmer, or USDA CDL until confirmed | You entered / Check this info | All strategies (this season's crop); diversity and pests (at least one earlier season) |
-| Monthly temperature and rain normals, 1991–2020 | NASA POWER climatology (in the POWER result as `climate`) | Estimated | Climate fit |
-| Rain in the last 30 days, and normal rain for those dates | NASA POWER daily | Estimated | Optional (cover-crop climate fit) |
-| Satellite rain in the last 30 days | GPM IMERG (key `imergRain30`) | Estimated | Optional (cover-crop climate fit) |
-| Surface soil moisture | SMAP (key `smapLatest`) | Estimated | Optional (cover-crop climate fit) |
-| Average slope | USGS 3DEP | Estimated | Optional (soil-cover weight) |
-| Organic matter | Soil test if entered, else SSURGO | You entered / Estimated | Shown with the inputs |
-| Tillage, irrigation, cover-crop experience, livestock, small-grain equipment and market, known problems, harvest month | Questionnaire | You entered | Optional |
+| Input | From | Required by |
+| --- | --- | --- |
+| Crop history (this season + 1–5 earlier) | Fields tab: the farmer, or USDA CDL until confirmed | All strategies (this season's crop); diversity and pests (at least one earlier season) |
+| Monthly temperature and rain normals, 1991–2020 | NASA POWER climatology (in the POWER result as `climate`) | Climate fit |
+| Rain in the last 30 days, and normal rain for those dates | NASA POWER daily | Optional (cover-crop climate fit) |
+| Satellite rain in the last 30 days | GPM IMERG (key `imergRain30`) | Optional (cover-crop climate fit) |
+| Surface soil moisture | SMAP (key `smapLatest`) | Optional (cover-crop climate fit) |
+| Average slope | USGS 3DEP | Optional (soil-cover weight) |
+| Organic matter | Soil test if entered, else SSURGO | Shown with the inputs |
+| Tillage, irrigation, cover-crop experience, livestock, small-grain equipment and market, known problems, harvest month | Questionnaire | Optional |
 
 Only profiles that match the field's current boundary (`geometryHash`) are used. "Not sure" and an unanswered question are treated the same way.
 
@@ -47,7 +47,7 @@ The farmer's own pattern is the shortest repeating cycle (1–3 seasons) that ma
 
 Scores are clamped to 0–100 and rounded. Missing inputs follow the team rule from `docs/strategy-rubric.md`:
 
-- A **missing optional input** applies half of the unfavourable adjustment, lowers confidence by one level, and is listed under "missing". Missing data never scores better than a known favourable value. This is tested.
+- A **missing optional input** applies half of the unfavourable adjustment and is listed under "missing". Missing data never scores better than a known favourable value. This is tested.
 - A **missing required input** leaves the bar unscored (`null`). The page shows "Not enough info" and what is needed, never 0.
 
 ### Soil cover
@@ -56,8 +56,8 @@ How much of the year living plants cover and hold the soil.
 - **Base:** 100 × (living months + ½ × residue months) ÷ 36, over the three planned years.
   - Living months run from the month after planting to harvest, and for a cover from the month after seeding to the month it is ended.
   - A winter-killed cover (oats, radish) counts as living until December and as residue after that.
-- **Tillage:** no-till +5; reduced 0; conventional −10; unknown −5 (lower confidence).
-- **Harvest month unknown:** the usual month is used, with lower confidence.
+- **Tillage:** no-till +5; reduced 0; conventional −10; unknown −5.
+- **Harvest month unknown:** the usual month is used.
 - **Sources:** NRCS CPS 340 (cover crop), NRCS CPS 329 (no-till), USDA NASS usual dates.
 
 ### Crop diversity
@@ -70,7 +70,6 @@ How many crop families and growing seasons the rotation uses.
   - +10 for three or more different cash crops;
   - +10 if warm-season and cool-season (or perennial) cash crops are both present;
   - +10 if a cover crop is included.
-- **Confidence:** medium when any season is still an unconfirmed CDL detection.
 - **Sources:** NRCS CPS 328, Davis et al. 2012 (Marsden Farm).
 
 ### Pests & diseases
@@ -85,11 +84,11 @@ How well the rotation breaks pest and disease cycles.
   - **Soybean cyst nematode** (hosts: soybeans, dry beans): a host after a host −15; at least 2 non-host seasons between hosts, or no host planned, +10; 1 non-host season +5. Source: The SCN Coalition.
   - **White mold** (hosts: soybeans, dry beans, sunflower, safflower, canola, mustard, camelina, peas, lentils, chickpeas, potatoes, tomatoes): the same rules as SCN. Source: Peltier et al. 2012.
   - **Herbicide-resistant weeds:** a cool-season or perennial cash crop +10; otherwise a winter-cereal cover +5. Source: Davis et al. 2012.
-  - **Problems unknown:** −5, with lower confidence. "None of these" makes no adjustment.
+  - **Problems unknown:** −5. "None of these" makes no adjustment.
 - **Note only:** a living grass cover ended right before corn can carry insects ("green bridge"). Source: SARE.
 
 ### Climate fit
-How well the crops and covers fit this field's weather. **Required:** NASA POWER monthly normals. Confidence starts at medium, because the normals are for a roughly 50 km grid cell.
+How well the crops and covers fit this field's weather. **Required:** NASA POWER monthly normals.
 
 - **Keep:** start at 70 (the crops are already grown there).
   - If corn is planned and normal May–August rain is under 12 in: rain-fed −10; supplemental irrigation −3; irrigation unknown −5.
@@ -99,7 +98,7 @@ How well the crops and covers fit this field's weather. **Required:** NASA POWER
   - **Recent dryness:**
     - It counts as dry when any of these holds: POWER 30-day rain is under 50 % of normal, IMERG is under 50 % of POWER's normal, or SMAP is below 0.15 m³/m³.
     - Dry −5.
-    - Unknown (no recent data) −2.5, with lower confidence.
+    - Unknown (no recent data) −2.5.
 - **Small grains:** start at 65.
   - June mean of 77 °F or higher −10 (heat at grain fill; Farooq et al. 2011).
   - August and September means of 60 °F or higher +10 (clover or a cover has time to establish after a July harvest).
@@ -158,9 +157,9 @@ Automated checks are in `tests/e2e/rotation.spec.ts` (desktop and phone) and the
 
 1. Every bar shows its label and either a number out of 100 or "Not enough info". The meter has `aria-valuetext`, so the meaning never depends on colour.
 2. There is exactly one "Best fit" badge, or none plus a "No best fit yet" explanation when no strategy has 3 scored bars.
-3. Every reason and every caveat lists at least one source: a citation link, a field-profile value with its honesty label, or the farmer's answer.
+3. Every reason and every caveat lists at least one source: a citation link, a field-profile value, or the farmer's answer.
 4. Missing data shows as missing. Climate is "Not enough info" without POWER, and the inputs list says "Not available". Nothing is ever filled with 0.
-5. Missing answers never raise a score, and they lower the confidence shown under the bar.
+5. Missing answers never raise a score.
 6. With public data lookups off, scores fall back to the questionnaire and crop history, and a note says so.
 7. A soil-test organic matter value replaces the soil-survey value and is labelled "You entered".
 8. There is no horizontal scroll at 390 px wide. Strategy cards stack on phones and sit side by side from 1024 px.

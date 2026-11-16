@@ -7,7 +7,7 @@ import { COST_LABELS, type CostCat } from '@/lib/domain/finance/budget';
 import type { WeatherState } from '@/lib/client/store';
 import { cropName } from '@/lib/domain/rotation/agronomy';
 import { Legend, money, PairColumns, PairLines, RangeRows, SERIES } from './charts';
-import { ConfidenceBadge, OriginBadge, Section, Segmented } from './ui';
+import { OriginBadge, Section, Segmented } from './ui';
 
 const perAcre = (y: PlanYear, v: number) => (y.acres ? v / y.acres : 0);
 
@@ -110,7 +110,7 @@ const noBudget = (y: PlanYear) => y.acres === 0 && y.skipped.length > 0;
 
 export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: boolean }) {
   if (!a.budgetedYears.length) return <IncompleteFinance a={a} compact={compact} />;
-  const { low, high, mid, wholeFarm } = a.headline;
+  const { mid, wholeFarm } = a.headline;
   const tone = mid > 0.5 ? 'text-field' : mid < -0.5 ? 'text-alert' : 'text-ink';
   return (
     <>
@@ -118,16 +118,14 @@ export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: bo
     <div className={`grid gap-3 ${compact ? 'mt-3' : 'sm:grid-cols-2'}`} data-testid="finance-headline">
       <div className="rounded-parcel border border-line bg-panel p-4">
         <p className="text-[14.5px] font-semibold text-ink-soft">Change in net return per acre, per year</p>
-        <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>
-          {money(low, { sign: true })} to {money(high, { sign: true })}
-        </p>
-        <p className="mt-1 text-[14px] text-ink-soft">Most likely {money(mid, { sign: true })} per acre per year with the PlotTwist plan.</p>
+        <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>{money(mid, { sign: true })}</p>
+        <p className="mt-1 text-[14px] text-ink-soft">Per acre per year with the PlotTwist plan.</p>
       </div>
       <div className="rounded-parcel border border-line bg-panel p-4">
         <p className="text-[14.5px] font-semibold text-ink-soft">Whole farm over {overSeasons(a)}</p>
         <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>{money(wholeFarm, { sign: true })}</p>
         <p className="mt-1 text-[14px] text-ink-soft">
-          {a.acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres, {a.years[0]}–{a.years[a.years.length - 1]}. <ConfidenceBadge c={a.confidence.headline} />
+          {a.acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres, {a.years[0]}–{a.years[a.years.length - 1]}.
         </p>
       </div>
     </div>
@@ -162,7 +160,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
       {planned > 0 && planned < fieldCount && <p className="text-[14.5px] text-ink-soft">{fieldCount - planned} of {fieldCount} fields have no plan yet; they stay on their current rotation in both columns.</p>}
       <Headline a={a} />
 
-      <Section id="projection" title="Projection" confidence={a.confidence.comparison} aside={<Segmented label="Show" value={metric} onChange={setMetric} options={[{ value: 'net', label: 'Net return' }, { value: 'revenue', label: 'Revenue' }]} />}>
+      <Section id="projection" title="Projection" aside={<Segmented label="Show" value={metric} onChange={setMetric} options={[{ value: 'net', label: 'Net return' }, { value: 'revenue', label: 'Revenue' }]} />}>
         <p className="text-[14px] text-ink-soft">{metric === 'net' ? 'Net return' : 'Revenue (including cost share)'} per acre for each season of the plan.</p>
         <div className="mt-2">
           <Legend />
@@ -170,7 +168,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         <PairColumns data={cols} title={`${metric === 'net' ? 'Net return' : 'Revenue'} per acre by year`} />
       </Section>
 
-      <Section id="compare" title="Side by side" confidence={a.confidence.comparison}>
+      <Section id="compare" title="Side by side">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-[14px] tabular-nums">
             <thead>
@@ -203,11 +201,11 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         )}
       </Section>
 
-      <Section id="net-formula" title="How net return is calculated" confidence={a.confidence.comparison}>
+      <Section id="net-formula" title="How net return is calculated">
         <NetFormula a={a} />
       </Section>
 
-      <Section id="partial" title="Partial budget" confidence={a.confidence.partial}>
+      <Section id="partial" title="Partial budget">
         <p className="text-[14px] text-ink-soft">What changes for the whole farm over {a.years.length} years if you switch to the PlotTwist plan.</p>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <PartialBox title="Added revenue" lines={a.partial.addedRevenue} sign={1} />
@@ -220,7 +218,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         </p>
       </Section>
 
-      <Section id="cash" title="Cash flow" confidence={a.confidence.cash}>
+      <Section id="cash" title="Cash flow">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-parcel bg-paper p-3">
             <p className="text-[13.5px] font-semibold text-ink-soft">Break-even</p>
@@ -267,7 +265,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         </details>
       </Section>
 
-      <Section id="risk" title="Weather risk (40 years of NASA weather)" confidence={a.risk ? a.confidence.risk : undefined}>
+      <Section id="risk" title="Weather risk (40 years of NASA weather)">
         {!a.risk ? (
           <p className="text-[15px] text-ink-soft">{weather?.status === 'loading' ? 'Loading 40 years of NASA POWER weather for your farm…' : weather?.status === 'unavailable' ? 'NASA weather history is not available right now.' : 'Turn on public data lookups to see weather risk.'}</p>
         ) : (
@@ -299,7 +297,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         )}
       </Section>
 
-      <Section id="savings" title="Savings and support" confidence={a.confidence.savings}>
+      <Section id="savings" title="Savings and support">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-parcel bg-paper p-3">
             <p className="text-[13.5px] font-semibold text-ink-soft">Nitrogen fertilizer saved</p>
@@ -323,7 +321,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
         </ul>
       </Section>
 
-      <Section id="sensitivity" title="What if prices or yields change?" confidence={a.confidence.sensitivity}>
+      <Section id="sensitivity" title="What if prices or yields change?">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-[14px] tabular-nums">
             <thead>
@@ -376,22 +374,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
       </Section>
 
       <Section id="transparency" title="Every assumption">
-        <ul className="flex flex-wrap gap-2 text-[13.5px]" aria-label="Data confidence per result">
-          {(
-            [
-              ['Headline', a.confidence.headline],
-              ['Side by side', a.confidence.comparison],
-              ['Cash flow', a.confidence.cash],
-              ['Weather risk', a.confidence.risk],
-              ['Savings', a.confidence.savings],
-            ] as const
-          ).map(([k, c]) => (
-            <li key={k} className="inline-flex items-center gap-1.5">
-              {k}: <ConfidenceBadge c={c} />
-            </li>
-          ))}
-        </ul>
-        <details className="mt-3">
+        <details>
           <summary className="min-h-11 cursor-pointer py-2 text-[14.5px] font-semibold text-field">Show all {a.transparency.length} values, their sources and dates</summary>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-[13.5px]">
@@ -400,8 +383,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
                   <th scope="col" className="py-1.5 pr-2 font-semibold">Value</th>
                   <th scope="col" className="px-2 text-right font-semibold">Used</th>
                   <th scope="col" className="px-2 font-semibold">From</th>
-                  <th scope="col" className="px-2 font-semibold">Source and date</th>
-                  <th scope="col" className="pl-2 font-semibold">Confidence</th>
+                  <th scope="col" className="pl-2 font-semibold">Source and date</th>
                 </tr>
               </thead>
               <tbody>
@@ -414,7 +396,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
                     <td className="px-2">
                       <OriginBadge origin={t.origin} />
                     </td>
-                    <td className="px-2 text-ink-soft">
+                    <td className="pl-2 text-ink-soft">
                       {t.source.url ? (
                         <a href={t.source.url} target="_blank" rel="noopener noreferrer" className="text-field underline underline-offset-2">
                           {t.source.name}
@@ -423,9 +405,6 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
                         t.source.name
                       )}
                       , {t.source.date}
-                    </td>
-                    <td className="pl-2">
-                      <ConfidenceBadge c={t.confidence} />
                     </td>
                   </tr>
                 ))}

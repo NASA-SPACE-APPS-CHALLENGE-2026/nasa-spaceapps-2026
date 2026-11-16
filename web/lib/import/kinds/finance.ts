@@ -202,8 +202,8 @@ export function financeFindings(rows: Txn[], ctx: ImportContext): { findings: Fi
   const costs = -inYear.filter((r) => OUT_CATS.has(r.category)).reduce((s, r) => s + r.amount, 0);
   // A partial year (a payments app, one quarter of a bank statement) would replace a full year's totals, so it is not ticked.
   const partialNote = complete ? '' : ' Not ticked: it would replace totals from fuller records.';
-  if (revenue > 0) findings.push({ target: 'lastYear:totalRevenue', label: 'Last year’s total revenue', group: 'Totals', value: Math.round(revenue), unit: '$', evidence: `${yearNote}: grain sales, program payments and other income.${partialNote}`, confidence: complete ? 'high' : 'low', suggested: complete });
-  if (costs > 0) findings.push({ target: 'lastYear:totalCosts', label: 'Last year’s total costs', group: 'Totals', value: Math.round(costs), unit: '$', evidence: `${yearNote}: farm expenses, not counting transfers and loan principal.${partialNote}`, confidence: complete ? 'high' : 'low', suggested: complete });
+  if (revenue > 0) findings.push({ target: 'lastYear:totalRevenue', label: 'Last year’s total revenue', group: 'Totals', value: Math.round(revenue), unit: '$', evidence: `${yearNote}: grain sales, program payments and other income.${partialNote}`, suggested: complete });
+  if (costs > 0) findings.push({ target: 'lastYear:totalCosts', label: 'Last year’s total costs', group: 'Totals', value: Math.round(costs), unit: '$', evidence: `${yearNote}: farm expenses, not counting transfers and loan principal.${partialNote}`, suggested: complete });
 
   // Prices received, from grain sales that say how many bushels.
   const sales = new Map<string, { dollars: number; bu: number; n: number }>();
@@ -233,7 +233,6 @@ export function financeFindings(rows: Txn[], ctx: ImportContext): { findings: Fi
       value: r2(price),
       unit: '$/bu',
       evidence: `${y}: ${plural(s.n, 'sale')}, ${Math.round(s.bu).toLocaleString('en-US')} bu for $${Math.round(s.dollars).toLocaleString('en-US')}`,
-      confidence: s.bu >= 1000 || s.n >= 2 ? 'high' : 'medium',
       suggested: price > 0.5 && price < 40,
     });
   }
@@ -243,7 +242,7 @@ export function financeFindings(rows: Txn[], ctx: ImportContext): { findings: Fi
   const rentedAcres = ctx.fields.reduce((s, f) => s + ((ctx.finance.fields[f.id]?.tenure ?? 'cash') === 'cash' ? fieldSetup(f, ctx.finance).acres : 0), 0);
   if (rent > 0 && rentedAcres > 0) {
     const perAc = rent / rentedAcres;
-    findings.push({ target: 'param:rent', label: 'Cash rent', group: 'Input costs', value: Math.round(perAc), unit: '$/ac', evidence: `${yearNote}: $${Math.round(rent).toLocaleString('en-US')} rent over ${Math.round(rentedAcres)} cash-rented acres`, confidence: perAc > 50 && perAc < 800 ? 'medium' : 'low', suggested: perAc > 50 && perAc < 800 });
+    findings.push({ target: 'param:rent', label: 'Cash rent', group: 'Input costs', value: Math.round(perAc), unit: '$/ac', evidence: `${yearNote}: $${Math.round(rent).toLocaleString('en-US')} rent over ${Math.round(rentedAcres)} cash-rented acres`, suggested: perAc > 50 && perAc < 800 });
   }
 
   // Grain buyer: who most sales came from.
@@ -254,7 +253,7 @@ export function financeFindings(rows: Txn[], ctx: ImportContext): { findings: Fi
     if (name && !/\[(email|number|phone)\]/.test(name)) buyers.set(name, (buyers.get(name) ?? 0) + r.amount);
   }
   const topBuyer = [...buyers].sort((a, b) => b[1] - a[1])[0];
-  if (topBuyer) findings.push({ target: 'supplier:grainBuyer', label: 'Main grain buyer', group: 'Suppliers', value: topBuyer[0].slice(0, 60), evidence: `Largest grain payer in ${year}`, confidence: 'medium', suggested: true });
+  if (topBuyer) findings.push({ target: 'supplier:grainBuyer', label: 'Main grain buyer', group: 'Suppliers', value: topBuyer[0].slice(0, 60), evidence: `Largest grain payer in ${year}`, suggested: true });
 
   // Actual cost calibration: what was spent vs what PlotTwist modeled for the same fields and crops (opt-in).
   const model = modeledSpend(ctx, year);
@@ -264,7 +263,6 @@ export function financeFindings(rows: Txn[], ctx: ImportContext): { findings: Fi
       const modeled = model.costs[cat];
       if (actual <= 0 || modeled <= 0) continue;
       const factor = actual / modeled;
-      const plausible = factor >= 0.4 && factor <= 2.5;
       findings.push({
         target: `param:actual.${cat}`,
         label: `${CAT_LABEL[cat]}: scale the budget to what you spent`,
@@ -272,7 +270,6 @@ export function financeFindings(rows: Txn[], ctx: ImportContext): { findings: Fi
         value: Math.round(factor * 100) / 100,
         unit: '×',
         evidence: `${yearNote}: you spent $${Math.round(actual).toLocaleString('en-US')}; PlotTwist modeled $${Math.round(modeled).toLocaleString('en-US')} for ${plural(model.fields, 'field')} (${Math.round(model.acres)} ac).${cat === 'machinery' ? ' Books usually leave out machinery ownership costs, so this can look low.' : cat === 'labor' ? ' Your own and family labor is usually unpaid and not in the books, so this can look low.' : ''}${complete ? '' : ' Partial year.'}`,
-        confidence: plausible && complete ? 'medium' : 'low',
         suggested: false,
       });
     }

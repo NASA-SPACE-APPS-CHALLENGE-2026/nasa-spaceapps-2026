@@ -15,7 +15,7 @@ Milestone 3 adds:
   - It reads the Planner live.
 - **Finance** (`/finance`):
   - Your numbers, prefilled from Iowa State 2026 budgets, USDA prices and Iowa NRCS cost-share rates.
-  - Results for the current rotation against the PlotTwist plan: headline range, projections, partial budget, seasonal cash flow (break-even, deepest dip), risk over 40 years of NASA POWER weather, savings and programs, sensitivity, and every assumption with its source.
+  - Results for the current rotation against the PlotTwist plan: headline, projections, partial budget, seasonal cash flow (break-even, deepest dip), risk over 40 years of NASA POWER weather, savings and programs, sensitivity, and every assumption with its source.
   - See [`docs/finance-defaults.md`](docs/finance-defaults.md).
 - **Simpler screens:**
   - Strategy cards drop their citation links.
@@ -43,8 +43,8 @@ Milestone 2 added:
 Milestone 1 delivered:
 
 - **App shell** with the tabs Overview, Fields, Rotation Explorer, Planner, Scenario Simulator, Finance and Imports. The app opens on Fields.
-- **Fields**: every field is traced on USGS satellite imagery (click the corners, Undo corner, Finish shape or click the first corner; live acreage while drawing). A ZIP code, a dropped pin or coordinates only move the map to the right place and start drawing; nothing is auto-generated. Rename, edit the boundary, redraw, delete. Fields saved by the first version as a pin with a 40-acre square are migrated to "Boundary not drawn" and shown as a pin until the farmer draws them. The farmer enters only the shape, this season's crop (2026) and earlier seasons (3 by default, up to 5). Earlier seasons are prefilled from the USDA Cropland Data Layer and marked "Check this info" until confirmed.
-- **Automatic field profile**: weather and climate (NASA POWER), soil (USDA SSURGO), elevation and slope (USGS 3DEP), plus SMAP, IMERG and NDVI stubs that need an Earthdata token. Each source shows its own status, provider, fetch date, and an honesty label (Measured, Estimated, or Check this info) on every value.
+- **Fields**: every field is traced on USGS satellite imagery (click the corners, Undo corner, Finish shape or click the first corner; live acreage while drawing). A ZIP code, a dropped pin or coordinates only move the map to the right place and start drawing; nothing is auto-generated. Rename, edit the boundary, redraw, delete. Fields saved by the first version as a pin with a 40-acre square are migrated to "Boundary not drawn" and shown as a pin until the farmer draws them. The farmer enters only the shape, this season's crop (2026) and earlier seasons (3 by default, up to 5). Earlier seasons are prefilled from the USDA Cropland Data Layer, with a "From USDA crop maps" note.
+- **Automatic field profile**: weather and climate (NASA POWER), soil (USDA SSURGO), elevation and slope (USGS 3DEP), plus SMAP, IMERG and NDVI stubs that need an Earthdata token. Each source shows its own status, provider and fetch date.
 - **Imports**: five upload cards. **Land boundaries** works: GeoJSON, KML, or a zipped shapefile, parsed in the browser, previewed on a map, and you pick which shapes become fields. The other four cards (machine data, supplier records, finance CSV, yield records) accept files and say plainly that they were received but not processed.
 
 It runs with **zero API keys**. Only SMAP and IMERG need the optional Earthdata token.

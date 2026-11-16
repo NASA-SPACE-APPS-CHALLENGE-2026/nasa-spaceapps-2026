@@ -43,9 +43,9 @@ export function smapValues(days: SmapDay[]): ProfileValue[] {
   const week = days.filter((d) => Date.parse(d.date) >= Date.parse(latest.date) - 6 * DAY);
   const weekPct = Math.round((week.reduce((s, d) => s + d.sm, 0) / week.length) * 100);
   return [
-    { key: 'smapLatest', label: `Topsoil moisture (${prettyDay(latest.date)})`, value: pct, unit: '%', honesty: 'Estimated', note: 'Water by volume in the top 2 inches, 9 km satellite pixel.' },
-    { key: 'smapCondition', label: 'Topsoil condition', value: moistureWord(pct), honesty: 'Estimated' },
-    { key: 'smapWeek', label: '7-day average', value: weekPct, unit: '%', honesty: 'Estimated' },
+    { key: 'smapLatest', label: `Topsoil moisture (${prettyDay(latest.date)})`, value: pct, unit: '%', note: 'Water by volume in the top 2 inches, 9 km satellite pixel.' },
+    { key: 'smapCondition', label: 'Topsoil condition', value: moistureWord(pct) },
+    { key: 'smapWeek', label: '7-day average', value: weekPct, unit: '%' },
   ];
 }
 

@@ -38,9 +38,9 @@ export function imergValues(days: RainDay[]): ProfileValue[] {
   const total = days.reduce((s, d) => s + d.mm, 0);
   const wettest = days.reduce((a, b) => (b.mm > a.mm ? b : a));
   return [
-    { key: 'imergRain30', label: `Rain, last ${days.length} days (satellite)`, value: mmToIn(total), unit: 'in', honesty: 'Estimated' },
-    { key: 'imergRain7', label: 'Rain, last 7 days', value: mmToIn(last7.reduce((s, d) => s + d.mm, 0)), unit: 'in', honesty: 'Estimated' },
-    { key: 'imergWettest', label: 'Wettest day', value: mmToIn(wettest.mm), unit: 'in', honesty: 'Estimated' },
+    { key: 'imergRain30', label: `Rain, last ${days.length} days (satellite)`, value: mmToIn(total), unit: 'in' },
+    { key: 'imergRain7', label: 'Rain, last 7 days', value: mmToIn(last7.reduce((s, d) => s + d.mm, 0)), unit: 'in' },
+    { key: 'imergWettest', label: 'Wettest day', value: mmToIn(wettest.mm), unit: 'in' },
   ];
 }
 

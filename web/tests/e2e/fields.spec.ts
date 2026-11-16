@@ -26,7 +26,7 @@ test('add fields by ZIP then drawing, enter crops, import GeoJSON, reload', asyn
   await page.getByLabel('Field name').fill('ZIP field');
   await page.getByRole('button', { name: 'Save field' }).click();
   await expect(page.getByTestId('field-acres')).toHaveText(/\d+\.\d ac/);
-  await expect(page.getByTestId('season-2025')).toContainText('Check this info');
+  await expect(page.getByTestId('season-2025')).toContainText('From USDA crop maps');
   await expect(page.getByTestId('source-power')).toHaveAttribute('data-status', 'ok');
   await expect(page.getByTestId('source-smap')).toHaveAttribute('data-status', 'ok');
   await expect(page.getByTestId('source-smap')).toContainText(/29 ?%/);
@@ -36,13 +36,13 @@ test('add fields by ZIP then drawing, enter crops, import GeoJSON, reload', asyn
   await expect(page.getByTestId('source-elevation')).not.toContainText('Measured');
   await expect(page.getByTestId('source-power')).not.toContainText('NASA POWER');
 
-  // Crops: current season by search, then confirm the detections
+  // Crops: current season by search; crop-map detections show as plain notes
   await page.getByRole('button', { name: /Crop in 2026/ }).click();
   await page.getByRole('combobox', { expanded: true }).fill('oats');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('season-2026')).toContainText('You entered this');
-  await page.getByRole('button', { name: /These look right/ }).click();
-  await expect(page.getByTestId('season-2025')).toContainText('You confirmed');
+  await expect(page.getByTestId('season-2025')).not.toContainText('Check this info');
+  await expect(page.getByRole('button', { name: /These look right|Confirm / })).toHaveCount(0);
 
   // Draw directly where the map is
   await page.getByRole('button', { name: 'All fields' }).click();
@@ -70,7 +70,7 @@ test('add fields by ZIP then drawing, enter crops, import GeoJSON, reload', asyn
   await expect(list.getByRole('button')).toHaveCount(2 + added);
   await list.getByRole('button', { name: /ZIP field/ }).click();
   await expect(page.getByTestId('season-2026')).toContainText('Oats');
-  await expect(page.getByTestId('season-2025')).toContainText('You confirmed');
+  await expect(page.getByTestId('season-2025')).toContainText('From USDA crop maps');
 });
 
 test('record imports are read, reviewed, applied to Finance and removable', async ({ page }) => {

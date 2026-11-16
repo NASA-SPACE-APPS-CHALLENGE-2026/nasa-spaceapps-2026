@@ -2,11 +2,8 @@ import { interiorPoint } from '../acreage';
 import { cropLabel } from '../crops';
 import type { RotationAnswers } from '../management';
 import { SOURCE_META } from '../sourceMeta';
-import type { ClimateNormals, Field, FieldProfile, Honesty, SeasonStatus, SourceId } from '../types';
+import type { ClimateNormals, Field, FieldProfile, SeasonStatus, SourceId } from '../types';
 import { cropIdsOf } from './agronomy';
-
-/** Where an input came from, so every reason can show its evidence. */
-export type InputHonesty = Honesty | 'You entered';
 
 export interface DataPoint<T> {
   value: T;
@@ -14,7 +11,8 @@ export interface DataPoint<T> {
   /** Human-readable value with unit. */
   display: string;
   provider: string;
-  honesty: InputHonesty;
+  /** The farmer entered this value (shown as "You entered"). */
+  fromFarmer?: boolean;
 }
 
 export interface KnownSeason {
@@ -54,13 +52,13 @@ function value(profile: FieldProfile | undefined, source: SourceId, key: string)
 function numberPoint(profile: FieldProfile | undefined, source: SourceId, key: string, label: string): DataPoint<number> | undefined {
   const v = value(profile, source, key);
   if (!v || typeof v.value !== 'number' || !Number.isFinite(v.value)) return undefined;
-  return { value: v.value, label, display: `${v.value}${v.unit ? ` ${v.unit}` : ''}`, provider: SOURCE_META[source].provider, honesty: v.honesty };
+  return { value: v.value, label, display: `${v.value}${v.unit ? ` ${v.unit}` : ''}`, provider: SOURCE_META[source].provider };
 }
 
 function stringPoint(profile: FieldProfile | undefined, source: SourceId, key: string, label: string): DataPoint<string> | undefined {
   const v = value(profile, source, key);
   if (!v || v.value === '' || v.value === null) return undefined;
-  return { value: String(v.value), label, display: String(v.value), provider: SOURCE_META[source].provider, honesty: v.honesty };
+  return { value: String(v.value), label, display: String(v.value), provider: SOURCE_META[source].provider };
 }
 
 /** Gather everything the rubric uses for one field. Profiles from an older boundary are ignored. */
@@ -74,13 +72,13 @@ export function buildInputs(field: Field, profile: FieldProfile | undefined, ans
   const power = p?.sources.power;
   const climate: DataPoint<ClimateNormals> | undefined =
     power?.status === 'ok' && power.climate && power.climate.monthlyMeanTempF.length === 12
-      ? { value: power.climate, label: '1991–2020 monthly normals', display: 'Monthly temperature and rain normals', provider: SOURCE_META.power.provider, honesty: 'Estimated' }
+      ? { value: power.climate, label: '1991–2020 monthly normals', display: 'Monthly temperature and rain normals', provider: SOURCE_META.power.provider }
       : undefined;
 
   const soilTest = answers.soilTest;
   const organicMatter: DataPoint<number> | undefined =
     soilTest?.organicMatterPct !== undefined
-      ? { value: soilTest.organicMatterPct, label: 'Organic matter (your soil test)', display: `${soilTest.organicMatterPct} %`, provider: 'Your soil test', honesty: 'You entered' }
+      ? { value: soilTest.organicMatterPct, label: 'Organic matter (your soil test)', display: `${soilTest.organicMatterPct} %`, provider: 'Your soil test', fromFarmer: true }
       : numberPoint(p, 'ssurgo', 'organicMatter', 'Organic matter (soil survey)');
 
   return {

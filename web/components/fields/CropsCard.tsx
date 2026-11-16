@@ -1,23 +1,12 @@
 'use client';
 
-import {
-  addOlderSeason,
-  confirmAllDetected,
-  confirmSeason,
-  countUnconfirmed,
-  LATEST_CDL_YEAR,
-  MAX_HISTORY_YEARS,
-  MIN_HISTORY_YEARS,
-  removeOldestSeason,
-  setSeasonCrop,
-} from '@/lib/domain/cropHistory';
+import { addOlderSeason, LATEST_CDL_YEAR, MAX_HISTORY_YEARS, MIN_HISTORY_YEARS, removeOldestSeason, setSeasonCrop } from '@/lib/domain/cropHistory';
 import Link from 'next/link';
 import { isDemoField } from '@/lib/demo/demoFarm';
 import { cropKeyOf } from '@/lib/domain/finance/budget';
 import { financeCropIds } from '@/lib/domain/finance/plans';
 import { cropName } from '@/lib/domain/rotation/agronomy';
 import type { Field, FieldCrops, SeasonCrop } from '@/lib/domain/types';
-import { HonestyBadge } from '../ui/HonestyBadge';
 import { CropPicker } from './CropPicker';
 import { RotationStrip } from './RotationStrip';
 
@@ -31,7 +20,6 @@ interface Props {
 export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Props) {
   const { crops } = field;
   const demo = isDemoField(field);
-  const unconfirmed = countUnconfirmed(crops);
 
   return (
     <section aria-labelledby="crops-h" className="border-t border-line pt-5">
@@ -50,23 +38,18 @@ export function CropsCard({ field, lookupsOn, onChange, onRetryDetection }: Prop
       <CdlStatus field={field} lookupsOn={lookupsOn} onRetry={onRetryDetection} />
 
       <div className="mt-4 space-y-4">
-        <SeasonRow demo={demo} label="This season" season={crops.current} onPick={(c) => onChange(setSeasonCrop(crops, crops.current.year, c))} onConfirm={() => onChange(confirmSeason(crops, crops.current.year))} />
+        <SeasonRow demo={demo} label="This season" season={crops.current} onPick={(c) => onChange(setSeasonCrop(crops, crops.current.year, c))} />
         <div className="border-t border-line pt-3">
           <p className="mb-3 text-[15px] font-semibold">Earlier seasons</p>
           <div className="space-y-4">
             {crops.history.map((s) => (
-              <SeasonRow demo={demo} key={s.year} season={s} onPick={(c) => onChange(setSeasonCrop(crops, s.year, c))} onConfirm={() => onChange(confirmSeason(crops, s.year))} />
+              <SeasonRow demo={demo} key={s.year} season={s} onPick={(c) => onChange(setSeasonCrop(crops, s.year, c))} />
             ))}
           </div>
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {unconfirmed > 0 && (
-          <button type="button" onClick={() => onChange(confirmAllDetected(crops))} className="min-h-12 rounded-parcel bg-field px-4 text-[15px] font-semibold text-white hover:bg-field-deep">
-            These look right ({unconfirmed})
-          </button>
-        )}
         <button
           type="button"
           disabled={crops.history.length >= MAX_HISTORY_YEARS}
@@ -125,9 +108,8 @@ function CdlStatus({ field, lookupsOn, onRetry }: { field: Field; lookupsOn: boo
   return <div className="mt-2">{again}</div>;
 }
 
-function SeasonRow({ season, label, demo, onPick, onConfirm }: { season: SeasonCrop; label?: string; demo?: boolean; onPick: (c: SeasonCrop['crop']) => void; onConfirm: () => void }) {
-  const d = season.detection;
-  const detected = season.status === 'detected';
+function SeasonRow({ season, label, demo, onPick }: { season: SeasonCrop; label?: string; demo?: boolean; onPick: (c: SeasonCrop['crop']) => void }) {
+  const d = season.origin === 'cdl' ? season.detection : undefined;
   return (
     <div data-testid={`season-${season.year}`}>
       <div className="flex items-center gap-3">
@@ -136,24 +118,14 @@ function SeasonRow({ season, label, demo, onPick, onConfirm }: { season: SeasonC
           {label && <div className="mt-1 text-[12.5px] text-ink-faint">{label}</div>}
         </div>
         <CropPicker value={season.crop} onChange={onPick} label={`Crop in ${season.year}`} />
-        {detected && (
-          <button type="button" onClick={onConfirm} aria-label={`Confirm ${season.year}`} title="Confirm this crop" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-parcel border border-field/40 text-field hover:bg-field-tint">
-            <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
-              <path d="m4.5 10.5 3.5 3.5 7.5-8" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        )}
       </div>
-      {(detected || (season.status === 'confirmed' && season.origin === 'cdl')) && d && (
-        <div className="ml-[68px] mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] text-ink-soft">
-          {detected ? <HonestyBadge honesty="Check this info" /> : <span className="font-semibold text-field">You confirmed</span>}
-          <span>
-            Detected from USDA crop maps: {d.cdlName}
-            {d.method === 'zonal' ? `, ${d.sharePct}% of the field` : `, ${Math.round((d.sharePct / 100) * d.sampleCount)} of ${d.sampleCount} spots checked`}
-          </span>
-        </div>
+      {d && (
+        <p className="ml-[68px] mt-1.5 text-[13.5px] text-ink-soft">
+          From USDA crop maps: {d.cdlName}
+          {d.method === 'zonal' ? `, ${d.sharePct}% of the field` : `, ${Math.round((d.sharePct / 100) * d.sampleCount)} of ${d.sampleCount} spots checked`}
+        </p>
       )}
-      {detected && d?.nonCrop && (
+      {d?.nonCrop && (
         <p className="ml-[68px] mt-1 text-[13.5px] text-wheat-deep">USDA maps show this spot as {d.cdlName.toLowerCase()}, not cropland. Check that the boundary is on your field.</p>
       )}
       {season.status === 'confirmed' && season.origin === 'farmer' && <p className="ml-[68px] mt-1.5 text-[13.5px] text-ink-faint">{demo ? 'Example data (demo farm)' : 'You entered this'}</p>}

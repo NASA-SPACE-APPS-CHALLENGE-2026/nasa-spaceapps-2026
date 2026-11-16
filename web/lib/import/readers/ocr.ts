@@ -7,8 +7,6 @@ import type { TextItem } from './layout';
  */
 export interface OcrResult {
   items: TextItem[];
-  /** Mean word confidence, 0–100. */
-  confidence: number;
 }
 
 type Img = string | Blob | HTMLCanvasElement | Uint8Array | ArrayBuffer;
@@ -40,23 +38,19 @@ export async function ocrImages(images: Img[], opts: { paths?: OcrPaths; onProgr
   Object.assign(workerOpts, opts.paths ?? {});
   const worker = await createWorker('eng', 1, workerOpts);
   const items: TextItem[] = [];
-  let confSum = 0;
-  let n = 0;
   try {
     for (let page = 0; page < images.length; page++) {
       const img = images[page] instanceof ArrayBuffer ? new Uint8Array(images[page] as ArrayBuffer) : images[page];
       const { data } = await worker.recognize(img as never, {}, { blocks: true });
       const words: OcrWord[] = (data.blocks ?? []).flatMap((b: { paragraphs: Array<{ lines: Array<{ words: OcrWord[] }> }> }) => b.paragraphs.flatMap((p) => p.lines.flatMap((l) => l.words)));
       for (const w of words) {
-        if (!w.text.trim() || w.confidence < 30) continue;
+        if (!w.text.trim() || w.confidence < 30) continue; // skip noise tesseract could barely read
         const h = w.bbox.y1 - w.bbox.y0;
         items.push({ str: w.text, x0: w.bbox.x0, x1: w.bbox.x1, y: (w.bbox.y0 + w.bbox.y1) / 2, h, page: page + 1 });
-        confSum += w.confidence;
-        n++;
       }
     }
   } finally {
     await worker.terminate();
   }
-  return { items, confidence: n ? confSum / n : 0 };
+  return { items };
 }

@@ -39,8 +39,6 @@ export interface Draft {
   iso?: IsoTask[];
   meta: { supplier?: string; date?: string };
   readWarnings: string[];
-  /** Mean OCR confidence (0–100) when text came from images. */
-  ocrConfidence?: number;
   /** Year to use for undated maps (the farmer can change it in review). */
   mapYear?: number;
 }
@@ -93,7 +91,6 @@ export async function readFile(file: { name: string; size: number; bytes: Uint8A
     env.onStatus?.('Reading the PDF…');
     const pdf = await readPdf(file.bytes, await env.pdfjs());
     let items: TextItem[] = pdf.items;
-    let ocrConfidence: number | undefined;
     const warnings: string[] = [];
     if (pdf.scannedPages.length) {
       if (!env.ocr || !env.renderPage) {
@@ -104,18 +101,17 @@ export async function readFile(file: { name: string; size: number; bytes: Uint8A
         for (const p of pdf.scannedPages) canvases.push(await env.renderPage(await pdf.doc.getPage(p)));
         const ocr = await env.ocr(canvases, (p) => env.onStatus?.(`Reading text from the scan… ${Math.round(p * 100)}%`));
         items = [...items.filter((i) => !pdf.scannedPages.includes(i.page)), ...ocr.items.map((i) => ({ ...i, page: pdf.scannedPages[i.page - 1] }))];
-        ocrConfidence = ocr.confidence;
       }
     }
     await pdf.doc.destroy();
-    return { ...fromItems(base, items, kind, 'pdf'), ocrConfidence, readWarnings: warnings };
+    return { ...fromItems(base, items, kind, 'pdf'), readWarnings: warnings };
   }
 
   if (['.png', '.jpg', '.jpeg', '.webp'].includes(e)) {
     if (!env.ocr) throw new ReadError('Reading images is not available here.');
     env.onStatus?.('Reading text from the image (about 20 seconds)…');
     const ocr = await env.ocr([file.bytes], (p) => env.onStatus?.(`Reading text from the image… ${Math.round(p * 100)}%`));
-    return { ...fromItems(base, ocr.items, kind, 'image'), ocrConfidence: ocr.confidence };
+    return { ...fromItems(base, ocr.items, kind, 'image') };
   }
 
   throw new ReadError(`PlotTwist can't read ${e || 'this kind of'} file here.`);
@@ -141,7 +137,6 @@ export interface Evaluation {
 export function evaluate(d: Draft, ctx: ImportContext): Evaluation {
   const t = d.tables[d.tableIndex];
   const warnings = [...d.readWarnings];
-  if (d.ocrConfidence !== undefined && d.ocrConfidence < 80) warnings.push(`The text was read from an image with ${Math.round(d.ocrConfidence)}% confidence. Check every number before using it.`);
   const fieldNames = t && d.mapping?.field !== undefined && d.mapping.field !== null ? [...new Set(t.rows.map((r) => text(r[d.mapping!.field!])).filter(Boolean))] : d.iso ? [...new Set(d.iso.map((x) => x.partfieldName ?? x.name))] : [];
 
   if (d.kind === 'yield') {

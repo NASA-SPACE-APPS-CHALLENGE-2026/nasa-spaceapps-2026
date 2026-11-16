@@ -98,7 +98,7 @@ export function Questionnaire({ field, answers, onChange, onDone }: Props) {
           {STEPS[step]}
         </h2>
         <p className="mt-2 max-w-2xl text-[15.5px] leading-relaxed text-ink-soft">
-          About <strong className="text-ink">{field.name}</strong>. Skip anything you’re not sure of: missing answers lower the confidence, they never make a strategy look better.
+          About <strong className="text-ink">{field.name}</strong>. Skip anything you’re not sure of: missing answers never make a strategy look better.
         </p>
 
         <div className="mt-7 space-y-8">
@@ -262,7 +262,7 @@ function SoilTestForm({ value, onChange }: { value: SoilTest | undefined; onChan
         Add results from a lab soil test
       </summary>
       <div className="border-t border-line px-4 pb-4 pt-3">
-        <p className="text-[14.5px] text-ink-soft">Optional. Your organic matter replaces the soil-survey estimate and is labelled “You entered”. pH, P and K are kept with the plan for reference.</p>
+        <p className="text-[14.5px] text-ink-soft">Optional. Your organic matter replaces the soil-survey value and is labelled “You entered”. pH, P and K are kept with the plan for reference.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <TextField label="Test date" type="date" value={st.date ?? ''} onChange={(e) => onChange({ ...st, date: e.target.value || undefined })} />
           <SoilNumber label="pH" hint="Usually 5.0–8.0" value={st.ph} step="0.1" onCommit={(raw) => num('ph', raw, 3, 10)} min={3} max={10} />

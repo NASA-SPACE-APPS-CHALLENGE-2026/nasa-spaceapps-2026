@@ -73,7 +73,6 @@ export function elevationValues(samples: ElevationSample[]): ProfileValue[] {
       label: 'Average elevation',
       value: Math.round(ftFromM(mean)),
       unit: 'ft',
-      honesty: 'Measured',
       note: `USGS 3DEP ground elevation model (mostly lidar), averaged over ${samples.length} point${samples.length === 1 ? '' : 's'} in the field.${resText}`,
     },
   ];
@@ -83,7 +82,6 @@ export function elevationValues(samples: ElevationSample[]): ProfileValue[] {
       label: 'Height difference across the field',
       value: Math.round(ftFromM(max - min)),
       unit: 'ft',
-      honesty: 'Measured',
       note: `Highest minus lowest of the ${samples.length} sample points.`,
     });
   }
@@ -94,7 +92,6 @@ export function elevationValues(samples: ElevationSample[]): ProfileValue[] {
       label: 'Average slope',
       value: Math.round(slope * 10) / 10,
       unit: '%',
-      honesty: 'Estimated',
       note: `Plane fitted through ${samples.length} elevation points. Steeper spots and dips between points are not captured.`,
     });
   }
