@@ -70,7 +70,7 @@ export function simulate(field: Field, plan: Plan | undefined, finance: FinanceI
   const proposed = proposedPlanSeasons(field, plan, horizon, startYear);
   const input: FarmFieldInput = { id: field.id, name: field.name, setup: fieldSetup(field, finance, sim), thisSeason: thisSeason(field, startYear), current, proposed };
   const weather = scenarioWeather(sim.scenario);
-  const opts = { beginningFarmer: finance.beginningFarmer, forward: finance.forward };
+  const opts = { beginningFarmer: finance.beginningFarmer, forward: finance.forward, coverProgram: finance.coverProgram };
   const yc = projectPlan([input], 'current', P, opts, () => weather);
   const yp = projectPlan([input], 'proposed', P, opts, () => weather);
   const acres = input.setup.acres;

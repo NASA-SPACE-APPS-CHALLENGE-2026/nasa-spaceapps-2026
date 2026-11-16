@@ -66,23 +66,29 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
   const setField = (id: string, patch: Partial<FieldFinance>) => onChange({ ...inputs, fields: { ...inputs.fields, [id]: { ...inputs.fields[id], ...patch } } });
   const assumptions = (groups: Group[], filter?: (id: string) => boolean) => (
     <div className={GRID}>
-      {ASSUMPTIONS.filter((a) => groups.includes(a.group) && (!filter || filter(a.id))).map((a) => (
-        <NumberField
-          key={a.id}
-          label={a.label}
-          unit={a.unit}
-          value={inputs.overrides[a.id]}
-          placeholder={imported.overrides[a.id] ?? a.value}
-          min={0}
-          onCommit={(v) => setOverride(a.id, v)}
-          hint={
-            imported.overrides[a.id] !== undefined
-              ? `From your records (${fileOf(imported, a.id)}). Default ${a.value.toLocaleString('en-US')}.`
-              : `Default ${a.value.toLocaleString('en-US')}: ${SHORT_SOURCE.get(a.source.name) ?? a.source.name}`
-          }
-          testId={`input-${a.id}`}
-        />
-      ))}
+      {ASSUMPTIONS.filter((a) => groups.includes(a.group) && (!filter || filter(a.id))).map((a) => {
+        // Values with no published default (CSP, cover grazing) are blank until the farmer fills them in.
+        const farmerOnly = a.source === SOURCES.farmer;
+        return (
+          <NumberField
+            key={a.id}
+            label={a.label}
+            unit={a.unit}
+            value={inputs.overrides[a.id]}
+            placeholder={farmerOnly ? undefined : (imported.overrides[a.id] ?? a.value)}
+            min={0}
+            onCommit={(v) => setOverride(a.id, v)}
+            hint={
+              farmerOnly
+                ? a.note
+                : imported.overrides[a.id] !== undefined
+                  ? `From your records (${fileOf(imported, a.id)}). Default ${a.value.toLocaleString('en-US')}.`
+                  : `Default ${a.value.toLocaleString('en-US')}: ${SHORT_SOURCE.get(a.source.name) ?? a.source.name}`
+            }
+            testId={`input-${a.id}`}
+          />
+        );
+      })}
     </div>
   );
   const cropFilter = (id: string) => {
@@ -226,7 +232,29 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
         </div>
       </Group>
 
-      <Group title="Programs and savings">{assumptions(['Programs'])}</Group>
+      <Group title="Programs and savings" open={inputs.coverProgram !== 'eqip'}>
+        <div className="mb-4" data-testid="cover-program">
+          <p className="text-[14.5px] font-semibold">Cover crop program</p>
+          <div className="mt-1">
+            <Segmented
+              label="Cover crop program"
+              value={inputs.coverProgram}
+              onChange={(p) => onChange({ ...inputs, coverProgram: p })}
+              options={[
+                { value: 'eqip', label: 'EQIP' },
+                { value: 'state', label: 'Iowa cost share' },
+                { value: 'insurance', label: 'Insurance discount' },
+                { value: 'none', label: 'None' },
+              ]}
+            />
+          </div>
+          <p className="mt-1 text-[14px] text-ink-soft">The same cover crop acres can’t get EQIP, Iowa cost share and the Iowa crop insurance discount at once, so PlotTwist counts only the one you choose. A CSP contract is separate and is added on top.</p>
+        </div>
+        {assumptions(['Programs'], (id) => {
+          const head = id.split('.')[0];
+          return head === 'eqip' ? inputs.coverProgram === 'eqip' : head === 'state' ? inputs.coverProgram === 'state' : head === 'insurance' ? inputs.coverProgram === 'insurance' : true;
+        })}
+      </Group>
 
       {Object.keys(imported.overrides).some((id) => id.startsWith('actual.')) && (
         <Group title="Your actual costs (from your books)" open intro="Each cost category in the budget is multiplied by what your imported books show you actually spent, compared with what PlotTwist modeled. 1 means the budget as is.">

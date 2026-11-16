@@ -23,7 +23,7 @@ export function useFarmAnalysis(): { analysis: FarmAnalysis | null; params: Para
   const params = useMemo(() => buildParams(finance), [finance]);
   const analysis = useMemo(() => {
     if (!loaded || !fields.length) return null;
-    return analyzeFarm(farmFieldInputs(fields, plans, finance), params, { beginningFarmer: finance.beginningFarmer, weather: history, forward: finance.forward });
+    return analyzeFarm(farmFieldInputs(fields, plans, finance), params, { beginningFarmer: finance.beginningFarmer, weather: history, forward: finance.forward, coverProgram: finance.coverProgram });
   }, [loaded, fields, plans, finance, params, history]);
   const planned = new Set(plans.map((p) => p.fieldId)).size;
   return { analysis, params, weather: w, planned };

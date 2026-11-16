@@ -46,6 +46,13 @@ export interface ImportedFinance {
 
 export const NO_IMPORTS: ImportedFinance = { overrides: {}, sources: {}, lastYear: {}, suppliers: {}, fields: {} };
 
+/**
+ * Cover-crop programs that can't be combined on the same acres: NRCS EQIP, Iowa state cost share,
+ * or the Iowa crop insurance discount (which excludes acres in IDALS or NRCS cost share).
+ */
+export type CoverProgram = 'eqip' | 'state' | 'insurance' | 'none';
+export const COVER_PROGRAMS: CoverProgram[] = ['eqip', 'state', 'insurance', 'none'];
+
 export interface FinanceInputs {
   horizon: 3 | 5;
   overrides: Record<string, number>;
@@ -54,6 +61,8 @@ export interface FinanceInputs {
   forward: Partial<Record<CropKey, number>>;
   suppliers: { seedSupplier?: string; cornSeedPerBag?: number; fertilizerSupplier?: string; anhydrousPerTon?: number; grainBuyer?: string };
   beginningFarmer: boolean;
+  /** The one cover-crop program counted: the same acres can't be in more than one of these. */
+  coverProgram: CoverProgram;
   simulator: Record<string, SimulatorInputs>;
   updatedAt?: string;
   /** Merged in by withImports(); not persisted. */
@@ -77,7 +86,7 @@ export function effectiveLastYear(inputs: FinanceInputs): { totalRevenue?: numbe
   };
 }
 
-export const DEFAULT_FINANCE: FinanceInputs = { horizon: 5, overrides: {}, fields: {}, lastYear: { crops: {} }, forward: {}, suppliers: {}, beginningFarmer: false, simulator: {} };
+export const DEFAULT_FINANCE: FinanceInputs = { horizon: 5, overrides: {}, fields: {}, lastYear: { crops: {} }, forward: {}, suppliers: {}, beginningFarmer: false, coverProgram: 'eqip', simulator: {} };
 
 const num = z.number().finite();
 const optNum = num.optional().catch(undefined);
@@ -110,6 +119,7 @@ export const financeSchema = z.object({
   forward: z.record(cropKey, num).catch({}),
   suppliers: z.object({ seedSupplier: optStr, cornSeedPerBag: optNum, fertilizerSupplier: optStr, anhydrousPerTon: optNum, grainBuyer: optStr }).catch({}),
   beginningFarmer: z.boolean().catch(false),
+  coverProgram: z.enum(['eqip', 'state', 'insurance', 'none']).catch('eqip'),
   simulator: z
     .record(
       z.string(),

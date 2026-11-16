@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { setSeasonCrop } from '@/lib/domain/cropHistory';
 import { createField } from '@/lib/domain/field';
-import { analyzeFarm, cashFlow, cropsWithoutBuiltInBudget, partialBudget, projectPlan, type FarmFieldInput } from '@/lib/domain/finance/analysis';
+import { analyzeFarm, cashFlow, cropsWithoutBuiltInBudget, partialBudget, PROGRAM_LABELS, projectPlan, type FarmFieldInput } from '@/lib/domain/finance/analysis';
 import { ASSUMPTIONS, confidenceOf, Params } from '@/lib/domain/finance/assumptions';
-import { seasonBudget, type FieldSetup, type SeasonPlan } from '@/lib/domain/finance/budget';
+import { COVER_GRAZING, OPERATING_CATS, seasonBudget, type FieldSetup, type SeasonPlan } from '@/lib/domain/finance/budget';
 import { coverMonths, currentPlanSeasons, proposedPlanSeasons } from '@/lib/domain/finance/plans';
-import { buildParams, DEFAULT_FINANCE, parseFinance } from '@/lib/domain/finance/inputs';
+import { buildParams, COVER_PROGRAMS, DEFAULT_FINANCE, parseFinance, type CoverProgram } from '@/lib/domain/finance/inputs';
 import { classifyYears } from '@/lib/domain/finance/weather';
 import { simulate } from '@/lib/domain/finance/simulate';
 import { farmFieldInputs, fieldSetup, upcomingTasks } from '@/lib/domain/finance/farm';
@@ -175,7 +175,7 @@ describe('whole-farm analysis', () => {
   });
 
   it('cash flow finds the break-even season and the deepest dip', () => {
-    const mk = (year: number, outs: number[], ins: number[]) => ({ year, acres: 1, revenue: 0, revenueBy: {}, programs: 0, costs: {} as never, operating: 0, land: 0, net: 0, nLbs: 0, coverAcres: 0, flows: { spring: { in: ins[0], out: outs[0] }, summer: { in: ins[1], out: outs[1] }, fall: { in: ins[2], out: outs[2] }, winter: { in: ins[3], out: outs[3] } }, skipped: [] });
+    const mk = (year: number, outs: number[], ins: number[]) => ({ year, acres: 1, revenue: 0, revenueBy: {}, programs: 0, costs: {} as never, operating: 0, land: 0, net: 0, nLbs: 0, coverAcres: 0, flows: { spring: { in: ins[0], out: outs[0] }, summer: { in: ins[1], out: outs[1] }, fall: { in: ins[2], out: outs[2] }, winter: { in: ins[3], out: outs[3] } }, skipped: [], programsBy: {} });
     const cur = [mk(2027, [100, 0, 0, 0], [0, 0, 200, 0]), mk(2028, [100, 0, 0, 0], [0, 0, 200, 0])];
     const pro = [mk(2027, [150, 0, 0, 0], [0, 0, 200, 0]), mk(2028, [100, 0, 0, 0], [0, 0, 260, 0])];
     const c = cashFlow(cur, pro);
@@ -393,5 +393,84 @@ describe('Scenario Simulator', () => {
     const p = { ...plan(f), seasons: [{ ...plan(f).seasons[0], year: 2026, tasks: [{ id: 't1', month: 12, kind: 'note' as const, label: 'Order seed' }, { id: 't2', month: 6, kind: 'plant' as const, label: 'Later' }] }] };
     const up = upcomingTasks([f], [p], new Date('2026-11-15T12:00:00'));
     expect(up.map((u) => u.task.label)).toEqual(['Order seed']);
+  });
+});
+
+describe('net return follows the full formula (programs, insurance discount, grazing)', () => {
+  // Plan adds cereal rye after the 2027 and 2029 soybeans; the current rotation has no cover crops.
+  const field = (acres: number, current: SeasonPlan[] = [soy(2027), corn(2028), soy(2029)]): FarmFieldInput => ({
+    id: 'a',
+    name: 'North 40',
+    setup: { acres, tenure: 'own', irrigated: false },
+    thisSeason: corn(2026),
+    current,
+    proposed: [soy(2027, RYE), corn(2028), soy(2029, RYE)],
+  });
+  const run = (f: FarmFieldInput, coverProgram?: CoverProgram, overrides: Record<string, number> = {}) =>
+    analyzeFarm([f], buildParams({ ...DEFAULT_FINANCE, overrides }), { beginningFarmer: false, coverProgram });
+  const prog = (y: { programsBy: Record<string, number> }, label: string) => y.programsBy[label] ?? 0;
+
+  it('every year adds up: revenue + programs − operating costs − land = net', () => {
+    for (const p of COVER_PROGRAMS) {
+      const a = run(field(200), p, { 'csp.annual': 4000, 'cover.grazing': 25 });
+      for (const y of [...a.current, ...a.proposed]) {
+        const sum = (r: Record<string, number>) => Object.values(r).reduce((s, v) => s + v, 0);
+        expect(sum(y.revenueBy)).toBeCloseTo(y.revenue, 6);
+        expect(sum(y.programsBy)).toBeCloseTo(y.programs, 6);
+        expect(y.revenue + y.programs - OPERATING_CATS.reduce((s, c) => s + y.costs[c], 0) - y.land).toBeCloseTo(y.net, 6);
+      }
+    }
+  });
+
+  it('EQIP stays the default and is unchanged; "none" counts no program money', () => {
+    const byDefault = run(field(80));
+    expect(byDefault.proposed.map((y) => prog(y, PROGRAM_LABELS.eqip))).toEqual(run(field(80), 'eqip').proposed.map((y) => prog(y, PROGRAM_LABELS.eqip)));
+    expect(byDefault.savings.costShare).toBeCloseTo(74.34 * 80 * 2, 2);
+    const none = run(field(80), 'none');
+    expect([...none.current, ...none.proposed].every((y) => y.programs === 0)).toBe(true);
+  });
+
+  it('Iowa cost share: first-time rate in the first cover year, returning rate after, capped at 160 acres', () => {
+    const a = run(field(200), 'state');
+    expect(a.proposed.map((y) => prog(y, PROGRAM_LABELS.state))).toEqual([30 * 160, 0, 20 * 160]);
+    expect(a.current.every((y) => y.programs === 0)).toBe(true);
+    expect(a.proposed.some((y) => prog(y, PROGRAM_LABELS.eqip) > 0)).toBe(false);
+    // A farm that already grows cover crops is a returning user, in both columns.
+    const returning = run(field(100, [soy(2027, RYE), corn(2028), soy(2029)]), 'state');
+    expect(returning.current.map((y) => prog(y, PROGRAM_LABELS.state))).toEqual([2000, 0, 0]);
+    expect(returning.proposed.map((y) => prog(y, PROGRAM_LABELS.state))).toEqual([2000, 0, 2000]);
+  });
+
+  it('insurance discount: $5/ac off the premium the year after a fall cover crop, and no cost share', () => {
+    const a = run(field(80), 'insurance');
+    // 2027 rye → 2028 discount; 2029 rye's discount falls in 2030, past the horizon.
+    expect(a.proposed.map((y) => prog(y, PROGRAM_LABELS.insurance))).toEqual([0, 400, 0]);
+    expect(a.proposed[1].flows.summer.in).toBeGreaterThanOrEqual(400);
+    expect(a.proposed.some((y) => prog(y, PROGRAM_LABELS.eqip) > 0)).toBe(false);
+    expect(a.partial.addedRevenue.find((l) => l.label === PROGRAM_LABELS.insurance)?.amount).toBeCloseTo(400, 6);
+  });
+
+  it('CSP: the farmer’s yearly payment, with the plan only, for the contract years entered', () => {
+    const a = run(field(80), 'eqip', { 'csp.annual': 4000 });
+    expect(a.proposed.map((y) => prog(y, PROGRAM_LABELS.csp))).toEqual([4000, 4000, 4000]);
+    expect(a.current.every((y) => prog(y, PROGRAM_LABELS.csp) === 0)).toBe(true);
+    expect(a.partial.addedRevenue.find((l) => l.label === PROGRAM_LABELS.csp)?.amount).toBeCloseTo(12000, 6);
+    const short = run(field(80), 'eqip', { 'csp.annual': 4000, 'csp.years': 2 });
+    expect(short.proposed.map((y) => prog(y, PROGRAM_LABELS.csp))).toEqual([4000, 4000, 0]);
+    expect(run(field(80)).proposed.every((y) => prog(y, PROGRAM_LABELS.csp) === 0)).toBe(true);
+  });
+
+  it('cover crop grazing counts only when entered, and only on cover crop seasons', () => {
+    const a = run(field(80), 'eqip', { 'cover.grazing': 25 });
+    expect(a.proposed.map((y) => y.revenueBy[COVER_GRAZING] ?? 0)).toEqual([2000, 0, 2000]);
+    const plain = run(field(80));
+    expect(plain.proposed.every((y) => !(COVER_GRAZING in y.revenueBy))).toBe(true);
+    expect(plain.transparency.find((t) => t.id === 'cover.grazing' || t.id.startsWith('csp.'))).toBeUndefined();
+  });
+
+  it('reads an unknown stored program as EQIP', () => {
+    expect(parseFinance({ coverProgram: 'bogus' }).coverProgram).toBe('eqip');
+    expect(parseFinance({}).coverProgram).toBe('eqip');
+    expect(parseFinance({ coverProgram: 'insurance' }).coverProgram).toBe('insurance');
   });
 });

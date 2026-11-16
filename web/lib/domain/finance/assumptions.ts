@@ -24,6 +24,9 @@ export const SOURCES = {
   eqip: { name: 'Iowa NRCS FY2026 EQIP payment schedule, Cover Crop (340) single species (as summarised by hellogravel.com)', url: 'https://hellogravel.com/incentives/iowa/iowa-nrcs-fy2026-payment-schedule/', date: '2026' },
   oatsPrice: { name: 'USDA NASS Agricultural Prices via Wisconsin Farm Reporter: Wisconsin May 2026 oat price (stand-in; no Iowa price found)', url: 'https://datcp.wi.gov/Documents2/WisconsinFarmReporter202607.pdf', date: 'Jul 2026' },
   fsa: { name: 'USDA Farm Service Agency, Microloans', url: 'https://www.fsa.usda.gov/microloans', date: '2026' },
+  idalsCostShare: { name: 'Iowa Department of Agriculture and Land Stewardship, cover crop cost-share sign-up (Water Quality Initiative)', url: 'https://iowaagriculture.gov/news/sign-up-cover-crop-cost-share', date: 'May 13, 2025' },
+  idalsInsurance: { name: 'Iowa Department of Agriculture and Land Stewardship, Crop Insurance Discount Program sign-up', url: 'https://iowaagriculture.gov/news/crop-ins-discount-prog-signup-12-25', date: 'Dec 1, 2025' },
+  farmer: { name: 'You entered', date: 'in PlotTwist' },
   power: { name: 'NASA POWER monthly weather for this field, 1985–2024', url: 'https://power.larc.nasa.gov/docs/services/api/temporal/monthly/', date: 'fetched live' },
   plottwist: { name: 'PlotTwist planning assumption (not from a published budget; please check locally)', date: 'Nov 2026' },
 } satisfies Record<string, SourceRef>;
@@ -163,6 +166,8 @@ export const ASSUMPTIONS: Assumption[] = [
   guess('cover.termination', 'Ending the cover (herbicide and pass)', 'Cover crops', 12, '$/ac'),
   guess('cover.ryeCornDrag', 'Corn yield drag after cereal rye', 'Cover crops', 2, '%'),
   guess('cover.legumeNCredit', 'Nitrogen credit from a legume cover before corn', 'Cover crops', 40, 'lb N/ac'),
+  // Farmer-entered only: read only when set.
+  { id: 'cover.grazing', label: 'Cover crop grazing or forage value', group: 'Cover crops', value: 0, unit: '$/ac', source: SOURCES.farmer, confidence: 'low', note: 'What grazing or harvesting the cover is worth to you (feed saved or forage sold). Leave empty if you don’t use it.' },
 
   // ---- Land and money ----
   { id: 'rent', label: 'Cash rent', group: 'Land and money', value: 270, unit: '$/ac', source: SOURCES.rent, confidence: 'high' },
@@ -174,6 +179,13 @@ export const ASSUMPTIONS: Assumption[] = [
   { id: 'eqip.coverBeginning', label: 'EQIP cover crop rate for beginning farmers', group: 'Programs', value: 89.2, unit: '$/ac/yr', source: SOURCES.eqip, confidence: 'medium', note: 'Historically underserved rate, which includes beginning farmers.' },
   guess('eqip.years', 'Years of EQIP cover crop payments', 'Programs', 3, 'years'),
   { id: 'fsa.microloan', label: 'FSA microloan limit', group: 'Programs', value: 50000, unit: '$', source: SOURCES.fsa, confidence: 'high' },
+  { id: 'state.coverFirstTime', label: 'Iowa cost share, first-time cover crop user', group: 'Programs', value: 30, unit: '$/ac', source: SOURCES.idalsCostShare, confidence: 'medium', note: '2025 statewide rate; check the 2026 rate with your Soil and Water Conservation District.' },
+  { id: 'state.coverReturning', label: 'Iowa cost share, returning cover crop user', group: 'Programs', value: 20, unit: '$/ac', source: SOURCES.idalsCostShare, confidence: 'medium', note: '2025 statewide rate; check the 2026 rate with your Soil and Water Conservation District.' },
+  { id: 'state.maxAcres', label: 'Iowa cost share acre limit per farmer', group: 'Programs', value: 160, unit: 'ac/yr', source: SOURCES.idalsCostShare, confidence: 'medium' },
+  { id: 'insurance.coverDiscount', label: 'Iowa crop insurance discount for fall cover crops', group: 'Programs', value: 5, unit: '$/ac', source: SOURCES.idalsInsurance, confidence: 'medium', note: 'Taken off the next year’s premium. Acres in other IDALS or NRCS cost share don’t qualify; no acreage cap.' },
+  // Farmer-entered only (no published per-acre value): read only when set.
+  { id: 'csp.annual', label: 'CSP contract payment per year', group: 'Programs', value: 0, unit: '$/yr', source: SOURCES.farmer, confidence: 'low', note: 'From your Conservation Stewardship Program contract, for a new contract that comes with the PlotTwist plan.' },
+  { id: 'csp.years', label: 'CSP contract years left', group: 'Programs', value: 0, unit: 'years', source: SOURCES.farmer, confidence: 'low', note: 'Leave empty to count the payment in every plan year.' },
 
   // ---- Risk ----
   guess('risk.cornLoss', 'Corn yield loss in a stress year', 'Risk', 20, '%'),

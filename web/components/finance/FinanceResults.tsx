@@ -2,13 +2,106 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import type { FarmAnalysis, PartialLine, PlanYear, SkippedSeason } from '@/lib/domain/finance/analysis';
+import { PROGRAM_LABELS, type FarmAnalysis, type PartialLine, type PlanYear, type SkippedSeason } from '@/lib/domain/finance/analysis';
+import { COST_LABELS, type CostCat } from '@/lib/domain/finance/budget';
 import type { WeatherState } from '@/lib/client/store';
 import { cropName } from '@/lib/domain/rotation/agronomy';
 import { Legend, money, PairColumns, PairLines, RangeRows, SERIES } from './charts';
 import { ConfidenceBadge, OriginBadge, Section, Segmented } from './ui';
 
 const perAcre = (y: PlanYear, v: number) => (y.acres ? v / y.acres : 0);
+
+const FORMULA = `Net return/ac = crop revenue (yield × price, plus byproducts such as cottonseed, straw, forage or grazing)
+              + program payments (EQIP/CSP/state cost share, only in funded years)
+              + insurance premium discounts where they exist
+              − seed − fertilizer (N, P, K, lime) − chemicals
+              − cover-crop costs (seed, seeding pass, termination pass)
+              − machinery, fuel, labor, insurance, misc
+              − land cost if rented`;
+
+/** Cost lines in the formula's order; † marks costs the formula leaves out but the ISU budgets include. */
+const FORMULA_COSTS: Array<{ cat: CostCat; extra?: boolean }> = [
+  { cat: 'seed' },
+  { cat: 'fertilizer' },
+  { cat: 'chemicals' },
+  { cat: 'cover' },
+  { cat: 'machinery' },
+  { cat: 'labor' },
+  { cat: 'insurance' },
+  { cat: 'other' },
+  { cat: 'own' },
+  { cat: 'interest', extra: true },
+  { cat: 'irrigation', extra: true },
+];
+
+/**
+ * The pasted net-return formula, filled in line by line: dollars per acre per year, averaged over the
+ * seasons that have budgets (the same basis as the headline). Built only from PlanYear totals.
+ */
+function NetFormula({ a }: { a: FarmAnalysis }) {
+  const counted = a.years.map((_, i) => i).filter((i) => a.current[i].acres > 0 && a.proposed[i].acres > 0);
+  const avg = (ys: PlanYear[], pick: (y: PlanYear) => number) => (counted.length ? counted.reduce((s, i) => s + pick(ys[i]) / ys[i].acres, 0) / counted.length : 0);
+  const both = (pick: (y: PlanYear) => number) => ({ p: avg(a.proposed, pick), c: avg(a.current, pick) });
+  const keys = (pick: (y: PlanYear) => Record<string, number>) => [...new Set(counted.flatMap((i) => [...Object.keys(pick(a.proposed[i])), ...Object.keys(pick(a.current[i]))]))];
+  const insurance = PROGRAM_LABELS.insurance;
+  type Row = { label: string; p: number; c: number; sign: 1 | -1; extra?: boolean };
+  const groups: Array<{ title: string; rows: Row[] }> = [
+    { title: 'Crop revenue, including byproducts', rows: keys((y) => y.revenueBy).map((k) => ({ label: k, ...both((y) => y.revenueBy[k] ?? 0), sign: 1 as const })) },
+    { title: 'Program payments', rows: keys((y) => y.programsBy).filter((k) => k !== insurance).map((k) => ({ label: k, ...both((y) => y.programsBy[k] ?? 0), sign: 1 as const })) },
+    { title: 'Insurance premium discounts', rows: [{ label: insurance, ...both((y) => y.programsBy[insurance] ?? 0), sign: 1 as const }] },
+    { title: 'Costs', rows: FORMULA_COSTS.map(({ cat, extra }) => ({ label: COST_LABELS[cat], ...both((y) => y.costs[cat]), sign: -1 as const, extra })) },
+    { title: 'Land', rows: [{ label: COST_LABELS.land, ...both((y) => y.land), sign: -1 as const }] },
+  ].map((g) => ({ ...g, rows: g.rows.filter((r) => Math.abs(r.p) > 0.005 || Math.abs(r.c) > 0.005) }));
+  const net = both((y) => y.net);
+  const shown = (r: Row, v: number) => money(r.sign * v, { cents: true, sign: true });
+  return (
+    <div data-testid="net-formula">
+      <pre className="overflow-x-auto whitespace-pre rounded-parcel bg-panel p-3 font-mono text-[12.5px] leading-relaxed text-ink-soft">{FORMULA}</pre>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[480px] text-[14px] tabular-nums">
+          <thead>
+            <tr className="text-left text-ink-soft">
+              <th scope="col" className="py-2 pr-2 font-semibold">Per acre, per year</th>
+              <th scope="col" className="px-2 text-right font-semibold">{SERIES.proposed.label}</th>
+              <th scope="col" className="pl-2 text-right font-semibold">{SERIES.current.label}</th>
+            </tr>
+          </thead>
+          {groups
+            .filter((g) => g.rows.length)
+            .map((g) => (
+              <tbody key={g.title}>
+                <tr>
+                  <th scope="rowgroup" colSpan={3} className="pt-3 text-left text-[13px] font-semibold uppercase tracking-wide text-ink-faint">
+                    {g.title}
+                  </th>
+                </tr>
+                {g.rows.map((r) => (
+                  <tr key={r.label} className="border-t border-line">
+                    <td className="py-1.5 pr-2">
+                      {r.label}
+                      {r.extra && <span title="Not in the standard formula; included in the ISU crop budgets"> †</span>}
+                    </td>
+                    <td className="px-2 text-right">{shown(r, r.p)}</td>
+                    <td className="pl-2 text-right">{shown(r, r.c)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
+          <tbody>
+            <tr className="border-t-2 border-line-strong font-semibold">
+              <td className="py-2 pr-2">Net return per acre</td>
+              <td className="px-2 text-right" data-testid="net-formula-plan">{money(net.p, { cents: true, sign: true })}</td>
+              <td className="pl-2 text-right" data-testid="net-formula-current">{money(net.c, { cents: true, sign: true })}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-[13.5px] text-ink-faint">
+        Averaged over {counted.length} season{counted.length === 1 ? '' : 's'} with budgets. † Not in the standard formula, but part of the Iowa State crop budgets, so it is kept as its own line. Program money counts only in years a program actually pays.
+      </p>
+    </div>
+  );
+}
 const sum = (l: PartialLine[]) => l.reduce((s, x) => s + x.amount, 0);
 
 /** "over 5 years", or "over 3 of 5 seasons with budgets" when some seasons are left out. */
@@ -108,6 +201,10 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
             Check: last year {lastYear.fromRecords?.revenue || lastYear.fromRecords?.costs ? 'your imported books show' : 'you reported'} {money(lastYear.totalRevenue)} revenue and {money(lastYear.totalCosts)} costs (net {money(lastYear.totalRevenue - lastYear.totalCosts)}). PlotTwist models your current rotation in {a.current[0].year} at {money(a.current[0].revenue + a.current[0].programs)} revenue and {money(a.current[0].operating + a.current[0].land)} costs (net {money(a.current[0].net)}). If these are far apart, adjust your yields, prices or costs under Your numbers.
           </p>
         )}
+      </Section>
+
+      <Section id="net-formula" title="How net return is calculated" confidence={a.confidence.comparison}>
+        <NetFormula a={a} />
       </Section>
 
       <Section id="partial" title="Partial budget" confidence={a.confidence.partial}>

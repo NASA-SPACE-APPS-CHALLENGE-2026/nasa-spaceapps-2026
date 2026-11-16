@@ -1,5 +1,6 @@
 import { cropName } from '../rotation/agronomy';
 import { confidenceOf, type Confidence, type Origin, type Params, type SourceRef } from './assumptions';
+import type { CoverProgram } from './inputs';
 import { COST_LABELS, cropKeyOf, emptyCosts, isBudgeted, OPERATING_CATS, seasonBudget, type CostCat, type CropKey, type FieldSetup, type Season, type SeasonPlan, type WeatherYear } from './budget';
 import type { WeatherHistory } from './weather';
 
@@ -23,7 +24,17 @@ export interface AnalysisOptions {
   weather?: WeatherHistory;
   /** Forward contract prices for the first year, $/bu. */
   forward?: Partial<Record<CropKey, number>>;
+  /** The one cover-crop program counted (default EQIP). */
+  coverProgram?: CoverProgram;
 }
+
+/** Labels for program money in the partial budget and the net-return breakdown. */
+export const PROGRAM_LABELS = {
+  eqip: 'Cost-share payments (EQIP)',
+  state: 'Iowa cover crop cost share',
+  insurance: 'Crop insurance premium discount',
+  csp: 'CSP payments',
+} as const;
 
 export type PlanId = 'current' | 'proposed';
 
@@ -32,7 +43,9 @@ export interface PlanYear {
   acres: number;
   revenue: number;
   revenueBy: Record<string, number>;
+  /** Program money (cost share, CSP, insurance discount); always the sum of programsBy. */
   programs: number;
+  programsBy: Record<string, number>;
   costs: Record<CostCat, number>;
   operating: number;
   land: number;
@@ -99,10 +112,23 @@ export function projectPlan(fields: FarmFieldInput[], which: PlanId, P: Params, 
   const forward = opts.forward ?? {};
   const forwardIds = Object.entries(forward).filter(([, v]) => typeof v === 'number' && v > 0) as Array<[CropKey, number]>;
   const firstYearP = forwardIds.length ? P.with(Object.fromEntries(forwardIds.map(([k, v]) => [`${k}.price`, v]))) : P;
-  const rate = P.get(opts.beginningFarmer ? 'eqip.coverBeginning' : 'eqip.cover');
+  const program = opts.coverProgram ?? 'eqip';
+  const eqipRate = program === 'eqip' ? P.get(opts.beginningFarmer ? 'eqip.coverBeginning' : 'eqip.cover') : 0;
+  // Iowa cost share: first-time rate only for a farm with no cover crops today, and only in its first cover year.
+  const firstTimeFarm = fields.every((f) => f.current.every((s) => !s.cover));
+  const firstCoverYear = Math.min(...fields.map((f) => f[which].findIndex((s) => !!s.cover)).filter((i) => i >= 0));
+  const cspYears = P.has('csp.annual') && which === 'proposed' ? (P.has('csp.years') ? P.get('csp.years') : Infinity) : 0;
   const out: PlanYear[] = [];
+  const pay = (y: PlanYear, label: string, amount: number, season: Season) => {
+    if (!(amount > 0)) return;
+    y.programsBy[label] = (y.programsBy[label] ?? 0) + amount;
+    y.programs += amount;
+    y.flows[season].in += amount;
+  };
   for (let i = 0; i < n; i++) {
-    const y: PlanYear = { year: fields[0]?.[which][i]?.year ?? 0, acres: 0, revenue: 0, revenueBy: {}, programs: 0, costs: emptyCosts(), operating: 0, land: 0, net: 0, nLbs: 0, coverAcres: 0, flows: emptyFlows(), skipped: [] };
+    const y: PlanYear = { year: fields[0]?.[which][i]?.year ?? 0, acres: 0, revenue: 0, revenueBy: {}, programs: 0, programsBy: {}, costs: emptyCosts(), operating: 0, land: 0, net: 0, nLbs: 0, coverAcres: 0, flows: emptyFlows(), skipped: [] };
+    /** Cover crop acres this year that could get Iowa cost share, with their rate. */
+    const stateAcres: Array<{ acres: number; rate: number }> = [];
     for (const f of fields) {
       const season = f[which][i];
       if (!season) continue;
@@ -126,12 +152,26 @@ export function projectPlan(fields: FarmFieldInput[], which: PlanId, P: Params, 
       }
       y.nLbs += b.nLbs * a;
       y.coverAcres += b.coverAcres * a;
-      if (which === 'proposed' && eqipYears(f, P).has(season.year)) {
-        const pay = rate * a;
-        y.programs += pay;
-        y.flows.winter.in += pay;
+      // EQIP: new cover crop acres in the plan, up to the contract length; paid the winter after seeding.
+      if (program === 'eqip' && which === 'proposed' && eqipYears(f, P).has(season.year)) pay(y, PROGRAM_LABELS.eqip, eqipRate * a, 'winter');
+      if (program === 'state' && season.cover) {
+        const first = firstTimeFarm && which === 'proposed' && i === firstCoverYear;
+        stateAcres.push({ acres: a, rate: P.get(first ? 'state.coverFirstTime' : 'state.coverReturning') });
+      }
+      // Insurance discount: comes off the premium of the year after a fall cover crop, billed in summer.
+      if (program === 'insurance' && prev?.cover) pay(y, PROGRAM_LABELS.insurance, P.get('insurance.coverDiscount') * a, 'summer');
+    }
+    if (stateAcres.length) {
+      // Limited acres per farmer each year: the best-paying acres first.
+      let left = P.get('state.maxAcres');
+      for (const s of stateAcres.sort((p, q) => q.rate - p.rate)) {
+        const paid = Math.min(s.acres, Math.max(0, left));
+        left -= paid;
+        pay(y, PROGRAM_LABELS.state, paid * s.rate, 'winter');
       }
     }
+    // CSP: a whole-farm contract that comes with the PlotTwist plan, counted only in years with budgeted acres.
+    if (i < cspYears && y.acres > 0) pay(y, PROGRAM_LABELS.csp, P.get('csp.annual'), 'winter');
     y.operating = OPERATING_CATS.reduce((s, c) => s + y.costs[c], 0);
     y.land = y.costs.land;
     y.net = y.revenue + y.programs - y.operating - y.land;
@@ -175,8 +215,13 @@ export function partialBudget(current: PlanYear[], proposed: PlanYear[]): Partia
     if (d > 0.5) pb.addedRevenue.push({ label: `${k} sales`, amount: d });
     else if (d < -0.5) pb.reducedRevenue.push({ label: `${k} sales`, amount: -d });
   }
-  const programs = proposed.reduce((s, y) => s + y.programs, 0) - current.reduce((s, y) => s + y.programs, 0);
-  if (programs > 0.5) pb.addedRevenue.push({ label: 'Cost-share payments (EQIP)', amount: programs });
+  const progC = sum(current, (y) => y.programsBy);
+  const progP = sum(proposed, (y) => y.programsBy);
+  for (const k of new Set([...Object.keys(progC), ...Object.keys(progP)])) {
+    const d = (progP[k] ?? 0) - (progC[k] ?? 0);
+    if (d > 0.5) pb.addedRevenue.push({ label: k, amount: d });
+    else if (d < -0.5) pb.reducedRevenue.push({ label: k, amount: -d });
+  }
   for (const k of Object.keys(COST_LABELS) as CostCat[]) {
     const d = (costP[k] ?? 0) - (costC[k] ?? 0);
     if (d > 0.5) pb.addedCosts.push({ label: COST_LABELS[k], amount: d });
@@ -385,12 +430,34 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
   const costShare = proposed.reduce((s, y) => s + y.programs, 0);
   const coverAcres = Math.max(0, ...proposed.map((y) => y.coverAcres));
   const programs: ProgramNote[] = [];
-  if (coverAcres > 0) {
-    programs.push({
+  const program = opts.coverProgram ?? 'eqip';
+  // Rates for notes only: resolve() doesn't count them as used by the result.
+  const v = (id: string) => P.resolve(id).value;
+  const programAmount = (label: string) => proposed.reduce((s, y) => s + (y.programsBy[label] ?? 0), 0);
+  const COVER_NOTES: Record<Exclude<CoverProgram, 'none'>, ProgramNote> = {
+    eqip: {
       name: 'EQIP cover crop cost share (NRCS)',
-      text: `About $${P.get(opts.beginningFarmer ? 'eqip.coverBeginning' : 'eqip.cover').toFixed(2)} per acre per year for new cover crop acres, for up to ${P.get('eqip.years')} years. Apply at your local NRCS office before seeding; payment comes after the practice is checked.`,
-      amount: costShare,
-    });
+      text: `About $${v(opts.beginningFarmer ? 'eqip.coverBeginning' : 'eqip.cover').toFixed(2)} per acre per year for new cover crop acres, for up to ${v('eqip.years')} years. Apply at your local NRCS office before seeding; payment comes after the practice is checked.`,
+    },
+    state: {
+      name: 'Iowa cover crop cost share (IDALS)',
+      text: `$${v('state.coverFirstTime')} per acre for first-time cover crop users and $${v('state.coverReturning')} per acre for returning users, up to ${v('state.maxAcres')} acres a year (2025 rates). Sign up through your Soil and Water Conservation District.`,
+    },
+    insurance: {
+      name: 'Iowa crop insurance discount (IDALS)',
+      text: `$${v('insurance.coverDiscount')} per acre off next year’s crop insurance premium for fall-planted cover crops, with no acreage cap. Sign up with your crop insurance agent.`,
+    },
+  };
+  if (coverAcres > 0) {
+    if (program !== 'none') {
+      const label = PROGRAM_LABELS[program];
+      programs.push({ ...COVER_NOTES[program], name: `${COVER_NOTES[program].name}: counted`, amount: programAmount(label) });
+    }
+    for (const p of ['eqip', 'state', 'insurance'] as const) if (p !== program) programs.push(COVER_NOTES[p]);
+    programs.push({ name: 'Only one per acre', text: 'The same cover crop acres can’t get EQIP, Iowa cost share and the insurance discount at once. Choose the one PlotTwist counts under Your numbers → Programs and savings.' });
+  }
+  if (P.has('csp.annual')) {
+    programs.push({ name: 'CSP contract (NRCS)', text: `$${P.get('csp.annual').toLocaleString('en-US')} a year from your Conservation Stewardship Program contract, counted with the PlotTwist plan only. A contract you already have would be the same in both columns.`, amount: programAmount(PROGRAM_LABELS.csp) });
   }
   programs.push({ name: 'Beginning farmer rates', text: opts.beginningFarmer ? 'Included: as a beginning farmer you qualify for the higher (historically underserved) EQIP rate and can ask for an advance payment.' : 'If you have farmed 10 years or less, NRCS pays a higher EQIP rate. Tell PlotTwist in Farm details to include it.' });
   programs.push({ name: 'FSA microloans', text: `Operating microloans up to $${P.get('fsa.microloan').toLocaleString('en-US')} can cover the up-front cost of seed and equipment for a new practice.` });
@@ -417,7 +484,7 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
     partial: overall,
     cash: overall,
     risk: risk ? confidenceOf(P, pick(['risk.'])) : ('low' as Confidence),
-    savings: confidenceOf(P, pick(['eqip.', 'n.price', 'corn.nLbs', 'cover.legumeNCredit'])),
+    savings: confidenceOf(P, pick(['eqip.', 'state.', 'insurance.', 'csp.', 'n.price', 'corn.nLbs', 'cover.legumeNCredit'])),
     sensitivity: overall,
   };
 
@@ -430,7 +497,7 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
     partial: partialBudget(current, proposed),
     cash: cashFlow(current, proposed),
     risk,
-    savings: { nLbs: nC - nP, nDollars: (nC - nP) * P.get('n.price'), costShare, costShareTiming: costShare > 0 ? 'Paid after NRCS checks the practice, usually the winter after seeding.' : 'No new cover crop acres, so no cost share is counted.', programs },
+    savings: { nLbs: nC - nP, nDollars: (nC - nP) * P.get('n.price'), costShare, costShareTiming: costShare > 0 ? 'Cost share is paid after the practice is checked, usually the winter after seeding; an insurance discount comes off the next year’s premium.' : program === 'none' ? 'No cover crop program is counted (Your numbers → Programs and savings).' : 'No cover crop acres qualify, so no program money is counted.', programs },
     sensitivity: { rows, breakEven: breakEvens(fields, P) },
     transparency,
     confidence,

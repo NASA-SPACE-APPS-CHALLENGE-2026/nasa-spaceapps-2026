@@ -25,6 +25,9 @@ export const COST_LABELS: Record<CostCat, string> = {
   own: 'Costs you entered for your own crops',
 };
 
+/** Revenue line for grazing or harvesting a cover crop. */
+export const COVER_GRAZING = 'Cover crop grazing or forage';
+
 export const OPERATING_CATS: CostCat[] = ['seed', 'fertilizer', 'chemicals', 'insurance', 'machinery', 'labor', 'interest', 'cover', 'irrigation', 'other', 'own'];
 
 export function cropKeyOf(id: string): CropKey | null {
@@ -273,6 +276,11 @@ export function seasonBudget(season: SeasonPlan, prev: SeasonPlan | undefined, s
     coverAcres = 1;
     add('cover', 'fall', P.get('cover.seed') + (season.cover.legume ? P.get('cover.legumeSeedExtra') : 0) + P.get('cover.planting'));
     if (!season.cover.winterKills) add('cover', 'spring', P.get('cover.termination'));
+    // Grazing or forage value: only when the farmer entered one (no published default).
+    if (P.has('cover.grazing')) {
+      revenueBy[COVER_GRAZING] = (revenueBy[COVER_GRAZING] ?? 0) + P.get('cover.grazing');
+      revenueSeason[COVER_GRAZING] = 'fall';
+    }
   }
   if (setup.irrigated && yields.length) add('irrigation', 'summer', P.get('practice.irrigatedCost'));
 
