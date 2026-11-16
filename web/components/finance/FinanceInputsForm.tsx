@@ -2,7 +2,8 @@
 
 import { useId } from 'react';
 import { ASSUMPTION_BY_ID, ASSUMPTIONS, SOURCES, type Group } from '@/lib/domain/finance/assumptions';
-import type { CropKey, Tenure } from '@/lib/domain/finance/budget';
+import { OWN_BUDGET_FIELDS, ownBudgetId, type CropKey, type Tenure } from '@/lib/domain/finance/budget';
+import { cropName } from '@/lib/domain/rotation/agronomy';
 import { fieldAcres } from '@/lib/domain/finance/farm';
 import { NO_IMPORTS, type FieldFinance, type FinanceInputs, type ImportedFinance } from '@/lib/domain/finance/inputs';
 import Link from 'next/link';
@@ -26,9 +27,9 @@ const CROP_NAMES: Record<CropKey, string> = { corn: 'Corn', soybeans: 'Soybeans'
 const YIELD_UNITS: Record<CropKey, string> = { corn: 'bu/ac', soybeans: 'bu/ac', oats: 'bu/ac', wheat: 'bu/ac', rice: 'cwt/ac', sorghum: 'bu/ac', cotton: 'lb/ac' };
 const PRICE_UNITS: Record<CropKey, string> = { corn: '$/bu', soybeans: '$/bu', oats: '$/bu', wheat: '$/bu', rice: '$/cwt', sorghum: '$/bu', cotton: '$/lb' };
 
-function Group({ title, children, open = false, intro }: { title: string; children: React.ReactNode; open?: boolean; intro?: string }) {
+function Group({ title, children, open = false, intro, id }: { title: string; children: React.ReactNode; open?: boolean; intro?: string; id?: string }) {
   return (
-    <details open={open} className="group rounded-parcel border border-line bg-panel">
+    <details id={id} open={open} className="group scroll-mt-4 rounded-parcel border border-line bg-panel">
       <summary className="flex min-h-14 cursor-pointer items-center justify-between gap-2 px-4 font-plate text-lg [&::-webkit-details-marker]:hidden">
         {title}
         <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-ink-faint transition-transform group-open:rotate-90 motion-reduce:transition-none" aria-hidden>
@@ -48,7 +49,13 @@ const GRID = 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3';
 /** "Your records: yield-2025.csv" → "yield-2025.csv". */
 const fileOf = (imported: ImportedFinance, id: string) => imported.sources[id]?.name.replace(/^Your records: /, '') ?? 'your records';
 
-export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops, weather, onChange }: { inputs: FinanceInputs; imported?: ImportedFinance; fields: Field[]; crops: CropKey[]; weather?: WeatherHistory; onChange: (next: FinanceInputs) => void }) {
+const OWN_FIELD_TEXT = {
+  yield: { label: 'yield', unit: 'per acre', hint: 'In the unit you sell it by: bushels, tons, cwt, pounds…' },
+  price: { label: 'price', unit: '$ per unit', hint: 'What you expect to get for one unit of that yield.' },
+  cost: { label: 'operating costs', unit: '$/ac', hint: 'Seed, fertilizer, chemicals, fuel, repairs, labor and insurance. Enter land rent under Fields.' },
+} as const;
+
+export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops, ownCrops = [], weather, onChange }: { inputs: FinanceInputs; imported?: ImportedFinance; fields: Field[]; crops: CropKey[]; ownCrops?: string[]; weather?: WeatherHistory; onChange: (next: FinanceInputs) => void }) {
   const hasImports = Object.keys(imported.overrides).length > 0 || imported.lastYear.totalRevenue !== undefined || imported.lastYear.totalCosts !== undefined;
   const setOverride = (id: string, v: number | undefined) => {
     const overrides = { ...inputs.overrides };
@@ -116,6 +123,44 @@ export function FinanceInputsForm({ inputs, imported = NO_IMPORTS, fields, crops
           </div>
         </div>
       </Group>
+
+      {ownCrops.length > 0 && (
+        <Group
+          id="own-budgets"
+          title="Your own crop budgets"
+          open
+          intro="PlotTwist has no published budget for these crops, so Finance needs your numbers for them. Fill in all three boxes for each crop; they are used exactly as you enter them."
+        >
+          <div className="space-y-5" data-testid="own-budgets">
+            {ownCrops.map((id) => {
+              const name = cropName(id);
+              const missing = OWN_BUDGET_FIELDS.filter((f) => inputs.overrides[ownBudgetId(id, f)] === undefined).length;
+              return (
+                <div key={id}>
+                  <h3 className="mb-2 text-[15px] font-semibold">
+                    {name}
+                    {missing > 0 && <span className="ml-2 rounded-full bg-wheat-tint px-2 py-0.5 text-[13px] font-semibold text-wheat-deep">{missing === 3 ? 'Needs your numbers' : `${missing} more to fill in`}</span>}
+                  </h3>
+                  <div className={GRID}>
+                    {OWN_BUDGET_FIELDS.map((f) => (
+                      <NumberField
+                        key={f}
+                        label={`${name} ${OWN_FIELD_TEXT[f].label}`}
+                        unit={OWN_FIELD_TEXT[f].unit}
+                        value={inputs.overrides[ownBudgetId(id, f)]}
+                        min={0}
+                        hint={OWN_FIELD_TEXT[f].hint}
+                        onCommit={(v) => setOverride(ownBudgetId(id, f), v)}
+                        testId={`input-${ownBudgetId(id, f)}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Group>
+      )}
 
       <Group title="Fields" open intro="Acres come from the boundary you drew. Land is treated as fully owned unless you explicitly choose a rental arrangement. The rotation was read from the crops you entered.">
         <ul className="divide-y divide-line">

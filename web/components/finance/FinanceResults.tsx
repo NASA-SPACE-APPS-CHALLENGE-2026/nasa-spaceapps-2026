@@ -2,20 +2,27 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import type { FarmAnalysis, PartialLine, PlanYear } from '@/lib/domain/finance/analysis';
+import type { FarmAnalysis, PartialLine, PlanYear, SkippedSeason } from '@/lib/domain/finance/analysis';
 import type { WeatherState } from '@/lib/client/store';
+import { cropName } from '@/lib/domain/rotation/agronomy';
 import { Legend, money, PairColumns, PairLines, RangeRows, SERIES } from './charts';
 import { ConfidenceBadge, OriginBadge, Section, Segmented } from './ui';
 
 const perAcre = (y: PlanYear, v: number) => (y.acres ? v / y.acres : 0);
 const sum = (l: PartialLine[]) => l.reduce((s, x) => s + x.amount, 0);
 
+/** "over 5 years", or "over 3 of 5 seasons with budgets" when some seasons are left out. */
+const overSeasons = (a: FarmAnalysis) => (a.budgetedYears.length === a.years.length ? `${a.years.length} years` : `${a.budgetedYears.length} of ${a.years.length} seasons with budgets`);
+const noBudget = (y: PlanYear) => y.acres === 0 && y.skipped.length > 0;
+
 export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: boolean }) {
-  if (a.unmodeled.length > 0) return <IncompleteFinance a={a} compact={compact} />;
-  const { low, high, mid, wholeFarm, horizon } = a.headline;
+  if (!a.budgetedYears.length) return <IncompleteFinance a={a} compact={compact} />;
+  const { low, high, mid, wholeFarm } = a.headline;
   const tone = mid > 0.5 ? 'text-field' : mid < -0.5 ? 'text-alert' : 'text-ink';
   return (
-    <div className={`grid gap-3 ${compact ? '' : 'sm:grid-cols-2'}`} data-testid="finance-headline">
+    <>
+    {compact && a.skipped.length > 0 && <IncompleteFinance a={a} compact />}
+    <div className={`grid gap-3 ${compact ? 'mt-3' : 'sm:grid-cols-2'}`} data-testid="finance-headline">
       <div className="rounded-parcel border border-line bg-panel p-4">
         <p className="text-[14.5px] font-semibold text-ink-soft">Change in net return per acre, per year</p>
         <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>
@@ -24,32 +31,36 @@ export function Headline({ a, compact = false }: { a: FarmAnalysis; compact?: bo
         <p className="mt-1 text-[14px] text-ink-soft">Most likely {money(mid, { sign: true })} per acre per year with the PlotTwist plan.</p>
       </div>
       <div className="rounded-parcel border border-line bg-panel p-4">
-        <p className="text-[14.5px] font-semibold text-ink-soft">Whole farm over {horizon} years</p>
+        <p className="text-[14.5px] font-semibold text-ink-soft">Whole farm over {overSeasons(a)}</p>
         <p className={`mt-1 font-plate text-3xl tabular-nums ${tone}`}>{money(wholeFarm, { sign: true })}</p>
         <p className="mt-1 text-[14px] text-ink-soft">
           {a.acres.toLocaleString('en-US', { maximumFractionDigits: 1 })} acres, {a.years[0]}–{a.years[a.years.length - 1]}. <ConfidenceBadge c={a.confidence.headline} />
         </p>
       </div>
     </div>
+    </>
   );
 }
 
 export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { a: FarmAnalysis; weather: WeatherState | undefined; planned: number; fieldCount: number; lastYear?: { totalRevenue?: number; totalCosts?: number; fromRecords?: { revenue: boolean; costs: boolean } } }) {
   const [metric, setMetric] = useState<'net' | 'revenue'>('net');
+  // A year with no budgeted acres gets no bar (null), never a $0 or rent-only bar.
+  const value = (y: PlanYear) => (noBudget(y) ? null : metric === 'net' ? perAcre(y, y.net) : perAcre(y, y.revenue + y.programs));
   const cols = a.years.map((year, i) => ({
-    label: String(year),
-    current: metric === 'net' ? perAcre(a.current[i], a.current[i].net) : perAcre(a.current[i], a.current[i].revenue + a.current[i].programs),
-    proposed: metric === 'net' ? perAcre(a.proposed[i], a.proposed[i].net) : perAcre(a.proposed[i], a.proposed[i].revenue + a.proposed[i].programs),
+    label: noBudget(a.current[i]) ? `${year} · no budget` : String(year),
+    current: value(a.current[i]),
+    proposed: value(a.proposed[i]),
   }));
   const cum = a.cash.points.map((p) => ({ label: p.label, current: p.current.cumulative, proposed: p.proposed.cumulative }));
   const be = a.cash.breakEven;
 
-  if (a.unmodeled.length > 0) {
+  if (!a.budgetedYears.length) {
     return <IncompleteFinance a={a} />;
   }
 
   return (
     <div className="space-y-5">
+      {a.skipped.length > 0 && <IncompleteFinance a={a} />}
       {planned === 0 && (
         <p className="rounded-parcel border border-wheat/40 bg-wheat-tint px-4 py-3 text-[15px] text-wheat-deep">
           None of your fields has a plan yet, so both columns show your current rotation. <Link href="/rotation" className="font-semibold underline underline-offset-2">Make a plan in Rotation Explorer</Link>.
@@ -85,7 +96,7 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
               ))}
               <tr className="border-t-2 border-line-strong font-semibold">
                 <td className="py-2 pr-2" colSpan={5}>
-                  Total difference over {a.years.length} years
+                  Total difference over {overSeasons(a)}
                 </td>
                 <td className="pl-2 text-right">{money(a.headline.wholeFarm, { sign: true })}</td>
               </tr>
@@ -330,16 +341,44 @@ export function FinanceResults({ a, weather, planned, fieldCount, lastYear }: { 
   );
 }
 
+const listOf = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+const LINK = 'inline-flex min-h-10 items-center font-semibold text-sky-deep underline underline-offset-2';
+
+/** What a skipped season is missing, e.g. "no budget for Buckwheat" or "no crop entered". */
+const skipText = (s: SkippedSeason) => (s.reason === 'no-crop' ? 'no crop entered' : `no budget for ${listOf(s.crops.map(cropName))}`);
+
+/** The skipped seasons, grouped by field, each with a link to that field's crops. */
 function IncompleteFinance({ a, compact = false }: { a: FarmAnalysis; compact?: boolean }) {
+  const crops = a.needsBudget.map(cropName);
+  const byField = new Map<string, { name: string; lines: Map<string, number[]> }>();
+  for (const s of a.skipped) {
+    const f = byField.get(s.fieldId) ?? { name: s.fieldName, lines: new Map<string, number[]>() };
+    const text = skipText(s);
+    f.lines.set(text, [...(f.lines.get(text) ?? []), s.year]);
+    byField.set(s.fieldId, f);
+  }
+  const blocked = !a.budgetedYears.length;
   return (
-    <div className="rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint p-4" data-testid="finance-incomplete">
-      <p className="font-semibold text-wheat-deep">Financial projection needs complete crop data</p>
-      <p className="mt-1 text-[14.5px] text-ink-soft">
-        No estimate is shown for {a.unmodeled.join('; ')}. Add a supported crop budget before using the profit graphs; missing seasons are never replaced with rent or a placeholder value.
+    <div className="space-y-2 rounded-[var(--radius-panel)] border border-wheat/40 bg-wheat-tint p-4" data-testid="finance-incomplete">
+      <p className="font-semibold text-wheat-deep">{blocked ? 'Finance needs a few more numbers' : 'Some seasons are left out'}</p>
+      <ul className="space-y-1.5">
+        {[...byField].map(([id, f]) => (
+          <li key={id} className="text-[14.5px] text-ink-soft" data-testid={`skipped-${id}`}>
+            <strong className="text-ink">{f.name}:</strong> {[...f.lines].map(([text, years]) => `${text} in ${listOf(years.map(String))}`).join('; ')}.{' '}
+            {!compact && (
+              <Link href={`/fields?field=${encodeURIComponent(id)}`} className={LINK}>
+                Review {f.name}’s crops
+              </Link>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[14.5px] text-ink-soft">
+        {blocked ? 'No season has a crop budget yet, so there is nothing to project.' : 'These seasons are left out of both plans; every number below covers only the seasons that have budgets.'} Missing seasons are never filled in with rent or a placeholder value.
       </p>
-      {!compact && (
-        <Link href="/fields" className="mt-2 inline-flex min-h-10 items-center font-semibold text-sky-deep underline underline-offset-2">
-          Review crop history
+      {crops.length > 0 && (
+        <Link href="/finance?tab=inputs#own-budgets" className={LINK} data-testid="finance-enter-budgets">
+          Enter your own numbers for {listOf(crops)}
         </Link>
       )}
     </div>
@@ -366,6 +405,21 @@ function YearRows({ year, c, p }: { year: number; c: PlanYear; p: PlanYear }) {
       <td className="pl-2 text-right">{money(y.net)}</td>
     </tr>
   );
+  // Skipped seasons are the same in both plans, so either side's list describes the year.
+  const note = c.skipped.map((s) => `${skipText(s).replace(/^no/, 'No')} (${s.fieldName})`).join('; ');
+  if (noBudget(c)) {
+    return (
+      <tr className="border-t border-line text-ink-soft" data-testid={`year-skipped-${year}`}>
+        <th scope="row" className="py-2 pr-2 text-left align-top font-semibold text-ink">
+          {year}
+        </th>
+        <td className="px-2 py-2" colSpan={4}>
+          {note}. Not counted.
+        </td>
+        <td className="pl-2 text-right">—</td>
+      </tr>
+    );
+  }
   return (
     <>
       {row(p, 'proposed', true)}
@@ -377,6 +431,14 @@ function YearRows({ year, c, p }: { year: number; c: PlanYear; p: PlanYear }) {
         <td className="px-2 pb-2 text-right text-[13px] font-semibold">{money(perAcre(p, p.net) - perAcre(c, c.net), { sign: true })}</td>
         <td className="pl-2 pb-2 text-right text-[13px] font-semibold">{money(p.net - c.net, { sign: true })}</td>
       </tr>
+      {note && (
+        <tr className="text-ink-soft">
+          <td />
+          <td className="px-2 pb-2 text-[13px]" colSpan={5}>
+            {note}: not counted in this year.
+          </td>
+        </tr>
+      )}
     </>
   );
 }

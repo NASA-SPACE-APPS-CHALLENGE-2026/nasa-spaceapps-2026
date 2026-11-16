@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { setSeasonCrop } from '@/lib/domain/cropHistory';
 import { createField } from '@/lib/domain/field';
-import { analyzeFarm, cashFlow, partialBudget, projectPlan, type FarmFieldInput } from '@/lib/domain/finance/analysis';
+import { analyzeFarm, cashFlow, cropsWithoutBuiltInBudget, partialBudget, projectPlan, type FarmFieldInput } from '@/lib/domain/finance/analysis';
 import { ASSUMPTIONS, confidenceOf, Params } from '@/lib/domain/finance/assumptions';
 import { seasonBudget, type FieldSetup, type SeasonPlan } from '@/lib/domain/finance/budget';
 import { coverMonths, currentPlanSeasons, proposedPlanSeasons } from '@/lib/domain/finance/plans';
 import { buildParams, DEFAULT_FINANCE, parseFinance } from '@/lib/domain/finance/inputs';
 import { classifyYears } from '@/lib/domain/finance/weather';
 import { simulate } from '@/lib/domain/finance/simulate';
-import { fieldSetup, upcomingTasks } from '@/lib/domain/finance/farm';
+import { farmFieldInputs, fieldSetup, upcomingTasks } from '@/lib/domain/finance/farm';
 import { FarmStore } from '@/lib/client/store';
 import { createLocalRepositories } from '@/lib/repo/local';
 import { MemoryStorage } from '@/lib/repo/local/storage';
@@ -175,7 +175,7 @@ describe('whole-farm analysis', () => {
   });
 
   it('cash flow finds the break-even season and the deepest dip', () => {
-    const mk = (year: number, outs: number[], ins: number[]) => ({ year, acres: 1, revenue: 0, revenueBy: {}, programs: 0, costs: {} as never, operating: 0, land: 0, net: 0, nLbs: 0, coverAcres: 0, flows: { spring: { in: ins[0], out: outs[0] }, summer: { in: ins[1], out: outs[1] }, fall: { in: ins[2], out: outs[2] }, winter: { in: ins[3], out: outs[3] } } });
+    const mk = (year: number, outs: number[], ins: number[]) => ({ year, acres: 1, revenue: 0, revenueBy: {}, programs: 0, costs: {} as never, operating: 0, land: 0, net: 0, nLbs: 0, coverAcres: 0, flows: { spring: { in: ins[0], out: outs[0] }, summer: { in: ins[1], out: outs[1] }, fall: { in: ins[2], out: outs[2] }, winter: { in: ins[3], out: outs[3] } }, skipped: [] });
     const cur = [mk(2027, [100, 0, 0, 0], [0, 0, 200, 0]), mk(2028, [100, 0, 0, 0], [0, 0, 200, 0])];
     const pro = [mk(2027, [150, 0, 0, 0], [0, 0, 200, 0]), mk(2028, [100, 0, 0, 0], [0, 0, 260, 0])];
     const c = cashFlow(cur, pro);
@@ -184,10 +184,142 @@ describe('whole-farm analysis', () => {
     expect(partialBudget([], []).net).toBe(0);
   });
 
-  it('projects a field with no crop as zero revenue and no costs except rent', () => {
+  it('leaves a season with no crop out of both plans instead of charging rent for it', () => {
     const y = projectPlan([{ ...field(1), current: [{ year: 2027, crops: [] }] }], 'current', new Params(), { beginningFarmer: false });
-    expect(y[0].revenue).toBe(0);
-    expect(y[0].net).toBeCloseTo(-270, 6);
+    expect(y[0]).toMatchObject({ acres: 0, revenue: 0, net: 0 });
+    expect(y[0].costs.land).toBe(0);
+    expect(y[0].skipped).toEqual([{ fieldId: 'a', fieldName: 'North 40', year: 2027, reason: 'no-crop', crops: [] }]);
+  });
+});
+
+describe('a rotation with an unsupported crop (Buckwheat) degrades gracefully', () => {
+  // 2023 Millet, 2024 Buckwheat, 2025 Soybeans, 2026 Cotton: the rotation carried forward is Buckwheat → Soybeans → Cotton.
+  function buckwheatField(): Field {
+    const f = createField({ name: 'Field 1', geometry: AMES_FIELD, definedBy: 'polygon', now: NOW });
+    let c = f.crops;
+    c = setSeasonCrop(c, 2026, { kind: 'catalog', id: 'cotton' });
+    c = setSeasonCrop(c, 2025, { kind: 'catalog', id: 'soybeans' });
+    c = setSeasonCrop(c, 2024, { kind: 'catalog', id: 'buckwheat' });
+    c = setSeasonCrop(c, 2023, { kind: 'catalog', id: 'millet' });
+    return { ...f, crops: c };
+  }
+  const analyze = (horizon: 3 | 5, overrides: Record<string, number> = {}, plan?: Plan) => {
+    const finance = { ...DEFAULT_FINANCE, horizon, overrides };
+    return analyzeFarm(farmFieldInputs([buckwheatField()], plan ? [plan] : [], finance), buildParams(finance), { beginningFarmer: false });
+  };
+
+  it('5-year horizon: skips Buckwheat in 2027 and 2030 and shows the other three seasons', () => {
+    const a = analyze(5);
+    expect(a.years).toEqual([2027, 2028, 2029, 2030, 2031]);
+    expect(a.budgetedYears).toEqual([2028, 2029, 2031]);
+    expect(a.skipped.map((s) => [s.year, s.fieldName, s.reason, s.crops])).toEqual([
+      [2027, 'Field 1', 'no-budget', ['buckwheat']],
+      [2030, 'Field 1', 'no-budget', ['buckwheat']],
+    ]);
+    expect(a.needsBudget).toEqual(['buckwheat']);
+    for (const i of [0, 3]) {
+      // Never rent or a placeholder: nothing at all is counted for the skipped seasons.
+      for (const y of [a.current[i], a.proposed[i]]) expect(y).toMatchObject({ acres: 0, revenue: 0, operating: 0, land: 0, net: 0 });
+    }
+    for (const i of [1, 2, 4]) expect(a.current[i].acres).toBeGreaterThan(0);
+    // The headline averages only the budgeted seasons (no plan, so both sides match).
+    expect(a.headline.mid).toBeCloseTo(0, 6);
+    const cotton = a.current[2];
+    expect(cotton.revenueBy.Cotton).toBeGreaterThan(0);
+  });
+
+  it('3-year horizon: only 2027 is skipped', () => {
+    const a = analyze(3);
+    expect(a.years).toEqual([2027, 2028, 2029]);
+    expect(a.budgetedYears).toEqual([2028, 2029]);
+    expect(a.skipped.map((s) => s.year)).toEqual([2027]);
+  });
+
+  it('skips a season in both plans when only one side has no budget', () => {
+    const field = buckwheatField();
+    const plan: Plan = {
+      id: 'p1',
+      fieldId: field.id,
+      strategyId: 'custom',
+      name: 'Corn first',
+      createdAt: NOW.toISOString(),
+      updatedAt: NOW.toISOString(),
+      seasons: [2027, 2028, 2029].map((year) => ({ year, crop: { kind: 'catalog' as const, id: year === 2028 ? 'soybeans' : year === 2029 ? 'cotton' : 'corn' }, tasks: [] })),
+    };
+    const finance = { ...DEFAULT_FINANCE, horizon: 3 as const };
+    const fields = farmFieldInputs([field], [plan], finance);
+    expect(fields[0].proposed[0].crops).toEqual(['corn']);
+    const a = analyzeFarm(fields, buildParams(finance), { beginningFarmer: false });
+    // Corn in the plan would otherwise be compared against nothing in 2027.
+    expect(a.proposed[0]).toMatchObject({ acres: 0, net: 0 });
+    expect(a.current[0]).toMatchObject({ acres: 0, net: 0 });
+    expect(a.headline.wholeFarm).toBeCloseTo(0, 6);
+    expect(a.partial.addedRevenue.find((l) => l.label === 'Corn sales')).toBeUndefined();
+  });
+
+  it('counts Buckwheat once the farmer enters their own numbers', () => {
+    const a = analyze(5, { 'own.buckwheat.yield': 30, 'own.buckwheat.price': 12, 'own.buckwheat.cost': 250 });
+    expect(a.skipped).toEqual([]);
+    expect(a.budgetedYears).toHaveLength(5);
+    expect(a.current[0].revenueBy.Buckwheat).toBeCloseTo(360 * a.current[0].acres, 6);
+  });
+});
+
+describe('crops without a published budget', () => {
+  const alfalfaField: FarmFieldInput = {
+    id: 'a',
+    name: 'North 40',
+    setup: { acres: 10, tenure: 'own', irrigated: false },
+    thisSeason: corn(2026),
+    current: [soy(2027), { year: 2028, crops: ['alfalfa'] }, { year: 2029, crops: [] }],
+    proposed: [soy(2027), corn(2028), soy(2029)],
+  };
+  const ALFALFA = { 'own.alfalfa.yield': 4, 'own.alfalfa.price': 200, 'own.alfalfa.cost': 350 };
+
+  it('separates crops that need the farmer’s budget from seasons with no crop', () => {
+    const a = analyzeFarm([alfalfaField], new Params(), { beginningFarmer: false });
+    expect(a.needsBudget).toEqual(['alfalfa']);
+    expect(a.missingSeasons).toEqual(['North 40, 2029']);
+    expect(a.unmodeled).toEqual(['North 40, 2029: crop not entered', 'North 40, 2028: Alfalfa']);
+    expect(cropsWithoutBuiltInBudget([alfalfaField])).toEqual(['alfalfa']);
+  });
+
+  it('prices the crop from the farmer’s yield, price and cost once all three are entered', () => {
+    expect(seasonBudget({ year: 2028, crops: ['alfalfa'] }, undefined, ISU_RENT, buildParams({ ...DEFAULT_FINANCE, overrides: { 'own.alfalfa.yield': 4 } })).unmodeled).toEqual(['Alfalfa']);
+    const P = buildParams({ ...DEFAULT_FINANCE, overrides: ALFALFA });
+    const b = seasonBudget({ year: 2028, crops: ['alfalfa'] }, undefined, { acres: 1, tenure: 'own', irrigated: false }, P);
+    expect(b.unmodeled).toEqual([]);
+    expect(b.revenue).toBe(800);
+    expect(b.totalCost).toBeCloseTo(350, 6);
+    expect(b.costs.own).toBeCloseTo(350, 6);
+    expect(b.yields[0]).toMatchObject({ crop: 'alfalfa', bu: 4, price: 200, unit: 'unit' });
+  });
+
+  it('completes the farm analysis and reports the farmer’s numbers in the assumptions', () => {
+    const P = buildParams({ ...DEFAULT_FINANCE, overrides: ALFALFA });
+    const a = analyzeFarm([{ ...alfalfaField, current: [soy(2027), { year: 2028, crops: ['alfalfa'] }, soy(2029)] }], P, { beginningFarmer: false });
+    expect(a.unmodeled).toEqual([]);
+    expect(a.needsBudget).toEqual([]);
+    expect(a.current[1].revenueBy.Alfalfa).toBeCloseTo(8000, 6);
+    expect(a.transparency.find((t) => t.id === 'own.alfalfa.price')).toMatchObject({ label: 'Alfalfa price', value: 200, origin: 'farmer', confidence: 'high' });
+    expect(a.sensitivity.breakEven.find((b) => b.crop === 'Alfalfa')).toMatchObject({ breakEvenPrice: 87.5, unit: 'unit' });
+    // Price scenarios move the farmer's own prices too.
+    const down = a.sensitivity.rows.find((r) => r.label === 'Crop prices −20%')!;
+    const base = a.sensitivity.rows.find((r) => r.label === 'As entered')!;
+    expect(base.current - down.current).toBeGreaterThan(0);
+  });
+
+  it('treats a crop the farmer typed in as a crop, not an empty season', () => {
+    const f = createField({ name: 'Back 20', geometry: AMES_FIELD, definedBy: 'polygon', now: NOW });
+    let c = f.crops;
+    c = setSeasonCrop(c, 2026, { kind: 'other', text: 'Hemp' });
+    c = setSeasonCrop(c, 2025, { kind: 'catalog', id: 'corn' });
+    const seasons = currentPlanSeasons({ ...f, crops: c }, 3);
+    expect(seasons.map((s) => s.crops)).toEqual([['corn'], ['other:Hemp'], ['corn']]);
+    const P = buildParams({ ...DEFAULT_FINANCE, overrides: { 'own.other:Hemp.yield': 1000, 'own.other:Hemp.price': 0.5, 'own.other:Hemp.cost': 300 } });
+    const b = seasonBudget(seasons[1], seasons[0], { acres: 1, tenure: 'own', irrigated: false }, P);
+    expect(b.revenueBy.Hemp).toBe(500);
+    expect(b.unmodeled).toEqual([]);
   });
 });
 

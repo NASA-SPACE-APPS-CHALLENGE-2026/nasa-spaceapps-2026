@@ -7,7 +7,7 @@ import { ACTUAL_CATS, type Params } from './assumptions';
  */
 
 export type CropKey = 'corn' | 'soybeans' | 'oats' | 'wheat' | 'rice' | 'sorghum' | 'cotton';
-export type CostCat = 'seed' | 'fertilizer' | 'chemicals' | 'insurance' | 'machinery' | 'labor' | 'interest' | 'land' | 'cover' | 'irrigation' | 'other';
+export type CostCat = 'seed' | 'fertilizer' | 'chemicals' | 'insurance' | 'machinery' | 'labor' | 'interest' | 'land' | 'cover' | 'irrigation' | 'other' | 'own';
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 
 export const COST_LABELS: Record<CostCat, string> = {
@@ -22,9 +22,10 @@ export const COST_LABELS: Record<CostCat, string> = {
   cover: 'Cover crop seed, seeding and ending',
   irrigation: 'Irrigation',
   other: 'Miscellaneous',
+  own: 'Costs you entered for your own crops',
 };
 
-export const OPERATING_CATS: CostCat[] = ['seed', 'fertilizer', 'chemicals', 'insurance', 'machinery', 'labor', 'interest', 'cover', 'irrigation', 'other'];
+export const OPERATING_CATS: CostCat[] = ['seed', 'fertilizer', 'chemicals', 'insurance', 'machinery', 'labor', 'interest', 'cover', 'irrigation', 'other', 'own'];
 
 export function cropKeyOf(id: string): CropKey | null {
   if (id === 'corn') return 'corn';
@@ -35,6 +36,23 @@ export function cropKeyOf(id: string): CropKey | null {
   if (id === 'sorghum') return 'sorghum';
   if (id === 'cotton') return 'cotton';
   return null;
+}
+
+/**
+ * Crops PlotTwist has no published budget for (alfalfa, popcorn, a crop the farmer typed in…) are priced from
+ * three numbers the farmer enters: yield per acre, price per unit of yield, and operating cost per acre.
+ */
+export const OWN_BUDGET_FIELDS = ['yield', 'price', 'cost'] as const;
+export type OwnBudgetField = (typeof OWN_BUDGET_FIELDS)[number];
+export const ownBudgetId = (cropId: string, f: OwnBudgetField) => `own.${cropId}.${f}`;
+
+export function hasOwnBudget(cropId: string, P: Params): boolean {
+  return OWN_BUDGET_FIELDS.every((f) => P.has(ownBudgetId(cropId, f)));
+}
+
+/** True when the engine can put numbers on this crop: fallow, a built-in budget, or the farmer's own. */
+export function isBudgeted(cropId: string, P: Params): boolean {
+  return cropId === 'fallow' || !!cropKeyOf(cropId) || hasOwnBudget(cropId, P);
 }
 
 export interface PlanCoverCrop {
@@ -82,7 +100,8 @@ export interface CropYield {
   key: CropKey | null;
   bu: number;
   price: number;
-  unit: 'bu' | 'cwt' | 'lb';
+  /** 'unit' for the farmer's own budgets, whose yield unit PlotTwist does not know. */
+  unit: 'bu' | 'cwt' | 'lb' | 'unit';
 }
 
 export interface SeasonBudget {
@@ -107,7 +126,7 @@ export interface SeasonBudget {
 const VARIABLE_SHARE_OF_PRE_MACHINERY = 0.41; // ISU: variable $24.60 of $59.40 for corn, $26.60 of $64.20 for soybeans
 
 export function emptyCosts(): Record<CostCat, number> {
-  return { seed: 0, fertilizer: 0, chemicals: 0, insurance: 0, machinery: 0, labor: 0, interest: 0, land: 0, cover: 0, irrigation: 0, other: 0 };
+  return { seed: 0, fertilizer: 0, chemicals: 0, insurance: 0, machinery: 0, labor: 0, interest: 0, land: 0, cover: 0, irrigation: 0, other: 0, own: 0 };
 }
 
 export function seasonBudget(season: SeasonPlan, prev: SeasonPlan | undefined, setup: FieldSetup, P: Params, weather?: WeatherYear): SeasonBudget {
@@ -132,7 +151,20 @@ export function seasonBudget(season: SeasonPlan, prev: SeasonPlan | undefined, s
     const second = idx > 0; // second crop of a double crop: no extra land, lower yield
     if (id === 'fallow') return;
     if (!key) {
-      unmodeled.push(cropName(id));
+      if (!hasOwnBudget(id, P)) {
+        unmodeled.push(cropName(id));
+        return;
+      }
+      // The farmer's own numbers, used as entered: no rotation, weather or irrigation adjustments.
+      const bu = P.get(ownBudgetId(id, 'yield'));
+      const ownPrice = P.get(ownBudgetId(id, 'price'));
+      const cost = P.get(ownBudgetId(id, 'cost'));
+      add('own', 'spring', cost * 0.6);
+      add('own', 'fall', cost * 0.4);
+      const name = cropName(id);
+      revenueBy[name] = (revenueBy[name] ?? 0) + bu * ownPrice;
+      revenueSeason[name] = 'fall';
+      yields.push({ crop: id, key: null, bu, price: ownPrice, unit: 'unit' });
       return;
     }
     let yieldBu = 0;

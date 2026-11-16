@@ -4,6 +4,8 @@
  * Values were read from the sources on 2026-11-15. See docs/finance-defaults.md.
  */
 
+import { cropName } from '../rotation/agronomy';
+
 export type Confidence = 'high' | 'medium' | 'low';
 export type Origin = 'farmer' | 'default' | 'nasa' | 'import';
 
@@ -31,7 +33,7 @@ export const ACTUAL_CATS = ['seed', 'fertilizer', 'chemicals', 'insurance', 'mac
 export type ActualCat = (typeof ACTUAL_CATS)[number];
 const ACTUAL_LABELS: Record<ActualCat, string> = { seed: 'seed', fertilizer: 'fertilizer and lime', chemicals: 'herbicide and insecticide', insurance: 'crop insurance', machinery: 'machinery, fuel and repairs', labor: 'labor', other: 'miscellaneous costs' };
 
-export type Group = 'Yields and prices' | 'Corn costs' | 'Soybean costs' | 'Small grain costs' | 'Rice costs' | 'Sorghum costs' | 'Cotton costs' | 'Fertilizer prices' | 'Cover crops' | 'Land and money' | 'Programs' | 'Risk' | 'Practices' | 'Your records';
+export type Group = 'Yields and prices' | 'Corn costs' | 'Soybean costs' | 'Small grain costs' | 'Rice costs' | 'Sorghum costs' | 'Cotton costs' | 'Fertilizer prices' | 'Cover crops' | 'Land and money' | 'Programs' | 'Risk' | 'Practices' | 'Your records' | 'Your crop budgets';
 
 export interface Assumption {
   id: string;
@@ -200,6 +202,20 @@ export const ASSUMPTIONS: Assumption[] = [
 
 export const ASSUMPTION_BY_ID: Record<string, Assumption> = Object.fromEntries(ASSUMPTIONS.map((a) => [a.id, a]));
 
+/** own.<crop id>.yield|price|cost: the farmer's budget for a crop with no published one (see budget.ts). */
+const OWN_ID = /^own\.(.+)\.(yield|price|cost)$/;
+const OWN_LABELS = { yield: ['yield', 'units/ac'], price: ['price', '$/unit'], cost: ['operating costs', '$/ac'] } as const;
+
+/** The assumption behind an id, including the farmer's own crop budgets, which have no default. */
+export function assumptionFor(id: string): Assumption | undefined {
+  const a = ASSUMPTION_BY_ID[id];
+  if (a) return a;
+  const m = OWN_ID.exec(id);
+  if (!m) return undefined;
+  const [label, unit] = OWN_LABELS[m[2] as keyof typeof OWN_LABELS];
+  return { id, label: `${cropName(m[1])} ${label}`, group: 'Your crop budgets', value: 0, unit, source: { name: 'You entered', date: 'in PlotTwist' }, confidence: 'low' };
+}
+
 export interface Resolved {
   value: number;
   origin: Origin;
@@ -220,7 +236,7 @@ export class Params {
   ) {}
 
   get(id: string): number {
-    const a = ASSUMPTION_BY_ID[id];
+    const a = assumptionFor(id);
     if (!a) throw new Error(`Unknown finance assumption: ${id}`);
     this.used.add(id);
     const o = this.overrides[id];
@@ -234,10 +250,15 @@ export class Params {
   }
 
   resolve(id: string): Resolved {
-    const a = ASSUMPTION_BY_ID[id];
+    const a = assumptionFor(id)!;
     const o = this.overrides[id];
     const has = typeof o === 'number' && Number.isFinite(o);
     return { value: has ? o : a.value, origin: has ? (this.origins[id] ?? 'farmer') : 'default', assumption: a };
+  }
+
+  /** The farmer's own crop budget ids for one kind of number, e.g. every own.<crop>.price they entered. */
+  ownIds(kind: 'yield' | 'price' | 'cost'): string[] {
+    return Object.keys(this.overrides).filter((id) => this.has(id) && OWN_ID.exec(id)?.[2] === kind);
   }
 
   /** Source to show for a value: the published default, the farmer, or the imported file. */

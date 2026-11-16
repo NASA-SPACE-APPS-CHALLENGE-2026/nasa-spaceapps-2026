@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
+import { cropsWithoutBuiltInBudget } from '@/lib/domain/finance/analysis';
 import { cropKeyOf, type CropKey } from '@/lib/domain/finance/budget';
 import { farmFieldInputs } from '@/lib/domain/finance/farm';
 import { effectiveLastYear } from '@/lib/domain/finance/inputs';
@@ -24,13 +25,17 @@ export function FinanceScreen() {
   const tab = params.get('tab') === 'inputs' ? 'inputs' : 'results';
   const setTab = (t: 'results' | 'inputs') => router.replace(`${pathname}${t === 'inputs' ? '?tab=inputs' : ''}`, { scroll: false });
 
-  const crops = useMemo(() => {
+  const { crops, ownCrops } = useMemo(() => {
+    const inputs = farmFieldInputs(fields, plans, finance);
     const keys = new Set<CropKey>();
-    for (const f of farmFieldInputs(fields, plans, finance)) for (const s of [...f.current, ...f.proposed]) for (const id of s.crops) {
+    for (const f of inputs) for (const s of [...f.current, ...f.proposed]) for (const id of s.crops) {
       const k = cropKeyOf(id);
       if (k) keys.add(k);
     }
-    return (['corn', 'soybeans', 'oats', 'wheat', 'rice', 'sorghum', 'cotton'] as CropKey[]).filter((k) => keys.has(k));
+    return {
+      crops: (['corn', 'soybeans', 'oats', 'wheat', 'rice', 'sorghum', 'cotton'] as CropKey[]).filter((k) => keys.has(k)),
+      ownCrops: cropsWithoutBuiltInBudget(inputs),
+    };
   }, [fields, plans, finance]);
 
   return (
@@ -48,7 +53,7 @@ export function FinanceScreen() {
         ) : !fields.length || !analysis ? (
           <NoFieldsYet what="Finance" text="Finance compares your current rotation with your plans, so it needs at least one field." />
         ) : tab === 'inputs' ? (
-          <FinanceInputsForm inputs={finance} imported={imported} fields={fields} crops={crops} weather={weather?.status === 'ok' ? weather.history : undefined} onChange={(next) => void store.saveFinance(next)} />
+          <FinanceInputsForm inputs={finance} imported={imported} fields={fields} crops={crops} ownCrops={ownCrops} weather={weather?.status === 'ok' ? weather.history : undefined} onChange={(next) => void store.saveFinance(next)} />
         ) : (
           <FinanceResults a={analysis} weather={weather} planned={planned} fieldCount={fields.length} lastYear={effectiveLastYear(effective)} />
         )}

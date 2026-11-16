@@ -118,8 +118,11 @@ export function familyOf(id: string): Family | undefined {
   return AGRONOMY[id]?.family;
 }
 
+/** Prefix finance uses for a crop the farmer typed in themselves ("other:Hemp"). */
+export const OTHER_CROP_PREFIX = 'other:';
+
 export function cropName(id: string): string {
-  return catalogCrop(id)?.name ?? id;
+  return catalogCrop(id)?.name ?? (id.startsWith(OTHER_CROP_PREFIX) ? id.slice(OTHER_CROP_PREFIX.length) : id);
 }
 
 /** Shift spring planting and harvest a month earlier in the South (below 36° N). */

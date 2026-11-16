@@ -11,7 +11,11 @@ import {
   removeOldestSeason,
   setSeasonCrop,
 } from '@/lib/domain/cropHistory';
+import Link from 'next/link';
 import { isDemoField } from '@/lib/demo/demoFarm';
+import { cropKeyOf } from '@/lib/domain/finance/budget';
+import { financeCropIds } from '@/lib/domain/finance/plans';
+import { cropName } from '@/lib/domain/rotation/agronomy';
 import type { Field, FieldCrops, SeasonCrop } from '@/lib/domain/types';
 import { HonestyBadge } from '../ui/HonestyBadge';
 import { CropPicker } from './CropPicker';
@@ -153,6 +157,23 @@ function SeasonRow({ season, label, demo, onPick, onConfirm }: { season: SeasonC
         <p className="ml-[68px] mt-1 text-[13.5px] text-wheat-deep">USDA maps show this spot as {d.cdlName.toLowerCase()}, not cropland. Check that the boundary is on your field.</p>
       )}
       {season.status === 'confirmed' && season.origin === 'farmer' && <p className="ml-[68px] mt-1.5 text-[13.5px] text-ink-faint">{demo ? 'Example data (demo farm)' : 'You entered this'}</p>}
+      <NoBudgetNote season={season} />
     </div>
+  );
+}
+
+/** Tells the farmer when a crop has no Finance budget, so its seasons are left out of profit projections. */
+function NoBudgetNote({ season }: { season: SeasonCrop }) {
+  const ids = (financeCropIds(season.crop) ?? []).filter((id) => id !== 'fallow' && !cropKeyOf(id));
+  if (!ids.length) return null;
+  const names = ids.map(cropName).join(' and ');
+  return (
+    <p className="ml-[68px] mt-1.5 text-[13.5px] text-wheat-deep" data-testid={`no-budget-${season.year}`}>
+      Finance has no published budget for {names}. Profit projections leave this crop out unless you{' '}
+      <Link href="/finance?tab=inputs#own-budgets" className="font-semibold underline underline-offset-2">
+        enter your own numbers
+      </Link>
+      .
+    </p>
   );
 }

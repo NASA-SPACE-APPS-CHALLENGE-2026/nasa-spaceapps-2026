@@ -1,6 +1,6 @@
 import { cropName } from '../rotation/agronomy';
 import { confidenceOf, type Confidence, type Origin, type Params, type SourceRef } from './assumptions';
-import { COST_LABELS, cropKeyOf, emptyCosts, OPERATING_CATS, seasonBudget, type CostCat, type CropKey, type FieldSetup, type Season, type SeasonPlan, type WeatherYear } from './budget';
+import { COST_LABELS, cropKeyOf, emptyCosts, isBudgeted, OPERATING_CATS, seasonBudget, type CostCat, type CropKey, type FieldSetup, type Season, type SeasonPlan, type WeatherYear } from './budget';
 import type { WeatherHistory } from './weather';
 
 /**
@@ -41,6 +41,32 @@ export interface PlanYear {
   coverAcres: number;
   /** Money in and out by season of this year (whole farm). */
   flows: Record<Season, { in: number; out: number }>;
+  /** Field-seasons left out of this year in both plans because one side has no budget or no crop. */
+  skipped: SkippedSeason[];
+}
+
+/** A field-season the projection leaves out rather than filling in with rent or a placeholder. */
+export interface SkippedSeason {
+  fieldId: string;
+  fieldName: string;
+  year: number;
+  reason: 'no-budget' | 'no-crop';
+  /** Crop ids with no budget (empty when reason is 'no-crop'). */
+  crops: string[];
+}
+
+/**
+ * Why a field's season at this year index can't be compared, or null when both plans have budgeted crops.
+ * Checked on both plans, so a season is never compared against nothing.
+ */
+function skipReason(f: FarmFieldInput, i: number, P: Params): SkippedSeason | null {
+  const sides = [f.current[i], f.proposed[i]].filter((s): s is SeasonPlan => !!s);
+  if (!sides.length) return null;
+  const year = sides[0].year;
+  const crops = [...new Set(sides.flatMap((s) => s.crops.filter((id) => !isBudgeted(id, P))))];
+  if (crops.length) return { fieldId: f.id, fieldName: f.name, year, reason: 'no-budget', crops };
+  if (sides.some((s) => s.crops.length === 0)) return { fieldId: f.id, fieldName: f.name, year, reason: 'no-crop', crops: [] };
+  return null;
 }
 
 const SEASONS: Season[] = ['spring', 'summer', 'fall', 'winter'];
@@ -48,8 +74,10 @@ const PRICE_IDS = ['corn.price', 'soybeans.price', 'oats.price', 'wheat.price', 
 const YIELD_IDS = ['corn.yield', 'corn.yieldAfterCorn', 'soybeans.yield', 'oats.yield', 'wheat.yield', 'oats.strawTons', 'rice.yield', 'sorghum.yield', 'cotton.yield', 'cotton.seedYield'];
 const FERT_IDS = ['n.price', 'p.price', 'k.price', 'rice.fertilizerOther', 'sorghum.fertilizerOther', 'cotton.fertilizerOther'];
 
+/** Scale a set of values (plus the farmer's own crop prices or yields, when the set is prices or yields). */
 function scaled(P: Params, ids: string[], factor: number): Params {
-  return P.with(Object.fromEntries(ids.map((id) => [id, P.get(id) * factor])));
+  const own = ids === PRICE_IDS ? P.ownIds('price') : ids === YIELD_IDS ? P.ownIds('yield') : [];
+  return P.with(Object.fromEntries([...ids, ...own].map((id) => [id, P.get(id) * factor])));
 }
 
 function emptyFlows(): Record<Season, { in: number; out: number }> {
@@ -74,10 +102,15 @@ export function projectPlan(fields: FarmFieldInput[], which: PlanId, P: Params, 
   const rate = P.get(opts.beginningFarmer ? 'eqip.coverBeginning' : 'eqip.cover');
   const out: PlanYear[] = [];
   for (let i = 0; i < n; i++) {
-    const y: PlanYear = { year: fields[0]?.[which][i]?.year ?? 0, acres: 0, revenue: 0, revenueBy: {}, programs: 0, costs: emptyCosts(), operating: 0, land: 0, net: 0, nLbs: 0, coverAcres: 0, flows: emptyFlows() };
+    const y: PlanYear = { year: fields[0]?.[which][i]?.year ?? 0, acres: 0, revenue: 0, revenueBy: {}, programs: 0, costs: emptyCosts(), operating: 0, land: 0, net: 0, nLbs: 0, coverAcres: 0, flows: emptyFlows(), skipped: [] };
     for (const f of fields) {
       const season = f[which][i];
       if (!season) continue;
+      const skip = skipReason(f, i, P);
+      if (skip) {
+        y.skipped.push(skip);
+        continue;
+      }
       const prev = i === 0 ? f.thisSeason : f[which][i - 1];
       const a = f.setup.acres;
       const b = seasonBudget(season, prev, f.setup, i === 0 ? firstYearP : P, weatherFor?.(i));
@@ -107,7 +140,11 @@ export function projectPlan(fields: FarmFieldInput[], which: PlanId, P: Params, 
   return out;
 }
 
-const avgPerAcre = (years: PlanYear[]) => (years.length ? years.reduce((s, y) => s + (y.acres ? y.net / y.acres : 0), 0) / years.length : 0);
+/** Average net per acre over the years that have budgeted acres; skipped years don't count as $0. */
+const avgPerAcre = (years: PlanYear[]) => {
+  const counted = years.filter((y) => y.acres > 0);
+  return counted.length ? counted.reduce((s, y) => s + y.net / y.acres, 0) / counted.length : 0;
+};
 
 export interface PartialLine {
   label: string;
@@ -244,7 +281,7 @@ export interface BreakEven {
   breakEvenPrice: number;
   yieldBu: number;
   breakEvenYield: number;
-  unit: 'bu' | 'cwt' | 'lb';
+  unit: 'bu' | 'cwt' | 'lb' | 'unit';
 }
 
 export interface ProgramNote {
@@ -278,12 +315,28 @@ export interface FarmAnalysis {
   sensitivity: { rows: SensitivityRow[]; breakEven: BreakEven[] };
   transparency: TransparencyRow[];
   confidence: Record<'headline' | 'comparison' | 'partial' | 'cash' | 'risk' | 'savings' | 'sensitivity', Confidence>;
+  /** Everything that keeps the projection from being complete, as "Field, year: what" lines. */
   unmodeled: string[];
+  /** Crop ids in the rotations with no published budget and no budget from the farmer yet. */
+  needsBudget: string[];
+  /** "Field, year" lines for seasons with no crop entered. */
+  missingSeasons: string[];
+  /** Field-seasons left out of every number, in both plans. */
+  skipped: SkippedSeason[];
+  /** Years with at least one budgeted field; the rest show as "no budget". */
+  budgetedYears: number[];
+}
+
+/** Crop ids in any rotation that have no built-in budget (whether or not the farmer has entered their own). */
+export function cropsWithoutBuiltInBudget(fields: FarmFieldInput[]): string[] {
+  const ids = new Set<string>();
+  for (const f of fields) for (const s of [...f.current, ...f.proposed]) for (const id of s.crops) if (id !== 'fallow' && !cropKeyOf(id)) ids.add(id);
+  return [...ids];
 }
 
 function breakEvens(fields: FarmFieldInput[], P: Params): BreakEven[] {
   const keys = new Set<string>();
-  for (const f of fields) for (const s of [...f.current, ...f.proposed]) for (const id of s.crops) if (cropKeyOf(id)) keys.add(id);
+  for (const f of fields) for (const s of [...f.current, ...f.proposed]) for (const id of s.crops) if (id !== 'fallow' && isBudgeted(id, P)) keys.add(id);
   const setup = fields[0]?.setup ?? { acres: 1, tenure: 'own' as const, irrigated: false };
   return [...keys].map((id) => {
     const prev: SeasonPlan | undefined = id === 'corn' ? { year: 0, crops: ['soybeans'] } : id === 'soybeans' ? { year: 0, crops: ['corn'] } : undefined;
@@ -350,10 +403,14 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
   const all = [...P.used];
   const pick = (prefixes: string[]) => all.filter((id) => prefixes.some((p) => id.startsWith(p)));
   const overall = confidenceOf(P, all.filter((id) => !id.startsWith('risk.') && !id.startsWith('practice.') && !id.startsWith('fsa.')));
-  const unmodeled = [...new Set(fields.flatMap((f) => [...f.current, ...f.proposed].flatMap((s) => {
-    if (s.crops.length === 0) return [`${f.name}, ${s.year}: crop not entered`];
-    return s.crops.filter((id) => id !== 'fallow' && !cropKeyOf(id)).map((id) => `${f.name}, ${s.year}: ${cropName(id)}`);
-  })))];
+  const seasons = fields.flatMap((f) => [...f.current, ...f.proposed].map((s) => ({ f, s })));
+  const skipped = current.flatMap((y) => y.skipped);
+  const missingSeasons = skipped.filter((s) => s.reason === 'no-crop').map((s) => `${s.fieldName}, ${s.year}`);
+  const needsBudget = [...new Set(skipped.flatMap((s) => s.crops))];
+  const unmodeled = [
+    ...missingSeasons.map((x) => `${x}: crop not entered`),
+    ...new Set(seasons.flatMap(({ f, s }) => s.crops.filter((id) => !isBudgeted(id, P)).map((id) => `${f.name}, ${s.year}: ${cropName(id)}`))),
+  ];
   const confidence = {
     headline: overall,
     comparison: overall,
@@ -378,5 +435,9 @@ export function analyzeFarm(fields: FarmFieldInput[], P: Params, opts: AnalysisO
     transparency,
     confidence,
     unmodeled,
+    needsBudget,
+    missingSeasons,
+    skipped,
+    budgetedYears: current.filter((y) => y.acres > 0).map((y) => y.year),
   };
 }

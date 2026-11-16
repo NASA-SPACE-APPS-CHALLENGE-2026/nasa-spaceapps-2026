@@ -1,7 +1,7 @@
-import { cropIdsOf } from '../rotation/agronomy';
+import { cropIdsOf, OTHER_CROP_PREFIX } from '../rotation/agronomy';
 import { COVER_SPECIES } from '../rotation/coverCrops';
 import { detectCycle } from '../rotation/strategies';
-import type { Field, Plan, PlanSeason } from '../types';
+import type { CropRef, Field, Plan, PlanSeason } from '../types';
 import type { PlanCoverCrop, SeasonPlan } from './budget';
 
 /**
@@ -9,6 +9,17 @@ import type { PlanCoverCrop, SeasonPlan } from './budget';
  *   - "current": the rotation the farmer has been following, carried forward
  *   - "proposed": the PlotTwist schedule from the Planner
  */
+
+/**
+ * Crop ids as finance sees them. Unlike the rotation rubric, a crop the farmer typed in counts as a real crop
+ * ("other:Hemp"), so Finance can ask for its budget instead of reporting the season as empty.
+ */
+export function financeCropIds(ref: CropRef | null | undefined): string[] | null {
+  const ids = cropIdsOf(ref);
+  if (ids) return ids;
+  if (ref?.kind === 'other' && ref.text.trim()) return [`${OTHER_CROP_PREFIX}${ref.text.trim()}`];
+  return null;
+}
 
 export function coverOf(planCover: PlanSeason['cover']): PlanCoverCrop | undefined {
   if (!planCover) return undefined;
@@ -21,7 +32,7 @@ export function knownHistory(field: Field): Array<{ year: number; ids: string[] 
   return [...field.crops.history]
     .reverse()
     .concat(field.crops.current)
-    .map((s) => ({ year: s.year, ids: cropIdsOf(s.crop) }))
+    .map((s) => ({ year: s.year, ids: financeCropIds(s.crop) }))
     .filter((s): s is { year: number; ids: string[] } => !!s.ids && s.ids.length > 0);
 }
 
@@ -50,13 +61,13 @@ export function horizonYears(field: Field, horizon: number, startYear = firstPla
 
 /** The season before the plan starts (for rotation effects in the first plan year). */
 export function thisSeason(field: Field, startYear = firstPlanYear(field)): SeasonPlan {
-  if (startYear > field.crops.current.year) return { year: field.crops.current.year, crops: cropIdsOf(field.crops.current.crop) ?? [] };
+  if (startYear > field.crops.current.year) return { year: field.crops.current.year, crops: financeCropIds(field.crops.current.crop) ?? [] };
   const prev = field.crops.history.find((h) => h.year === startYear - 1);
-  return { year: startYear - 1, crops: cropIdsOf(prev?.crop) ?? [] };
+  return { year: startYear - 1, crops: financeCropIds(prev?.crop) ?? [] };
 }
 
 function currentCropIds(field: Field): string[] | null {
-  const ids = cropIdsOf(field.crops.current.crop);
+  const ids = financeCropIds(field.crops.current.crop);
   return ids && ids.length ? ids : null;
 }
 
@@ -78,7 +89,7 @@ export function proposedPlanSeasons(field: Field, plan: Plan | undefined, horizo
   if (!plan) return currentPlanSeasons(field, horizon, startYear);
   const planned = plan.seasons
     .filter((s) => s.year >= startYear)
-    .map((s) => ({ year: s.year, crops: cropIdsOf(s.crop) ?? [], cover: coverOf(s.cover) }))
+    .map((s) => ({ year: s.year, crops: financeCropIds(s.crop) ?? [], cover: coverOf(s.cover) }))
     .filter((s) => s.crops.length > 0);
   if (!planned.length) return currentPlanSeasons(field, horizon, startYear);
   const byYear = new Map(planned.map((s) => [s.year, s]));

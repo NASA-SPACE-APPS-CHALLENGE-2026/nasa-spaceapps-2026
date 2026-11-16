@@ -57,6 +57,18 @@ export function FieldsScreen() {
     }
   }, [params, loaded, fields, router]);
 
+  // Arrival from Finance ("Review Field 1's crops"): open that field, then clean the URL.
+  useEffect(() => {
+    const id = params.get('field');
+    if (!id || !loaded) return;
+    const f = fields.find((x) => x.id === id);
+    if (f) {
+      setView({ kind: 'field', id: f.id, edit: null });
+      setFocus({ key: `field-${Date.now()}`, kind: 'geometry', geometry: [f.feature.geometry] });
+    }
+    router.replace('/fields');
+  }, [params, loaded, fields, router]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 7000);

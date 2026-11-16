@@ -42,16 +42,18 @@ export function Legend({ items = [SERIES.proposed, SERIES.current] }: { items?: 
 
 interface TipPayload {
   dataKey?: string | number;
-  value?: number;
+  value?: number | null;
   color?: string;
 }
 
 function ChartTip({ active, payload, label, format }: { active?: boolean; payload?: TipPayload[]; label?: string | number; format: (v: number) => string }) {
   if (!active || !payload?.length) return null;
+  const shown = payload.filter((p) => p.value !== null && p.value !== undefined);
   return (
     <div className="rounded-parcel border border-line bg-panel px-3 py-2 text-[13.5px] shadow-md">
       <p className="font-semibold text-ink">{label}</p>
-      {payload.map((p) => {
+      {!shown.length && <p className="text-ink-soft">Not counted: no crop budget for this season.</p>}
+      {shown.map((p) => {
         const s = SERIES[p.dataKey as keyof typeof SERIES];
         return (
           <p key={String(p.dataKey)} className="flex items-center gap-2 text-ink-soft">
@@ -81,8 +83,9 @@ function RoundedBar(props: { x?: number; y?: number; width?: number; height?: nu
 
 export interface PairPoint {
   label: string;
-  current: number;
-  proposed: number;
+  /** null: no budget for this point, so nothing is drawn (never $0). */
+  current: number | null;
+  proposed: number | null;
 }
 
 /** Columns per year (or per row label) for the two plans. */

@@ -2,7 +2,7 @@ import { calendarFor, cropName } from '../rotation/agronomy';
 import type { Field, Plan } from '../types';
 import { cashFlow, projectPlan, type CashFlow, type FarmFieldInput, type PlanYear } from './analysis';
 import type { Params } from './assumptions';
-import { cropKeyOf, type CropKey, type SeasonPlan, type Tillage, type WeatherYear } from './budget';
+import { cropKeyOf, isBudgeted, type CropKey, type SeasonPlan, type Tillage, type WeatherYear } from './budget';
 import { fieldSetup } from './farm';
 import { buildParams, type FinanceInputs, type SimulatorInputs, type WeatherScenario } from './inputs';
 import { coverMonths, currentPlanSeasons, firstPlanYear, proposedPlanSeasons, thisSeason } from './plans';
@@ -108,7 +108,7 @@ export function simulate(field: Field, plan: Plan | undefined, finance: FinanceI
   const cash = cashFlow(yc, yp);
   const unmodeled = [...new Set([...current, ...proposed].flatMap((s) => {
     if (s.crops.length === 0) return [`${s.year}: crop not entered`];
-    return s.crops.filter((id) => id !== 'fallow' && !cropKeyOf(id)).map((id) => `${s.year}: ${cropName(id)}`);
+    return s.crops.filter((id) => !isBudgeted(id, P)).map((id) => `${s.year}: ${cropName(id)}`);
   }))];
 
   const pros: string[] = [];
